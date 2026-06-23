@@ -3,6 +3,7 @@
 //  LMS
 //
 //  Data model for the `loans` table.
+//  Tracks spread + base rate separately for floating-rate loans.
 //
 
 import Foundation
@@ -74,8 +75,16 @@ struct Loan: Codable, Identifiable, Hashable {
     var branchId: UUID?
     var loanNumber: String?
     var principalAmount: Double
+
+    // Interest rate breakdown
+    // For floating loans: interestRate = currentBaseRate + spread
+    // For fixed loans: interestRate stays constant, spread/base are recorded for audit
     var interestRate: Double
     var interestType: InterestType
+    var spread: Double                    // Bank's markup (stays constant for loan life)
+    var baseRateAtDisbursement: Double    // RBI rate when loan was given (audit snapshot)
+    var currentBaseRate: Double           // Current RBI rate applied (updated for floating)
+
     var tenureMonths: Int
     var processingFee: Double
     var totalPayable: Double
@@ -107,6 +116,9 @@ struct Loan: Codable, Identifiable, Hashable {
         case principalAmount = "principal_amount"
         case interestRate = "interest_rate"
         case interestType = "interest_type"
+        case spread
+        case baseRateAtDisbursement = "base_rate_at_disbursement"
+        case currentBaseRate = "current_base_rate"
         case tenureMonths = "tenure_months"
         case processingFee = "processing_fee"
         case totalPayable = "total_payable"
@@ -126,5 +138,26 @@ struct Loan: Codable, Identifiable, Hashable {
         case closedAt = "closed_at"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    // MARK: - Computed Properties
+
+    /// Whether this loan's rate changes with RBI repo rate
+    var isFloatingRate: Bool {
+        interestType == .floating
+    }
+
+    /// Formatted rate with type (e.g., "8.50% Floating (Spread: 2.00%)")
+    var formattedRate: String {
+        if isFloatingRate {
+            return String(format: "%.2f%% Floating (Spread: %.2f%%)", interestRate, spread)
+        }
+        return String(format: "%.2f%% %@", interestRate, interestType.displayName)
+    }
+
+    /// Rate breakdown for display
+    var rateBreakdown: String? {
+        guard isFloatingRate else { return nil }
+        return String(format: "Base: %.2f%% + Spread: %.2f%%", currentBaseRate, spread)
     }
 }
