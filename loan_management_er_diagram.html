@@ -1,0 +1,247 @@
+
+<style>
+#erd svg { width: 100%; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#2C2C2A' : '#F1EFE8',
+    primaryBorderColor: dark ? '#444441' : '#B4B2A9',
+  },
+});
+const diagram = `erDiagram
+  USERS {
+    uuid id PK
+    text full_name
+    text phone
+    text email
+    text role
+    text avatar_url
+    boolean is_active
+    timestamptz created_at
+  }
+
+  BORROWER_PROFILES {
+    uuid id PK
+    uuid user_id FK
+    text aadhaar_number
+    text pan_number
+    text address
+    text city
+    text state
+    text pincode
+    integer credit_score
+    text kyc_status
+    text employment_type
+    numeric monthly_income
+    timestamptz kyc_verified_at
+  }
+
+  STAFF_PROFILES {
+    uuid id PK
+    uuid user_id FK
+    text employee_id
+    text department
+    text designation
+    uuid branch_id FK
+    uuid manager_id FK
+  }
+
+  BRANCHES {
+    uuid id PK
+    text name
+    text city
+    text state
+    text address
+    boolean is_active
+  }
+
+  LOAN_PRODUCTS {
+    uuid id PK
+    text name
+    text type
+    numeric min_amount
+    numeric max_amount
+    integer min_tenure_months
+    integer max_tenure_months
+    numeric base_interest_rate
+    numeric processing_fee_pct
+    boolean is_active
+    jsonb eligibility_criteria
+  }
+
+  LOAN_APPLICATIONS {
+    uuid id PK
+    text application_number
+    uuid borrower_id FK
+    uuid loan_product_id FK
+    uuid assigned_officer_id FK
+    uuid branch_id FK
+    numeric requested_amount
+    integer requested_tenure_months
+    text purpose
+    text status
+    text rejection_reason
+    timestamptz submitted_at
+    timestamptz decided_at
+  }
+
+  LOANS {
+    uuid id PK
+    uuid application_id FK
+    uuid borrower_id FK
+    text loan_number
+    numeric principal_amount
+    numeric interest_rate
+    integer tenure_months
+    text status
+    numeric outstanding_balance
+    date disbursement_date
+    date maturity_date
+    text repayment_mode
+  }
+
+  EMI_SCHEDULE {
+    uuid id PK
+    uuid loan_id FK
+    integer installment_number
+    date due_date
+    numeric principal_component
+    numeric interest_component
+    numeric total_emi
+    numeric penalty_amount
+    text status
+  }
+
+  PAYMENTS {
+    uuid id PK
+    uuid loan_id FK
+    uuid emi_id FK
+    numeric amount
+    text payment_mode
+    text razorpay_payment_id
+    text razorpay_order_id
+    text status
+    timestamptz paid_at
+    text collected_by
+  }
+
+  DOCUMENTS {
+    uuid id PK
+    uuid owner_id FK
+    text owner_type
+    text document_type
+    text file_url
+    text file_name
+    bigint file_size_bytes
+    boolean is_verified
+    uuid verified_by FK
+    timestamptz verified_at
+    timestamptz expires_at
+  }
+
+  APPROVAL_HISTORY {
+    uuid id PK
+    uuid application_id FK
+    uuid actor_id FK
+    text action
+    text remarks
+    text from_status
+    text to_status
+    timestamptz actioned_at
+  }
+
+  MESSAGES {
+    uuid id PK
+    uuid application_id FK
+    uuid sender_id FK
+    uuid receiver_id FK
+    text content
+    boolean is_read
+    timestamptz sent_at
+  }
+
+  NOTIFICATIONS {
+    uuid id PK
+    uuid user_id FK
+    text type
+    text title
+    text body
+    jsonb payload
+    boolean is_read
+    timestamptz sent_at
+  }
+
+  AUDIT_LOG {
+    uuid id PK
+    uuid actor_id FK
+    text table_name
+    uuid record_id
+    text action
+    jsonb old_value
+    jsonb new_value
+    timestamptz created_at
+    text ip_address
+  }
+
+  USERS ||--o| BORROWER_PROFILES : "has"
+  USERS ||--o| STAFF_PROFILES : "has"
+  STAFF_PROFILES }o--|| BRANCHES : "belongs to"
+  STAFF_PROFILES }o--o| STAFF_PROFILES : "reports to"
+  LOAN_APPLICATIONS }o--|| BORROWER_PROFILES : "submitted by"
+  LOAN_APPLICATIONS }o--|| LOAN_PRODUCTS : "for product"
+  LOAN_APPLICATIONS }o--o| STAFF_PROFILES : "assigned to"
+  LOAN_APPLICATIONS }o--|| BRANCHES : "at branch"
+  LOANS ||--|| LOAN_APPLICATIONS : "created from"
+  LOANS }o--|| BORROWER_PROFILES : "belongs to"
+  EMI_SCHEDULE }o--|| LOANS : "for loan"
+  PAYMENTS }o--|| LOANS : "against loan"
+  PAYMENTS }o--o| EMI_SCHEDULE : "settles"
+  APPROVAL_HISTORY }o--|| LOAN_APPLICATIONS : "for application"
+  APPROVAL_HISTORY }o--|| USERS : "by actor"
+  MESSAGES }o--|| LOAN_APPLICATIONS : "about"
+  MESSAGES }o--|| USERS : "from sender"
+  MESSAGES }o--|| USERS : "to receiver"
+  NOTIFICATIONS }o--|| USERS : "sent to"
+  AUDIT_LOG }o--|| USERS : "by actor"
+  DOCUMENTS }o--o| USERS : "verified by"
+`;
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg .row-rect-odd path, #erd svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
