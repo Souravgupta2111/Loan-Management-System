@@ -676,6 +676,12 @@ Liquid Glass can be tinted to match section themes:
 │  │  │₹9,75K  │ │₹5,25K  │ │ 8.5%  │      ││
 │  │  │Paid    │ │Remain  │ │Rate   │      ││
 │  │  └────────┘ └────────┘ └────────┘      ││
+│  │                                         ││
+│  │  Rate Breakdown (floating loans only):  ││
+│  │  ┌─────────────────────────────────────┐││
+│  │  │ Base (RBI): 6.50%  Spread: 2.00%   │││
+│  │  │ Effective:  8.50%  Type: Floating   │││
+│  │  └─────────────────────────────────────┘││
 │  │   ↑ 3-column stat cards                ││
 │  │                                         ││
 │  │  LMS-LN-000421  ● Active               ││
@@ -747,7 +753,8 @@ Liquid Glass can be tinted to match section themes:
 │  ┌───────────────────┐ ┌───────────────────┐│
 │  │  🏠               │ │  🚗               ││
 │  │  Home Loan        │ │  Vehicle Loan     ││
-│  │  From 8.5%        │ │  From 9.2%        ││
+│  │  8.5% - 12.5%     │ │  9.2% - 14.0%     ││
+│  │  Fixed/Floating    │ │  Fixed/Reducing    ││
 │  │  ₹5L - ₹2Cr      │ │  ₹1L - ₹50L      ││
 │  └───────────────────┘ └───────────────────┘│
 │  ┌───────────────────┐ ┌───────────────────┐│
@@ -791,7 +798,9 @@ Liquid Glass can be tinted to match section themes:
 │                                             │
 │  ┌─────────────────────────────────────────┐│
 │  │  Estimated EMI: ₹14,250/mo              ││
-│  │  Interest Rate: 8.5% (reducing)         ││
+│  │  Interest Rate: 8.5% - 12.5%            ││
+│  │  Types: Fixed, Floating, Reducing        ││
+│  │  Spread: 2.00% over RBI base             ││
 │  │  Total Interest: ₹7,10,000              ││
 │  └─────────────────────────────────────────┘│
 │   ↑ Live calculation card with mint bg      │
@@ -835,7 +844,9 @@ Liquid Glass can be tinted to match section themes:
 │  │  Product        Home Loan               ││
 │  │  Amount         ₹10,00,000              ││
 │  │  Tenure         10 Years                ││
-│  │  Interest Rate  8.5% Reducing           ││
+│  │  Interest Rate  8.50% Floating          ││
+│  │  Breakdown      Base 6.50% + Spread 2.00%││
+│  │  Rate Range     8.50% - 12.50%           ││
 │  │  Monthly EMI    ₹14,250                 ││
 │  │  Purpose        Purchase residential... ││
 │  │  Documents      3 attached              ││
@@ -1155,7 +1166,8 @@ Identical structure to borrower login but with:
 │  │  Product       Home Loan                ││
 │  │  Amount        ₹15,00,000               ││
 │  │  Tenure        15 Years (180 months)    ││
-│  │  Interest      8.5% Reducing            ││
+│  │  Interest      8.50% Floating           ││
+│  │  Breakdown     Base 6.50% + Spread 2.00% ││
 │  │  EMI           ₹14,773/mo               ││
 │  │  Purpose       Purchase residential...  ││
 │  │                                         ││
@@ -1287,9 +1299,16 @@ Bottom action bar options for staff:
 
 **Admin-Only Screens (accessible from More):**
 
-- **System Settings:** Manage `system_configs` table (interest rate adjustments, penalty configs)
+- **System Settings:** Manage `system_configs` table (penalty configs, app-wide settings)
+- **RBI Rate Management:** Update RBI repo rate — triggers automatic recalculation of all active floating-rate loans via `update_floating_loan_rates()`. Shows current rate, last changed date, and count of affected loans before confirming.
 - **User Management:** View/edit staff profiles, assign roles, activate/deactivate
-- **Loan Products:** Create/edit loan products with all configurable fields (base rate, fees, tenure range, etc.)
+- **Loan Products:** Create/edit loan products with all configurable fields:
+  - Rate RANGE (min/max interest rate, not a single value)
+  - Multiple supported interest types per product (Fixed + Floating + Reducing)
+  - Spread over RBI base rate
+  - Processing fees, prepayment penalties, late penalties
+  - Amount range, tenure range, collateral requirement
+  - Eligibility criteria (JSONB), required documents (JSONB)
 
 ---
 
