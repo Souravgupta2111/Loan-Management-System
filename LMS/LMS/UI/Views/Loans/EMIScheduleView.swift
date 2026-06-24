@@ -9,6 +9,8 @@ struct EMIScheduleView: View {
     @State private var paymentError: String?
     @State private var emiList: [EMIDetail] = []
     @State private var isLoading = true
+    @State private var showRazorpaySheet = false
+    @State private var activeRazorpayOrder: RazorpayOrder? = nil
     
     var body: some View {
         NavigationStack {
@@ -65,9 +67,7 @@ struct EMIScheduleView: View {
                                     ForEach($emiList) { $emi in
                                         EMIRow(emi: emi, isProcessing: $isProcessingPayment) {
                                             Task {
-                                                isProcessingPayment = true
-                                                paymentError = PaymentServiceError.checkoutSDKNotIntegrated.localizedDescription
-                                                isProcessingPayment = false
+                                                await startPaymentFlow(for: emi)
                                             }
                                         }
                                     }
@@ -82,7 +82,80 @@ struct EMIScheduleView: View {
             .task {
                 await fetchEMIs()
             }
+            .sheet(isPresented: $showRazorpaySheet) {
+                if let order = activeRazorpayOrder {
+                    NavigationStack {
+                        RazorpayWebView(
+                            keyId: order.keyId,
+                            amountPaise: order.amountPaise,
+                            orderId: order.orderId,
+                            onSuccess: { paymentId, _, signature in
+                                showRazorpaySheet = false
+                                Task {
+                                    await confirmPayment(paymentRecordId: order.paymentRecordId, razorpayPaymentId: paymentId, razorpaySignature: signature)
+                                }
+                            },
+                            onFailure: { errorMsg in
+                                showRazorpaySheet = false
+                                paymentError = errorMsg
+                            },
+                            onCancel: {
+                                showRazorpaySheet = false
+                            }
+                        )
+                        .navigationTitle("Pay EMI")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Cancel") {
+                                    showRazorpaySheet = false
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+    
+    private func startPaymentFlow(for emi: EMIDetail) async {
+        isProcessingPayment = true
+        paymentError = nil
+        paymentSuccess = false
+        
+        do {
+            let order = try await PaymentService.shared.createOrder(emiId: emi.id, loanId: loanId)
+            activeRazorpayOrder = order
+            showRazorpaySheet = true
+        } catch {
+            paymentError = "Failed to initiate payment: \(error.localizedDescription)"
+        }
+        
+        isProcessingPayment = false
+    }
+    
+    private func confirmPayment(paymentRecordId: UUID, razorpayPaymentId: String, razorpaySignature: String) async {
+        isProcessingPayment = true
+        paymentError = nil
+        
+        do {
+            try await SupabaseManager.shared.client
+                .from("payments")
+                .update([
+                    "status": "confirmed",
+                    "razorpay_payment_id": razorpayPaymentId,
+                    "razorpay_signature": razorpaySignature
+                ])
+                .eq("id", value: paymentRecordId)
+                .execute()
+            
+            paymentSuccess = true
+            await fetchEMIs()
+        } catch {
+            paymentError = "Payment succeeded on Razorpay, but failed to record in system: \(error.localizedDescription)"
+        }
+        
+        isProcessingPayment = false
     }
     
     private func fetchEMIs() async {
