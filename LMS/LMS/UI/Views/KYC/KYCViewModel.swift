@@ -24,6 +24,7 @@ class KYCViewModel: ObservableObject {
     @Published var isOTPSent = false
     @Published var aadhaarOTP: String = ""
     @Published var aadhaarReferenceId: String? = nil
+    @Published var aadhaarVerifiedName: String? = nil
     
     @Published var addressProofData: Data? = nil
     @Published var selfieData: Data? = nil
@@ -107,6 +108,11 @@ class KYCViewModel: ObservableObject {
     // MARK: - Aadhaar Verification (2-step OTP)
     
     func sendAadhaarOTP() async {
+        guard isVerified else {
+            self.aadhaarErrorMessage = "Please verify your PAN Card first"
+            return
+        }
+        
         let normalizedAadhaar = aadhaarNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         guard normalizedAadhaar.count == 12, CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: normalizedAadhaar)) else {
             self.aadhaarErrorMessage = "Please enter a valid 12-digit Aadhaar Number"
@@ -150,6 +156,18 @@ class KYCViewModel: ObservableObject {
         do {
             let response = try await KYCService.shared.verifyAadhaarOTP(referenceId: refId, otp: trimmedOTP)
             if response.success {
+                self.aadhaarVerifiedName = response.name
+                
+                // Cross-check: PAN name vs Aadhaar name
+                if let aadhaarName = response.name, !aadhaarName.isEmpty {
+                    if !namesMatch(panName: fullName, aadhaarName: aadhaarName) {
+                        self.aadhaarErrorMessage = "Name mismatch: PAN name (\(fullName)) does not match Aadhaar name (\(aadhaarName)). Both must belong to the same person."
+                        self.isAadhaarVerified = false
+                        isAadhaarLoading = false
+                        return
+                    }
+                }
+                
                 self.aadhaarVerificationStatus = "Aadhaar Verified Successfully"
                 self.isAadhaarVerified = true
             } else {
@@ -208,5 +226,30 @@ class KYCViewModel: ObservableObject {
             errorMessage = "Failed to resubmit document. Please try again."
         }
         isLoading = false
+    }
+    
+    // MARK: - Name Matching Helper
+    
+    /// Compares PAN-verified name with Aadhaar-verified name using normalized word overlap.
+    /// Handles minor differences like middle names, initials, or ordering.
+    private func namesMatch(panName: String, aadhaarName: String) -> Bool {
+        let normalize: (String) -> Set<String> = { name in
+            Set(
+                name.lowercased()
+                    .components(separatedBy: .whitespacesAndNewlines)
+                    .map { $0.trimmingCharacters(in: .punctuationCharacters) }
+                    .filter { $0.count > 1 } // drop single-char initials
+            )
+        }
+        let panWords = normalize(panName)
+        let aadhaarWords = normalize(aadhaarName)
+        
+        guard !panWords.isEmpty, !aadhaarWords.isEmpty else { return false }
+        
+        let commonWords = panWords.intersection(aadhaarWords)
+        let minCount = min(panWords.count, aadhaarWords.count)
+        
+        // Require at least half the words in the shorter name to match
+        return Double(commonWords.count) / Double(minCount) >= 0.5
     }
 }
