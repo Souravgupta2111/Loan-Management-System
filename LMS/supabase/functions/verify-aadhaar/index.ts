@@ -60,7 +60,7 @@ Deno.serve(async (request) => {
       const refId = otpPayload.data?.reference_id ?? otpPayload.reference_id;
       return new Response(JSON.stringify({
         success: true,
-        reference_id: refId,
+        reference_id: refId ? String(refId) : undefined,
         message: "OTP sent to Aadhaar-linked mobile number",
       }), { status: 200, headers: jsonHeaders });
     }
@@ -76,7 +76,7 @@ Deno.serve(async (request) => {
         headers: commonHeaders,
         body: JSON.stringify({
           "@entity": "in.co.sandbox.kyc.aadhaar.okyc.request",
-          reference_id: reference_id,
+          reference_id: String(reference_id),
           otp: otp,
         }),
       });
