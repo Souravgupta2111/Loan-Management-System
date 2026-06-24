@@ -90,6 +90,13 @@ Deno.serve(async (request) => {
       }
 
       const result = verifyPayload.data ?? verifyPayload;
+      if (result.message) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: result.message,
+        }), { status: 200, headers: jsonHeaders });
+      }
+
       return new Response(JSON.stringify({
         success: true,
         status: "valid",
