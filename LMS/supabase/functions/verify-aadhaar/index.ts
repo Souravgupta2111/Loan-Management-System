@@ -90,7 +90,10 @@ Deno.serve(async (request) => {
       }
 
       const result = verifyPayload.data ?? verifyPayload;
-      if (result.message) {
+      const verifiedName = result.name ?? result.full_name;
+
+      // If there is no verified name data but a message exists, it's an error (e.g. "Invalid OTP")
+      if (!verifiedName && result.message) {
         return new Response(JSON.stringify({
           success: false,
           error: result.message,
@@ -100,7 +103,7 @@ Deno.serve(async (request) => {
       return new Response(JSON.stringify({
         success: true,
         status: "valid",
-        name: result.name ?? result.full_name ?? "",
+        name: verifiedName ?? "",
         aadhaar_last_four: result.aadhaar_number ?? "",
       }), { status: 200, headers: jsonHeaders });
     }
