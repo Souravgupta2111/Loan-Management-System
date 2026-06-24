@@ -15,7 +15,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1816A1FA2FEB0116003D9B88 /* Exceptions for "LMS" folder in "LMS" target */ = {
+		1816A1FA2FEB0116003D9B88 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -25,14 +25,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1819DACB2FE9A8D200822398 /* LMS */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				1816A1FA2FEB0116003D9B88 /* Exceptions for "LMS" folder in "LMS" target */,
-			);
-			path = LMS;
-			sourceTree = "<group>";
-		};
+		1819DACB2FE9A8D200822398 /* LMS */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (1816A1FA2FEB0116003D9B88 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = LMS; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +98,7 @@
 				};
 			};
 			buildConfigurationList = 1819DAC42FE9A8D200822398 /* Build configuration list for PBXProject "LMS" */;
+			compatibilityVersion = "Xcode 16.0.Superseded.1";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -116,7 +110,6 @@
 			packageReferences = (
 				70D5E6AD7B64DBF45D6E9150 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
-			preferredProjectObjectVersion = 70;
 			productRefGroup = 1819DACA2FE9A8D200822398 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
