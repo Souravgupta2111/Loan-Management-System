@@ -43,10 +43,6 @@ final class SupabaseManager {
         client.auth
     }
 
-    var database: PostgrestClient {
-        client.database
-    }
-
     var storage: SupabaseStorageClient {
         client.storage
     }
