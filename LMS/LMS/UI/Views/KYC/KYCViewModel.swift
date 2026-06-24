@@ -10,19 +10,31 @@ class KYCViewModel: ObservableObject {
     @Published var fullName: String = ""
     @Published var dob: String = ""
     
-    @Published var isLoading = false
-    @Published var verificationStatus: String? = nil
-    @Published var errorMessage: String? = nil
+    // --- PAN separate states ---
+    @Published var isPANLoading = false
+    @Published var panVerificationStatus: String? = nil
+    @Published var panErrorMessage: String? = nil
+    @Published var isVerified = false  // PAN verified
+    
+    // --- Aadhaar separate states ---
+    @Published var isAadhaarLoading = false
+    @Published var aadhaarVerificationStatus: String? = nil
+    @Published var aadhaarErrorMessage: String? = nil
+    @Published var isAadhaarVerified = false
+    @Published var isOTPSent = false
+    @Published var aadhaarOTP: String = ""
+    @Published var aadhaarReferenceId: String? = nil
     
     @Published var addressProofData: Data? = nil
     @Published var selfieData: Data? = nil
     
-    @Published var isVerified = false
-    @Published var isAadhaarVerified = false
-    @Published var aadhaarVerificationStatus: String? = nil
     @Published var isSubmittingFullKYC = false
     @Published var kycStatus = "pending"
-    @Published var rejectedDocuments: [String: String] = [:] // Document Type -> Reason
+    @Published var rejectedDocuments: [String: String] = [:]
+    
+    // Legacy — used by rejected docs resubmission only
+    @Published var isLoading = false
+    @Published var errorMessage: String? = nil
 
     func refreshKYCStatus() async {
         guard let userId = SupabaseManager.shared.currentUserId else { return }
@@ -60,66 +72,102 @@ class KYCViewModel: ObservableObject {
         }
     }
     
+    // MARK: - PAN Verification
+    
     func verifyPAN() async {
         let normalizedPAN = panNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let panPattern = "^[A-Z]{5}[0-9]{4}[A-Z]$"
         guard normalizedPAN.range(of: panPattern, options: .regularExpression) != nil,
               fullName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2,
               dob.range(of: "^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/([0-9]{4})$", options: .regularExpression) != nil else {
-            self.errorMessage = "Enter a valid PAN, full name, and DOB in DD/MM/YYYY format"
+            self.panErrorMessage = "Enter a valid PAN, full name, and DOB in DD/MM/YYYY format"
             return
         }
         
-        isLoading = true
-        errorMessage = nil
+        isPANLoading = true
+        panErrorMessage = nil
         
         do {
             let response = try await KYCService.shared.verifyPAN(normalizedPAN, name: fullName, dob: dob)
             if response.status.lowercased() == "valid" && response.nameAsPerPanMatch && response.dateOfBirthMatch {
                 panNumber = normalizedPAN
-                self.verificationStatus = "PAN Verified Successfully"
+                self.panVerificationStatus = "PAN Verified Successfully"
                 self.isVerified = true
             } else {
-                self.errorMessage = "PAN details could not be verified (Status: \(response.status))"
+                self.panErrorMessage = "PAN details could not be verified (Status: \(response.status))"
             }
         } catch {
             print("PAN Verification Error: \(error)")
-            self.errorMessage = "Failed to verify PAN. Backend error: \(error.localizedDescription)"
+            self.panErrorMessage = "Failed to verify PAN. Backend error: \(error.localizedDescription)"
         }
         
-        isLoading = false
+        isPANLoading = false
     }
     
-    func verifyAadhaar() async {
+    // MARK: - Aadhaar Verification (2-step OTP)
+    
+    func sendAadhaarOTP() async {
         let normalizedAadhaar = aadhaarNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         guard normalizedAadhaar.count == 12, CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: normalizedAadhaar)) else {
-            self.errorMessage = "Please enter a valid 12-digit Aadhaar Number"
+            self.aadhaarErrorMessage = "Please enter a valid 12-digit Aadhaar Number"
             return
         }
         
-        isLoading = true
-        errorMessage = nil
+        isAadhaarLoading = true
+        aadhaarErrorMessage = nil
         
         do {
-            let response = try await KYCService.shared.verifyAadhaar(normalizedAadhaar)
-            if response.status.lowercased() == "valid" || response.status.lowercased() == "success" {
-                self.aadhaarNumber = normalizedAadhaar
+            let response = try await KYCService.shared.generateAadhaarOTP(normalizedAadhaar)
+            if response.success, let refId = response.referenceId {
+                self.aadhaarReferenceId = refId
+                self.isOTPSent = true
+                self.aadhaarVerificationStatus = "OTP sent to your Aadhaar-linked mobile"
+            } else {
+                self.aadhaarErrorMessage = response.error ?? "Failed to send OTP"
+            }
+        } catch {
+            print("Aadhaar OTP Error: \(error)")
+            self.aadhaarErrorMessage = "Failed to send OTP. \(error.localizedDescription)"
+        }
+        
+        isAadhaarLoading = false
+    }
+    
+    func verifyAadhaarOTP() async {
+        guard let refId = aadhaarReferenceId else {
+            self.aadhaarErrorMessage = "No OTP session found. Please send OTP again."
+            return
+        }
+        let trimmedOTP = aadhaarOTP.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedOTP.count == 6, CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: trimmedOTP)) else {
+            self.aadhaarErrorMessage = "Please enter the 6-digit OTP"
+            return
+        }
+        
+        isAadhaarLoading = true
+        aadhaarErrorMessage = nil
+        
+        do {
+            let response = try await KYCService.shared.verifyAadhaarOTP(referenceId: refId, otp: trimmedOTP)
+            if response.success {
                 self.aadhaarVerificationStatus = "Aadhaar Verified Successfully"
                 self.isAadhaarVerified = true
             } else {
-                self.errorMessage = "Aadhaar details could not be verified (Status: \(response.status))"
+                self.aadhaarErrorMessage = response.error ?? "OTP verification failed"
             }
         } catch {
-            print("Aadhaar Verification Error: \(error)")
-            self.errorMessage = "Failed to verify Aadhaar. Backend error: \(error.localizedDescription)"
+            print("Aadhaar Verify OTP Error: \(error)")
+            self.aadhaarErrorMessage = "Failed to verify OTP. \(error.localizedDescription)"
         }
         
-        isLoading = false
+        isAadhaarLoading = false
     }
+    
+    // MARK: - Submit Full KYC
     
     func submitFullKYC(authViewModel: AuthViewModel) async {
         guard isAadhaarVerified else {
-            self.errorMessage = "Please verify your Aadhaar Number first"
+            self.aadhaarErrorMessage = "Please verify your Aadhaar Number first"
             return
         }
         
@@ -133,7 +181,6 @@ class KYCViewModel: ObservableObject {
         
         do {
             if let userId = SupabaseManager.shared.currentUserId {
-                // Upload real documents
                 let addressPath = try await KYCService.shared.uploadDocument(data: addressData, type: "address_proof", userId: userId.uuidString)
                 try await KYCService.shared.recordDocument(userId: userId, type: "address_proof", storagePath: addressPath, byteCount: addressData.count)
                 let selfiePath = try await KYCService.shared.uploadDocument(data: selfie, type: "selfie", userId: userId.uuidString)
@@ -156,7 +203,6 @@ class KYCViewModel: ObservableObject {
         errorMessage = nil
         do {
             try await KYCService.shared.resubmitDocument(userId: userId, type: type, data: data)
-            // Refresh status after successful resubmission
             await refreshKYCStatus()
         } catch {
             errorMessage = "Failed to resubmit document. Please try again."

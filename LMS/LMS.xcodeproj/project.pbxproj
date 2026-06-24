@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -96,11 +96,11 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2700;
-				LastUpgradeCheck = 2700;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					1819DAC82FE9A8D200822398 = {
-						CreatedOnToolsVersion = 27.0;
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -116,7 +116,7 @@
 			packageReferences = (
 				70D5E6AD7B64DBF45D6E9150 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 70;
 			productRefGroup = 1819DACA2FE9A8D200822398 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";

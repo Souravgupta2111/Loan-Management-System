@@ -115,34 +115,32 @@ struct KYCDashboardView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                             }
                             
-                            if let status = viewModel.verificationStatus {
+                            if let status = viewModel.panVerificationStatus {
                                 Text(status)
                                     .font(.caption)
                                     .foregroundColor(.accentGreen)
                                     .padding(.top, Spacing.xs)
                             }
                             
-                            if let error = viewModel.errorMessage {
+                            if let error = viewModel.panErrorMessage {
                                 Text(error)
                                     .font(.caption)
                                     .foregroundColor(.accentRed)
                                     .padding(.top, Spacing.xs)
                             }
                             
-                            if viewModel.isLoading {
+                            if viewModel.isPANLoading {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                                     .padding(.top, Spacing.md)
-                            } else {
+                            } else if !viewModel.isVerified {
                                 PillButton(
-                                    title: viewModel.isVerified ? "Continue" : "Verify PAN",
-                                    style: viewModel.isVerified ? .primary : .outline,
-                                    icon: viewModel.isVerified ? "checkmark.seal.fill" : "doc.text.viewfinder"
+                                    title: "Verify PAN",
+                                    style: .outline,
+                                    icon: "doc.text.viewfinder"
                                 ) {
-                                    if !viewModel.isVerified {
-                                        Task {
-                                            await viewModel.verifyPAN()
-                                        }
+                                    Task {
+                                        await viewModel.verifyPAN()
                                     }
                                 }
                                 .padding(.top, Spacing.md)
@@ -154,18 +152,32 @@ struct KYCDashboardView: View {
                         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
                         
                         if viewModel.isVerified {
-                            // Phase 2 of KYC: Aadhaar Verification & Documents
+                            // Phase 2 of KYC: Aadhaar Verification (OTP Flow)
                             VStack(spacing: Spacing.xl) {
                                 Text("Aadhaar Verification")
                                     .font(.cardTitle)
                                     .foregroundColor(.textPrimary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                TextField("Aadhaar Number (12 digits)", text: $viewModel.aadhaarNumber)
-                                    .keyboardType(.numberPad)
-                                    .padding(Spacing.md)
-                                    .background(Color.surfaceMuted)
-                                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                                if !viewModel.isOTPSent {
+                                    // Step 1: Enter Aadhaar and send OTP
+                                    TextField("Aadhaar Number (12 digits)", text: $viewModel.aadhaarNumber)
+                                        .keyboardType(.numberPad)
+                                        .padding(Spacing.md)
+                                        .background(Color.surfaceMuted)
+                                        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                                } else if !viewModel.isAadhaarVerified {
+                                    // Step 2: Enter OTP
+                                    Text("Enter the OTP sent to your Aadhaar-linked mobile")
+                                        .font(.bodyRegular)
+                                        .foregroundColor(.textSecondary)
+                                    
+                                    TextField("6-digit OTP", text: $viewModel.aadhaarOTP)
+                                        .keyboardType(.numberPad)
+                                        .padding(Spacing.md)
+                                        .background(Color.surfaceMuted)
+                                        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                                }
                                 
                                 if let status = viewModel.aadhaarVerificationStatus {
                                     Text(status)
@@ -174,17 +186,51 @@ struct KYCDashboardView: View {
                                         .padding(.top, Spacing.xs)
                                 }
                                 
-                                if !viewModel.isAadhaarVerified {
-                                    PillButton(
-                                        title: "Verify Aadhaar",
-                                        style: .outline,
-                                        icon: "doc.text.viewfinder"
-                                    ) {
-                                        Task {
-                                            await viewModel.verifyAadhaar()
+                                if let error = viewModel.aadhaarErrorMessage {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.accentRed)
+                                        .padding(.top, Spacing.xs)
+                                }
+                                
+                                if viewModel.isAadhaarLoading {
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.top, Spacing.md)
+                                } else if !viewModel.isAadhaarVerified {
+                                    if !viewModel.isOTPSent {
+                                        PillButton(
+                                            title: "Send OTP",
+                                            style: .outline,
+                                            icon: "paperplane.fill"
+                                        ) {
+                                            Task {
+                                                await viewModel.sendAadhaarOTP()
+                                            }
                                         }
+                                        .padding(.top, Spacing.md)
+                                    } else {
+                                        VStack(spacing: Spacing.sm) {
+                                            PillButton(
+                                                title: "Verify OTP",
+                                                style: .primary,
+                                                icon: "checkmark.shield.fill"
+                                            ) {
+                                                Task {
+                                                    await viewModel.verifyAadhaarOTP()
+                                                }
+                                            }
+                                            
+                                            Button("Resend OTP") {
+                                                Task {
+                                                    await viewModel.sendAadhaarOTP()
+                                                }
+                                            }
+                                            .font(.caption)
+                                            .foregroundColor(.textSecondary)
+                                        }
+                                        .padding(.top, Spacing.md)
                                     }
-                                    .padding(.top, Spacing.md)
                                 }
                             }
                             .padding(Spacing.xl)

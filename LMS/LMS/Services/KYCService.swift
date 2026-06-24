@@ -14,9 +14,30 @@ struct PANVerificationResponse: Codable {
     }
 }
 
-struct AadhaarVerificationResponse: Codable {
-    let aadhaar: String
-    let status: String
+struct AadhaarOTPResponse: Codable {
+    let success: Bool
+    let referenceId: String?
+    let message: String?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case referenceId = "reference_id"
+        case message, error
+    }
+}
+
+struct AadhaarVerifyOTPResponse: Codable {
+    let success: Bool
+    let status: String?
+    let name: String?
+    let aadhaarLastFour: String?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success, status, name, error
+        case aadhaarLastFour = "aadhaar_last_four"
+    }
 }
 
 @MainActor
@@ -34,11 +55,21 @@ class KYCService {
         )
     }
 
-    func verifyAadhaar(_ aadhaar: String) async throws -> AadhaarVerificationResponse {
-        struct Request: Encodable { let aadhaar: String }
+    /// Step 1: Send OTP to user's Aadhaar-linked mobile
+    func generateAadhaarOTP(_ aadhaar: String) async throws -> AadhaarOTPResponse {
+        struct Request: Encodable { let action: String; let aadhaar: String }
         return try await SupabaseManager.shared.client.functions.invoke(
             "verify-aadhaar",
-            options: FunctionInvokeOptions(body: Request(aadhaar: aadhaar))
+            options: FunctionInvokeOptions(body: Request(action: "generate_otp", aadhaar: aadhaar))
+        )
+    }
+
+    /// Step 2: Verify the OTP and complete e-KYC
+    func verifyAadhaarOTP(referenceId: String, otp: String) async throws -> AadhaarVerifyOTPResponse {
+        struct Request: Encodable { let action: String; let reference_id: String; let otp: String }
+        return try await SupabaseManager.shared.client.functions.invoke(
+            "verify-aadhaar",
+            options: FunctionInvokeOptions(body: Request(action: "verify_otp", reference_id: referenceId, otp: otp))
         )
     }
     
