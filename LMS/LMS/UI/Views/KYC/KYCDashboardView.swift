@@ -284,6 +284,23 @@ struct KYCDashboardView: View {
             }
             .navigationTitle("KYC Setup")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if viewModel.isLoading {
+                        ProgressView()
+                    } else {
+                        Button(action: {
+                            Task {
+                                await viewModel.skipKYC(authViewModel: authViewModel)
+                            }
+                        }) {
+                            Text("Skip KYC")
+                                .font(.bodyLarge)
+                                .foregroundColor(.accentGreen)
+                        }
+                    }
+                }
+            }
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.isVerified)
             .task {
                 while !Task.isCancelled {

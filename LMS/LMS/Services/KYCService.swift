@@ -88,17 +88,41 @@ class KYCService {
         return filePath
     }
     
-    /// Updates the KYC status in the database
+    /// Updates the KYC status in the database, inserting the profile if it doesn't exist
     func updateKYCStatus(userId: UUID, status: String) async throws {
-        struct KYCUpdate: Encodable {
-            let kyc_status: String
+        struct ProfileRow: Decodable {
+            let user_id: UUID
+            enum CodingKeys: String, CodingKey {
+                case user_id = "user_id"
+            }
         }
         
-        try await SupabaseManager.shared.client
+        let existing: [ProfileRow] = try await SupabaseManager.shared.client
             .from("borrower_profiles")
-            .update(KYCUpdate(kyc_status: status))
+            .select("user_id")
             .eq("user_id", value: userId)
             .execute()
+            .value
+            
+        if existing.isEmpty {
+            struct KYCInsert: Encodable {
+                let user_id: UUID
+                let kyc_status: String
+            }
+            try await SupabaseManager.shared.client
+                .from("borrower_profiles")
+                .insert(KYCInsert(user_id: userId, kyc_status: status))
+                .execute()
+        } else {
+            struct KYCUpdate: Encodable {
+                let kyc_status: String
+            }
+            try await SupabaseManager.shared.client
+                .from("borrower_profiles")
+                .update(KYCUpdate(kyc_status: status))
+                .eq("user_id", value: userId)
+                .execute()
+        }
     }
 
     func recordDocument(userId: UUID, type: String, storagePath: String, byteCount: Int) async throws {
