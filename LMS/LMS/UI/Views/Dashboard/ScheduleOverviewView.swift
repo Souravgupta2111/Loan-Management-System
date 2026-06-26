@@ -1,37 +1,74 @@
 import SwiftUI
 import Auth
 
+// MARK: - ScheduleOverviewView
+
 struct ScheduleOverviewView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
+
+    // Raw data from backend
     @State private var loans: [LoanListItem] = []
     @State private var isLoading = true
+
+    // Calendar state — offset in months from "today's month"
+    @State private var monthOffset: Int = 0
+
+    // Selected date — always resets to today when view appears
+    @State private var selectedDate: Date = Calendar.current.startOfDay(for: Date())
+
+    // Date picker sheet
+    @State private var showDatePicker: Bool = false
+    @State private var pickerDate: Date = Calendar.current.startOfDay(for: Date())
+
+    // MARK: - Computed helpers
+
+    private var calendar: Calendar { Calendar.current }
+
+    /// The month being displayed, derived from today + offset
+    private var displayedMonth: Date {
+        calendar.date(byAdding: .month, value: monthOffset, to: Date()) ?? Date()
+    }
+
+    /// All EMI items keyed by calendar day
+    private var emisByDate: [Date: [CalendarEMIEntry]] {
+        var map: [Date: [CalendarEMIEntry]] = [:]
+        for loan in loans {
+            guard loan.status.lowercased() == "active" else { continue }
+            if let rawDate = loan.nextDueDate,
+               let dueDate = LoansListView.parseDateString(rawDate) {
+                let day = calendar.startOfDay(for: dueDate)
+                let isOverdue = day < calendar.startOfDay(for: Date())
+                let entry = CalendarEMIEntry(
+                    loanName: loan.name,
+                    loanType: loan.loanType,
+                    loanNumber: loan.loanNumber,
+                    emiAmount: loan.emiAmount,
+                    dueDate: dueDate,
+                    isPaid: false,
+                    isOverdue: isOverdue
+                )
+                map[day, default: []].append(entry)
+            }
+        }
+        return map
+    }
+
+    /// EMI entries for the currently selected date
+    private var selectedDateEMIs: [CalendarEMIEntry] {
+        emisByDate[calendar.startOfDay(for: selectedDate)] ?? []
+    }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    headerCard
-
-                    if isLoading {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
-                    } else if scheduleItems.isEmpty {
-                        emptyState
-                    } else {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(scheduleItems) { item in
-                                NavigationLink {
-                                    LoanDetailView(loan: item.loan)
-                                } label: {
-                                    scheduleRow(item)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 16) {
+                    calendarCard
+                    selectedDateSection
                 }
-                .padding(20)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
                 .padding(.bottom, 100)
             }
             .background(
@@ -42,138 +79,498 @@ struct ScheduleOverviewView: View {
                 )
                 .ignoresSafeArea()
             )
-            .navigationTitle("Schedule")
+            .navigationTitle("EMI Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            .task {
-                await loadLoans()
+            // ── Bar button: calendar jump picker ─────────────────────────
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        pickerDate = selectedDate
+                        showDatePicker = true
+                    } label: {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                    }
+                }
             }
-            .refreshable {
-                await loadLoans()
+            // ── Sheet: full date / month / year picker ────────────────────
+            .sheet(isPresented: $showDatePicker) {
+                DateJumpSheet(pickerDate: $pickerDate) { chosen in
+                    jumpToDate(chosen)
+                }
             }
+            .task { await loadLoans() }
+            .refreshable { await loadLoans() }
+            // Reset to today whenever this tab is re-visited
+            .onAppear { resetToToday() }
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
                 Task { await loadLoans() }
             }
         }
     }
 
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Upcoming Schedule")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
+    // MARK: - Reset to today
 
-            Text("Track the next due dates for each active loan.")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.textSecondary)
+    private func resetToToday() {
+        let today = calendar.startOfDay(for: Date())
+        selectedDate = today
+        monthOffset  = 0
+    }
+
+    // MARK: - Jump to a chosen date
+
+    private func jumpToDate(_ date: Date) {
+        let today = calendar.startOfDay(for: Date())
+        // Calculate how many months away the target is from today's base
+        let targetComponents = calendar.dateComponents([.year, .month], from: today)
+        let chosenComponents = calendar.dateComponents([.year, .month], from: date)
+        let yearDiff  = (chosenComponents.year  ?? 0) - (targetComponents.year  ?? 0)
+        let monthDiff = (chosenComponents.month ?? 0) - (targetComponents.month ?? 0)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            monthOffset  = yearDiff * 12 + monthDiff
+            selectedDate = calendar.startOfDay(for: date)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color.white.opacity(0.78))
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+    }
+
+    // MARK: - Calendar Card
+
+    private var calendarCard: some View {
+        VStack(spacing: 0) {
+            monthHeader
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+
+            Divider()
+                .background(Color.black.opacity(0.06))
+
+            weekdayLabelsRow
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+            } else {
+                dateGrid
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 14)
+            }
+        }
+        .liquidGlass(cornerRadius: 28)
+        .gesture(
+            DragGesture(minimumDistance: 40, coordinateSpace: .local)
+                .onEnded { value in
+                    if value.translation.width < -40 {
+                        withAnimation(.easeInOut(duration: 0.25)) { monthOffset += 1 }
+                    } else if value.translation.width > 40 {
+                        withAnimation(.easeInOut(duration: 0.25)) { monthOffset -= 1 }
+                    }
+                }
         )
     }
 
-    private var scheduleItems: [ScheduleItem] {
-        loans
-            .compactMap { loan -> ScheduleItem? in
-                guard let due = loan.nextDueDate,
-                      let dueDate = LoansListView.parseDateString(due) else { return nil }
-                return ScheduleItem(loan: loan, dueDate: dueDate)
+    // MARK: Month header
+
+    private var monthHeader: some View {
+        HStack {
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) { monthOffset -= 1 }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .frame(width: 34, height: 34)
+                    .background(Color(hex: "#E8F5EC"))
+                    .clipShape(Circle())
             }
-            .sorted { $0.dueDate < $1.dueDate }
+
+            Spacer()
+
+            Text(monthYearString(displayedMonth))
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundColor(Color(hex: "#1A1A1A"))
+
+            Spacer()
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) { monthOffset += 1 }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .frame(width: 34, height: 34)
+                    .background(Color(hex: "#E8F5EC"))
+                    .clipShape(Circle())
+            }
+        }
     }
 
-    private func scheduleRow(_ item: ScheduleItem) -> some View {
-        let overdue = item.dueDate < Calendar.current.startOfDay(for: Date())
-        return HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#EEF4EA"))
-                Image(systemName: item.loan.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.accentGreen)
+    // MARK: Weekday labels
+
+    private var weekdayLabelsRow: some View {
+        let symbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return HStack(spacing: 0) {
+            ForEach(symbols, id: \.self) { sym in
+                Text(sym)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "#9E9E9E"))
+                    .frame(maxWidth: .infinity)
             }
-            .frame(width: 46, height: 46)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.loan.name)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(2)
+    // MARK: Date grid
 
-                Text(item.loan.loanType.capitalized)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.textSecondary)
+    private var dateGrid: some View {
+        let days         = daysInMonth(displayedMonth)
+        let firstWeekday = weekdayIndex(of: days.first ?? Date())
+        let totalCells   = firstWeekday + days.count
+        let rows         = Int(ceil(Double(totalCells) / 7.0))
+
+        return VStack(spacing: 4) {
+            ForEach(0..<rows, id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { col in
+                        let cellIndex = row * 7 + col
+                        let dayIndex  = cellIndex - firstWeekday
+                        if dayIndex >= 0 && dayIndex < days.count {
+                            dayCell(days[dayIndex])
+                        } else {
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .frame(height: cellHeight)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Single day cell
+
+    private func dayCell(_ date: Date) -> some View {
+        let today      = calendar.startOfDay(for: Date())
+        let thisDay    = calendar.startOfDay(for: date)
+        let isToday    = thisDay == today
+        let isSelected = thisDay == calendar.startOfDay(for: selectedDate)
+        let emis       = emisByDate[thisDay] ?? []
+        let hasPaid    = emis.contains { $0.isPaid }
+        let hasUnpaid  = emis.contains { !$0.isPaid }
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.18)) { selectedDate = date }
+        } label: {
+            VStack(spacing: 3) {
+                ZStack {
+                    if isSelected {
+                        Circle()
+                            .fill(Color(hex: "#2D8B4E"))
+                            .frame(width: 34, height: 34)
+                    } else if isToday {
+                        Circle()
+                            .fill(Color(hex: "#E8F5EC"))
+                            .frame(width: 34, height: 34)
+                    }
+                    Text("\(calendar.component(.day, from: date))")
+                        .font(.system(size: 15,
+                                      weight: isToday || isSelected ? .bold : .regular,
+                                      design: .rounded))
+                        .foregroundColor(
+                            isSelected ? .white :
+                            isToday    ? Color(hex: "#2D8B4E") :
+                                         Color(hex: "#1A1A1A")
+                        )
+                }
+                .frame(width: 34, height: 34)
+
+                HStack(spacing: 3) {
+                    if hasPaid {
+                        Circle().fill(Color(hex: "#2D8B4E")).frame(width: 5, height: 5)
+                    }
+                    if hasUnpaid {
+                        Circle().fill(Color(hex: "#D94040")).frame(width: 5, height: 5)
+                    }
+                    if emis.isEmpty {
+                        Circle().fill(Color.clear).frame(width: 5, height: 5)
+                    }
+                }
+                .frame(height: 6)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: cellHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var cellHeight: CGFloat { 52 }
+
+    // MARK: - Selected Date Section
+
+    private var selectedDateSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
+                Text(sectionDateLabel(selectedDate))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "#6B6B6B"))
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+                Spacer()
+                Text(selectedDateEMIs.isEmpty
+                     ? "No EMIs"
+                     : "\(selectedDateEMIs.count) EMI\(selectedDateEMIs.count > 1 ? "s" : "")")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color(hex: "#9E9E9E"))
+            }
+            .padding(.horizontal, 4)
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else if selectedDateEMIs.isEmpty {
+                emptyDateState
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(selectedDateEMIs) { emiDetailRow($0) }
+                }
+            }
+        }
+    }
+
+    private var emptyDateState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.system(size: 34))
+                .foregroundColor(Color(hex: "#C8E6D0"))
+            Text("No EMIs on this date")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(Color(hex: "#1A1A1A"))
+            Text("Tap any highlighted date to view EMI details.")
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "#6B6B6B"))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 20)
+        .liquidGlass(cornerRadius: 24)
+    }
+
+    private func emiDetailRow(_ entry: CalendarEMIEntry) -> some View {
+        let accentColor: Color = entry.isPaid   ? Color(hex: "#2D8B4E")
+                               : entry.isOverdue ? Color(hex: "#D94040")
+                               :                   Color(hex: "#E8A830")
+        let bgColor: Color     = entry.isPaid   ? Color(hex: "#E8F5EC")
+                               : entry.isOverdue ? Color(hex: "#FDE8E8")
+                               :                   Color(hex: "#FFF3D6")
+        let statusText = entry.isPaid ? "Paid" : entry.isOverdue ? "Overdue" : "Upcoming"
+        let statusIcon = entry.isPaid ? "checkmark.circle.fill"
+                       : entry.isOverdue ? "exclamationmark.triangle.fill"
+                       : "clock.fill"
+
+        return HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(accentColor)
+                .frame(width: 4)
+                .padding(.vertical, 4)
+
+            ZStack {
+                Circle().fill(bgColor).frame(width: 42, height: 42)
+                Image(systemName: loanIcon(entry.loanType))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(accentColor)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entry.loanName)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    .lineLimit(1)
+                Text(entry.loanNumber)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(Color(hex: "#9E9E9E"))
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(overdue ? "Overdue" : "Due")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(overdue ? .accentRed : .accentGreen)
-
-                Text(formattedDate(item.dueDate))
+                Text("₹\(formatAmount(entry.emiAmount))")
                     .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color(hex: "#1A1A1A"))
+                HStack(spacing: 3) {
+                    Image(systemName: statusIcon).font(.system(size: 10, weight: .bold))
+                    Text(statusText).font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(bgColor)
+                .clipShape(Capsule())
             }
         }
-        .padding(16)
-        .background(Color.white.opacity(0.82))
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .liquidGlass(
+            cornerRadius: 22,
+            borderColor: accentColor,
+            borderOpacity: 0.22,
+            shadowOpacity: 0.05,
+            shadowRadius: 12,
+            shadowY: 6
         )
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 40))
-                .foregroundColor(.accentGreen)
-            Text("No upcoming schedule")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            Text("Once loans are active, their next due dates will appear here.")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(Color.white.opacity(0.78))
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
-        )
-    }
+    // MARK: - Data Loading
 
     private func loadLoans() async {
         isLoading = true
         defer { isLoading = false }
-
         do {
             guard let userId = authViewModel.currentUser?.id else { return }
             loans = try await LoanService.shared.fetchDetailedUserLoans(userId: userId)
         } catch {
-            print("Failed to load schedule loans: \(error)")
+            print("ScheduleOverviewView: failed to load loans: \(error)")
         }
     }
 
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+    // MARK: - Calendar Helpers
+
+    private func daysInMonth(_ month: Date) -> [Date] {
+        guard
+            let range    = calendar.range(of: .day, in: .month, for: month),
+            let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: month))
+        else { return [] }
+        return range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: firstDay) }
+    }
+
+    private func weekdayIndex(of date: Date) -> Int {
+        calendar.component(.weekday, from: date) - 1   // 0 = Sun … 6 = Sat
+    }
+
+    private func monthYearString(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: date)
+    }
+
+    private func sectionDateLabel(_ date: Date) -> String {
+        let today    = calendar.startOfDay(for: Date())
+        let thisDay  = calendar.startOfDay(for: date)
+        if thisDay == today { return "Today" }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        if thisDay == calendar.startOfDay(for: tomorrow) { return "Tomorrow" }
+        let f = DateFormatter(); f.dateFormat = "EEEE, d MMM yyyy"; return f.string(from: date)
+    }
+
+    private func loanIcon(_ loanType: String) -> String {
+        switch loanType.lowercased() {
+        case "home":        return "house.fill"
+        case "vehicle":     return "car.fill"
+        case "business":    return "building.2.fill"
+        case "education":   return "graduationcap.fill"
+        case "gold":        return "sparkles"
+        case "agriculture": return "leaf.fill"
+        default:            return "indianrupeesign.circle.fill"
+        }
+    }
+
+    private func formatAmount(_ value: Double) -> String {
+        if value >= 1_00_000 { return String(format: "%.1fL", value / 1_00_000) }
+        if value >= 1_000    { return String(format: "%.1fK", value / 1_000) }
+        return String(format: "%.0f", value)
     }
 }
 
-private struct ScheduleItem: Identifiable {
-    let id = UUID()
-    let loan: LoanListItem
-    let dueDate: Date
+// MARK: - DateJumpSheet
+
+/// Bottom sheet that lets the user pick any date (day + month + year) and jump to it.
+private struct DateJumpSheet: View {
+    @Binding var pickerDate: Date
+    @Environment(\.dismiss) private var dismiss
+    let onConfirm: (Date) -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Hint row
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "#2D8B4E"))
+                    Text("Pick a date to jump to")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color(hex: "#6B6B6B"))
+                }
+                .padding(.top, 6)
+                .padding(.bottom, 4)
+
+                // Native wheel picker — shows Day / Month / Year wheels
+                DatePicker(
+                    "",
+                    selection: $pickerDate,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .padding(.horizontal, 8)
+
+                Divider().padding(.horizontal, 24)
+
+                // Go button
+                Button {
+                    onConfirm(pickerDate)
+                    dismiss()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("Go to \(shortLabel(pickerDate))")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color(hex: "#2D8B4E"))
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
+            }
+            .background(Color(hex: "#F5F5F0").ignoresSafeArea())
+            .navigationTitle("Jump to Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(Color(hex: "#2D8B4E"))
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationCornerRadius(28)
+        .presentationDragIndicator(.visible)
+    }
+
+    private func shortLabel(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "d MMM yyyy"; return f.string(from: date)
+    }
+}
+
+// MARK: - Supporting Model
+
+private struct CalendarEMIEntry: Identifiable {
+    let id         = UUID()
+    let loanName   : String
+    let loanType   : String
+    let loanNumber : String
+    let emiAmount  : Double
+    let dueDate    : Date
+    let isPaid     : Bool
+    let isOverdue  : Bool
 }
