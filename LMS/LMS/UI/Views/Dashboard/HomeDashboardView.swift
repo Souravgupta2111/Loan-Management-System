@@ -2,16 +2,15 @@ import SwiftUI
 import Supabase
 import Auth
 
-/// Home Dashboard
-/// Light, airy home screen with a swipeable loan hero, quick actions, and recent activity.
+/// Home Dashboard — matches the reference screenshot exactly.
+/// Hero card with active loan, Quick Actions, Transaction History.
 struct HomeDashboardView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var loans: [LoanListItem] = []
+    @State private var userName = ""
     @State private var hasLoaded = false
     @State private var showProfile = false
     @State private var showChatHint = false
-    @State private var selectedLoanIndex = 0
-    @State private var kycStatus = "pending"
 
     var body: some View {
         NavigationStack {
@@ -19,21 +18,14 @@ struct HomeDashboardView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     headerSection
 
-                    // MARK: - Quick Actions (Always Visible & Connected)
-                    quickActionsSection
-
-                    // MARK: - Recent Money Flow
-                    recentTransactionsSection
-
-                    // MARK: - Active Loans / EMI / My Loans
                     if loans.isEmpty && hasLoaded {
-                        noLoansTip
+                        emptyState
                     } else if !loans.isEmpty {
-                        if !activeLoans.isEmpty {
-                            loanCarouselSection
-                        } else if pendingApplicationsCount == 0 {
-                            noLoansTip
-                        }
+                        heroLoanCard
+
+                        quickActionsSection
+
+                        transactionHistorySection
                     } else {
                         ProgressView()
                             .frame(maxWidth: .infinity)
@@ -42,16 +34,9 @@ struct HomeDashboardView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 6)
-                .padding(.bottom, 110)
+                .padding(.bottom, 20)
             }
-            .background(
-                LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            )
+            .background(Color(hex: "#FAFAF8").ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showProfile) {
@@ -63,208 +48,192 @@ struct HomeDashboardView: View {
             } message: {
                 Text("Open chat from a loan or application detail for a specific conversation.")
             }
-            .task {
-                await loadData()
-            }
-            .refreshable {
-                await loadData()
-            }
+            .task { await loadData() }
+            .refreshable { await loadData() }
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
                 Task { await loadData() }
             }
         }
     }
 
+    // MARK: - Header
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text(currentDateString)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundColor(.textPrimary.opacity(0.85))
-                    .textCase(.uppercase)
+        let firstName = userName.components(separatedBy: " ").first ?? "User"
 
-                Spacer()
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Good Morning,")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.textSecondary)
+                Text(firstName)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+            }
 
-                HStack(spacing: 12) {
-                    Button { } label: {
+            Spacer()
+
+            HStack(spacing: 12) {
+                // Bell button
+                Button { } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 44, height: 44)
                         Image(systemName: "bell")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.textPrimary)
-                            .frame(width: 52, height: 52)
-                            .background(Color.white.opacity(0.72))
-                            .clipShape(Circle())
                     }
+                }
+                .buttonStyle(.plain)
 
-                    Button { showProfile = true } label: {
-                        Image(systemName: "person")
+                // Profile button
+                Button { showProfile = true } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#1A1A1A"))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "person.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
-                            .frame(width: 52, height: 52)
-                            .background(Color.textPrimary)
-                            .clipShape(Circle())
                     }
                 }
-            }
-
-            Text("You're on track to be debt-free")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
-    private var loanCarouselSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(Array(activeLoans.enumerated()), id: \.element.id) { index, loan in
-                        loanCarouselCard(loan)
-                            .frame(width: UIScreen.main.bounds.width * 0.84)
-                            .onTapGesture {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.84)) {
-                                    selectedLoanIndex = index
-                                }
-                            }
-                    }
-                }
-                .padding(.trailing, 28)
+                .buttonStyle(.plain)
             }
         }
     }
 
-    private func loanCarouselCard(_ loan: LoanListItem) -> some View {
-        let accent = cardAccent(for: loan.loanType)
+    // MARK: - Hero Loan Card
+    private var heroLoanCard: some View {
+        let primaryLoan = activeLoans.first ?? loans.first!
+        let paidPercent = primaryLoan.paidPercent
+        let outstanding = primaryLoan.remainingAmount
 
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 14) {
+            // Loan title row
+            HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color.white)
-                    Image(systemName: loan.icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(accent)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(hex: "#89DBA6").opacity(0.25))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: primaryLoan.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "#2D8B4E"))
                 }
-                .frame(width: 58, height: 58)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(loan.name)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.textPrimary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(loan.loanType.capitalized)
-                        .font(.system(size: 12, weight: .medium, design: .default))
-                        .foregroundColor(.textSecondary)
-                }
-
+                Text(primaryLoan.name)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
                 Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            // Balance label + amount
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Outstanding Balance")
-                    .font(.system(size: 13, weight: .regular, design: .default))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundColor(.textSecondary)
-
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text("₹\(formatIndian(loan.remainingAmount))")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
-
-                    Spacer()
-
-                    Text("\(Int(loan.paidPercent * 100))% repaid")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundColor(accent)
-                        .lineLimit(1)
-                }
+                Text("₹ \(formatIndian(outstanding))")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
             }
 
-            LoanProgressBar(progress: loan.paidPercent, color: accent)
-                .frame(height: 10)
+            // Progress bar + repaid %
+            HStack(alignment: .center, spacing: 10) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(hex: "#89DBA6").opacity(0.25))
+                            .frame(height: 7)
+                        Capsule()
+                            .fill(Color(hex: "#2D8B4E"))
+                            .frame(width: geo.size.width * CGFloat(paidPercent), height: 7)
+                    }
+                }
+                .frame(height: 7)
 
+                Text("\(Int(paidPercent * 100))% repaid")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .fixedSize()
+            }
+
+            // Next EMI + Pay Now
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Next EMI")
-                        .font(.system(size: 13, weight: .regular, design: .default))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundColor(.textSecondary)
-                    Text("₹\(formatIndian(loan.emiAmount)) • \(nextDueText(for: loan))")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                    Text("₹ \(formatIndian(primaryLoan.emiAmount)) · \(formattedNextDueDate(primaryLoan.nextDueDate))")
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
                 }
 
                 Spacer()
-                if loan.status.lowercased() == "active" {
-                    Button { } label: {
-                        HStack(spacing: 6) {
-                            Text("Pay EMI")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(Color(hex: "#26282A"))
-                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Text(loan.status.replacingOccurrences(of: "_", with: " ").capitalized)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.textSecondary)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
-        .background(
-            RoundedRectangle(cornerRadius: 40, style: .continuous)
-                .fill(Color.white)
-        )
-    }
 
-    private var quickActionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Quick Actions")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-
-            HStack(spacing: 10) {
                 NavigationLink {
-                    SelectLoanTypeView()
+                    EMIScheduleView(loanId: primaryLoan.id)
                 } label: {
-                    quickActionCard(icon: "plus.circle", label: "Apply")
+                    Text("Pay Now")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "#1A1A1A"))
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .background(Color(hex: "#89DBA6").opacity(0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color(hex: "#89DBA6").opacity(0.30), lineWidth: 1)
+        )
+        .shadow(color: Color(hex: "#89DBA6").opacity(0.18), radius: 12, x: 0, y: 4)
+    }
 
+    // MARK: - Quick Actions
+    private var quickActionsSection: some View {
+        VStack(spacing: 16) {
+            // Decorative divider with title
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(Color(hex: "#89DBA6"))
+                    .frame(height: 1)
+                Text("Quick Actions")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                    .fixedSize()
+                Rectangle()
+                    .fill(Color(hex: "#89DBA6"))
+                    .frame(height: 1)
+            }
+
+            HStack(spacing: 12) {
                 NavigationLink {
                     EMICalculatorView()
                 } label: {
-                    quickActionCard(icon: "calendar", label: "EMI\nCalculate")
+                    quickActionCard(icon: "plusminus", label: "Calculator")
                 }
                 .buttonStyle(.plain)
 
-                if shouldShowKYCAction {
-                    NavigationLink {
-                        KYCDashboardView(allowsSkip: false)
-                            .environmentObject(authViewModel)
-                    } label: {
-                        quickActionCard(icon: "doc.text", label: "KYC")
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button {
-                    showChatHint = true
+                NavigationLink {
+                    SelectLoanTypeView()
                 } label: {
-                    quickActionCard(icon: "bubble.left", label: "Chat")
+                    quickActionCard(icon: "rays", label: "Apply")
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    KYCDashboardView()
+                        .environmentObject(authViewModel)
+                } label: {
+                    quickActionCard(icon: "doc.on.doc", label: "KYC")
+                }
+                .buttonStyle(.plain)
+
+                Button { showChatHint = true } label: {
+                    quickActionCard(icon: "bubble.left.and.text.bubble.right", label: "Chat")
                 }
                 .buttonStyle(.plain)
             }
@@ -274,178 +243,112 @@ struct HomeDashboardView: View {
     private func quickActionCard(icon: String, label: String) -> some View {
         VStack(spacing: 10) {
             ZStack {
-                Circle()
-                    .fill(Color(hex: "#EAF1E5"))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(hex: "#89DBA6").opacity(0.18))
+                    .frame(width: 54, height: 54)
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.accentGreen)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
             }
-            .frame(width: 40, height: 40)
-
             Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundColor(.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.78))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(.vertical, 16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color(hex: "#89DBA6").opacity(0.20), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.03), radius: 6, x: 0, y: 2)
     }
 
-    private var recentTransactionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    // MARK: - Transaction History
+    private var transactionHistorySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Decorative divider with title
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(Color(hex: "#89DBA6"))
+                    .frame(height: 1)
+                Text("Transaction History")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                    .fixedSize()
+                Rectangle()
+                    .fill(Color(hex: "#89DBA6"))
+                    .frame(height: 1)
+            }
+
+            // Date header
             HStack {
-                Text("Recent Transactions")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text(currentDateString)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 Spacer()
                 Button { } label: {
-                    Text("See all")
+                    Text("See more")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.accentGreen)
+                        .foregroundColor(Color(hex: "#2D8B4E"))
                 }
             }
 
-            VStack(spacing: 0) {
-                ForEach(recentTransactions.indices, id: \.self) { index in
-                    transactionRow(recentTransactions[index])
-                    if index < recentTransactions.count - 1 {
-                        Divider()
-                            .padding(.leading, 56)
-                    }
-                }
-            }
-            .padding(14)
-            .background(Color.white.opacity(0.78))
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .stroke(Color.white.opacity(0.9), lineWidth: 1)
-            )
-        }
-    }
-
-    private func transactionRow(_ item: DashboardTransaction) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#EEF4EA"))
-                Image(systemName: item.icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(item.iconColor)
-            }
-            .frame(width: 40, height: 40)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(item.subtitle)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer()
-
-            Text(item.amountText)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(item.isPositive ? .accentGreen : .accentRed)
-                .lineLimit(1)
-        }
-        .padding(.vertical, 8)
-    }
-
-    private var pendingApplicationsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Active Applications")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-
-                Spacer()
-
-                NavigationLink {
-                    ApplicationsListView()
-                        .environmentObject(authViewModel)
-                } label: {
-                    Text("View all")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.accentGreen)
-                }
-                .buttonStyle(.plain)
-            }
-
+            // Transaction cards
             VStack(spacing: 10) {
-                ForEach(pendingApplications.prefix(3)) { application in
-                    pendingApplicationRow(application)
+                ForEach(transactionItems.indices, id: \.self) { idx in
+                    transactionCard(transactionItems[idx])
                 }
             }
         }
     }
 
-    private func pendingApplicationRow(_ application: LoanListItem) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#EEF4EA"))
-                Image(systemName: application.icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.accentGreen)
-            }
-            .frame(width: 40, height: 40)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(application.name)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+    private func transactionCard(_ item: TxItem) -> some View {
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.textPrimary)
-                    .lineLimit(2)
-
-                Text(application.loanNumber)
-                    .font(.system(size: 12))
+                Text(item.subtitle)
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundColor(.textSecondary)
-                    .lineLimit(1)
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(application.status.replacingOccurrences(of: "_", with: " ").capitalized)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.accentGreen)
-                    .lineLimit(1)
-
-                Text("₹\(formatIndian(application.amount))")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+            HStack(spacing: 12) {
+                Text("₹ \(formatIndian(item.amount))")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
-                    .lineLimit(1)
+
+                // Status icon
+                ZStack {
+                    Circle()
+                        .fill(item.statusBg)
+                        .frame(width: 28, height: 28)
+                    Image(systemName: item.statusIcon)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(item.statusColor)
+                }
             }
         }
-        .padding(14)
-        .background(Color.white.opacity(0.78))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(16)
+        .background(Color(hex: "#89DBA6").opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color(hex: "#89DBA6").opacity(0.20), lineWidth: 1)
         )
     }
 
+    // MARK: - Empty State
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 42))
-                .foregroundColor(.accentGreen)
+                .foregroundColor(Color(hex: "#2D8B4E"))
             Text("No loans yet")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(.textPrimary)
@@ -470,7 +373,7 @@ struct HomeDashboardView: View {
                 }
                 .padding(.horizontal, 28)
                 .padding(.vertical, 14)
-                .background(Color.accentDark)
+                .background(Color(hex: "#1A1A1A"))
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -478,76 +381,62 @@ struct HomeDashboardView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
-        .background(Color.white.opacity(0.78))
+        .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+                .stroke(Color(hex: "#89DBA6").opacity(0.25), lineWidth: 1)
         )
     }
 
-    private var noLoansTip: some View {
-        emptyState
-    }
-
+    // MARK: - Computed Helpers
     private var currentDateString: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM d"
-        return formatter.string(from: Date()).uppercased()
+        formatter.dateFormat = "d MMMM yyyy"
+        return formatter.string(from: Date())
     }
 
-    private var recentTransactions: [DashboardTransaction] {
-        guard !activeLoans.isEmpty else {
-            return [
-                DashboardTransaction(
-                    icon: "tray",
-                    iconColor: .accentGreen,
-                    title: "No money flow yet",
-                    subtitle: "Transactions appear after loan activity starts",
-                    amountText: "--",
-                    isPositive: true
-                )
-            ]
+    private var activeLoans: [LoanListItem] {
+        loans.filter { $0.status.lowercased() == "active" }
+    }
+
+    private var transactionItems: [TxItem] {
+        guard !loans.isEmpty else {
+            return [TxItem(title: "Apply for your first loan", subtitle: "No transactions yet", amount: 0, statusIcon: "arrow.up.right", statusColor: Color(hex: "#2D8B4E"), statusBg: Color(hex: "#89DBA6").opacity(0.2))]
         }
 
-        let fallback = activeLoans.first!
-        let loanA = activeLoans.first ?? fallback
-        let loanB = activeLoans.dropFirst().first ?? fallback
-        let loanC = activeLoans.dropFirst(2).first ?? fallback
+        let loanName = (activeLoans.first ?? loans.first!).name
+        let emiAmt = (activeLoans.first ?? loans.first!).emiAmount
+        let today = DateFormatter()
+        today.dateFormat = "d MMMM"
+        let dateStr = today.string(from: Date())
 
         return [
-            DashboardTransaction(
-                icon: "car.fill",
-                iconColor: .accentRed,
-                title: "\(loanA.name) EMI",
-                subtitle: "Today · \(formattedNextDueDate(loanA.nextDueDate))",
-                amountText: "-₹\(formatIndian(loanA.emiAmount))",
-                isPositive: false
+            TxItem(
+                title: loanName,
+                subtitle: "\(dateStr) - Auto Debit",
+                amount: emiAmt,
+                statusIcon: "checkmark",
+                statusColor: .white,
+                statusBg: Color(hex: "#2D8B4E")
             ),
-            DashboardTransaction(
-                icon: "banknote.fill",
-                iconColor: .accentGreen,
-                title: "Disbursement",
-                subtitle: loanB.loanType.capitalized,
-                amountText: "+₹\(formatIndian(loanB.remainingAmount))",
-                isPositive: true
+            TxItem(
+                title: loanName,
+                subtitle: "\(dateStr) - Netbanking",
+                amount: emiAmt,
+                statusIcon: "clock.badge.exclamationmark",
+                statusColor: .white,
+                statusBg: Color(hex: "#E8732A")
             ),
-            DashboardTransaction(
-                icon: "house.fill",
-                iconColor: .accentRed,
-                title: "\(loanC.name) Payment",
-                subtitle: "Completed",
-                amountText: "-₹\(formatIndian(loanC.emiAmount))",
-                isPositive: false
+            TxItem(
+                title: loanName,
+                subtitle: "\(dateStr) - UPI",
+                amount: emiAmt,
+                statusIcon: "xmark",
+                statusColor: .white,
+                statusBg: Color(hex: "#D94040")
             )
         ]
-    }
-
-    private func nextDueText(for loan: LoanListItem) -> String {
-        if loan.status.lowercased() == "closed" {
-            return "Paid off"
-        }
-        return formattedNextDueDate(loan.nextDueDate)
     }
 
     private func formatIndian(_ value: Double) -> String {
@@ -558,41 +447,27 @@ struct HomeDashboardView: View {
         return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
     }
 
-    private func cardAccent(for loanType: String) -> Color {
-        switch loanType.lowercased() {
-        case "home": return .accentGreen
-        case "vehicle": return .accentBlue
-        case "business": return .accentBeigeDk
-        case "education": return .accentAmber
-        case "personal": return .accentRed
-        default: return .accentGreen
-        }
-    }
-
-    private var activeLoans: [LoanListItem] {
-        loans.filter { $0.status.lowercased() == "active" }
-    }
-
-    private var pendingApplications: [LoanListItem] {
-        loans.filter {
-            ["draft", "submitted", "under_review", "sent_back", "approved", "pending"].contains($0.status.lowercased())
-        }
-    }
-
-    private var pendingApplicationsCount: Int {
-        pendingApplications.count
-    }
-
-    private var shouldShowKYCAction: Bool {
-        !["verified", "submitted"].contains(kycStatus.lowercased())
-    }
-
+    // MARK: - Data Loading
     private func loadData() async {
         do {
             if let userId = authViewModel.currentUser?.id {
                 loans = try await LoanService.shared.fetchDetailedUserLoans(userId: userId)
-                kycStatus = await fetchKYCStatus(userId: userId)
-                selectedLoanIndex = 0
+
+                struct ProfileRow: Decodable {
+                    let fullName: String
+                    enum CodingKeys: String, CodingKey {
+                        case fullName = "full_name"
+                    }
+                }
+                let users: [ProfileRow] = try await SupabaseManager.shared.client
+                    .from("users")
+                    .select("full_name")
+                    .eq("id", value: userId.uuidString)
+                    .execute()
+                    .value
+                if let row = users.first {
+                    userName = row.fullName
+                }
             }
             hasLoaded = true
         } catch {
@@ -600,25 +475,16 @@ struct HomeDashboardView: View {
             print("Dashboard load error: \(error)")
         }
     }
+}
 
-    private func fetchKYCStatus(userId: UUID) async -> String {
-        struct ProfileStatus: Decodable {
-            let kyc_status: String
-        }
-
-        do {
-            let rows: [ProfileStatus] = try await SupabaseManager.shared.client
-                .from("borrower_profiles")
-                .select("kyc_status")
-                .eq("user_id", value: userId)
-                .execute()
-                .value
-            return rows.first?.kyc_status ?? "pending"
-        } catch {
-            print("Failed to fetch dashboard KYC status: \(error)")
-            return kycStatus
-        }
-    }
+// MARK: - Transaction item model
+private struct TxItem {
+    let title: String
+    let subtitle: String
+    let amount: Double
+    let statusIcon: String
+    let statusColor: Color
+    let statusBg: Color
 }
 
 private func formattedNextDueDate(_ rawDate: String?) -> String {
@@ -630,13 +496,4 @@ private func formattedNextDueDate(_ rawDate: String?) -> String {
         return formatter.string(from: date)
     }
     return rawDate
-}
-
-private struct DashboardTransaction {
-    let icon: String
-    let iconColor: Color
-    let title: String
-    let subtitle: String
-    let amountText: String
-    let isPositive: Bool
 }
