@@ -1,6 +1,6 @@
  import SwiftUI
 
-/// Main Tab View — 3 tabs: Home, Loans, EMI Calculator
+/// Main Tab View — 3 tabs: Home, My Loans, Schedule
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
 
@@ -11,7 +11,7 @@ struct MainTabView: View {
                     .environmentObject(authViewModel)
             }
 
-            Tab("Loans", systemImage: "indianrupeesign.circle.fill") {
+            Tab("My Loans", systemImage: "indianrupeesign.circle.fill") {
                 LoansListView()
                     .environmentObject(authViewModel)
             }
@@ -20,11 +20,12 @@ struct MainTabView: View {
                 LoanProductsCatalogView()
             }
 
-            Tab("EMI Calc", systemImage: "function") {
-                EMICalculatorView()
+            Tab("Schedule", systemImage: "calendar") {
+                ScheduleOverviewView()
+                    .environmentObject(authViewModel)
             }
         }
-        .tint(.accentDark)
+        .tint(.accentGreen)
         .onAppear {
             NotificationService.shared.subscribeToNotifications()
         }

@@ -41,6 +41,10 @@ struct ApplicationsListView: View {
             .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Applications")
             .task { await loadApplications() }
+            .refreshable { await loadApplications() }
+            .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
+                Task { await loadApplications() }
+            }
         }
     }
 
@@ -92,12 +96,14 @@ struct ApplicationsListView: View {
     }
 
     private func loadApplications() async {
+        isLoading = true
+        defer { isLoading = false }
+
         guard let userId = authViewModel.currentUser?.id else { return }
         do {
             applications = try await LoanService.shared.fetchUserApplications(userId: userId)
         } catch {
             print("Failed to load applications:", error)
         }
-        isLoading = false
     }
 }

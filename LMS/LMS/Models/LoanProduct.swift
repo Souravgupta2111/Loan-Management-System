@@ -74,6 +74,77 @@ enum InterestType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Flexible JSON value for Supabase JSON/JSONB columns.
+/// Eligibility criteria can contain strings, numbers, booleans, arrays, or objects.
+enum JSONValue: Codable, Hashable {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case array([JSONValue])
+    case object([String: JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Int.self) {
+            self = .int(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .double(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([JSONValue].self) {
+            self = .array(value)
+        } else if let value = try? container.decode([String: JSONValue].self) {
+            self = .object(value)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported JSON value")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch self {
+        case .string(let value): try container.encode(value)
+        case .int(let value): try container.encode(value)
+        case .double(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        }
+    }
+
+    var stringValue: String? {
+        switch self {
+        case .string(let value):
+            return value
+        case .int(let value):
+            return String(value)
+        case .double(let value):
+            return value.rounded() == value ? String(Int(value)) : String(value)
+        case .bool(let value):
+            return value ? "true" : "false"
+        case .array(let value):
+            return value.compactMap(\.stringValue).joined(separator: ", ")
+        case .object(let value):
+            return value["title"]?.stringValue
+                ?? value["name"]?.stringValue
+                ?? value["label"]?.stringValue
+                ?? value["document_type"]?.stringValue
+                ?? value["type"]?.stringValue
+        case .null:
+            return nil
+        }
+    }
+}
+
 // MARK: - Loan Product Model
 
 struct LoanProduct: Codable, Identifiable, Hashable {
@@ -213,5 +284,11 @@ struct LoanProduct: Codable, Identifiable, Hashable {
     /// Whether this product supports floating rates
     var supportsFloating: Bool {
         supportedInterestTypes.contains(.floating)
+    }
+
+    var requiredDocumentTitles: [String] {
+        let fallback = ["Salary Slip", "Bank Statement"]
+        let configured = requiredDocuments?.compactMap(\.stringValue) ?? []
+        return configured.isEmpty ? fallback : configured
     }
 }

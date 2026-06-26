@@ -262,6 +262,23 @@ class KYCViewModel: ObservableObject {
         isSubmittingFullKYC = false
     }
     
+    // MARK: - Skip KYC
+    
+    func skipKYC(authViewModel: AuthViewModel) async {
+        guard let userId = SupabaseManager.shared.currentUserId else { return }
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await KYCService.shared.updateKYCStatus(userId: userId, status: "verified")
+            kycStatus = "verified"
+            authViewModel.checkSession()
+        } catch {
+            print("Skip KYC Error: \(error)")
+            self.errorMessage = "Failed to skip KYC. Please try again."
+        }
+        isLoading = false
+    }
+    
     func resubmitDocument(type: String, data: Data) async {
         guard let userId = SupabaseManager.shared.currentUserId else { return }
         isLoading = true

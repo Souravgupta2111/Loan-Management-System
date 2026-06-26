@@ -1,9 +1,14 @@
 import SwiftUI
 
 struct LoanApplicationFlowView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let initialLoanType: LoanType?
+
     @State private var step = 1
     @State private var loanProducts: [LoanProduct] = []
     @State private var selectedProduct: LoanProduct?
+    @State private var isLoadingProducts = true
     
     // Application state
     @State private var amount: Double = 100000
@@ -13,6 +18,10 @@ struct LoanApplicationFlowView: View {
     @State private var applicationDocuments: [String: Data] = [:]
     @State private var submissionError: String?
     @State private var applicationNumber: String?
+
+    init(initialLoanType: LoanType? = nil) {
+        self.initialLoanType = initialLoanType
+    }
     
     var body: some View {
         NavigationStack {
@@ -36,7 +45,7 @@ struct LoanApplicationFlowView: View {
                         }
                         
                         PillButton(title: "View Dashboard", style: .primary) {
-                            // Close or reset flow
+                            dismiss()
                         }
                     }
                     .padding(Spacing.xl)
@@ -57,7 +66,14 @@ struct LoanApplicationFlowView: View {
                         ScrollView {
                             VStack(spacing: Spacing.xl) {
                                 if step == 1 {
-                                    SelectProductStep(products: loanProducts, selected: $selectedProduct)
+                                    SelectProductStep(
+                                        products: loanProducts,
+                                        selected: $selectedProduct,
+                                        isLoading: isLoadingProducts,
+                                        emptyMessage: initialLoanType == nil
+                                            ? "No active loan products are available right now."
+                                            : "No \(initialLoanType?.displayName.lowercased() ?? "selected") options are available right now."
+                                    )
                                 } else if step == 2 {
                                     AmountTenureStep(product: selectedProduct!, amount: $amount, tenureMonths: $tenureMonths)
                                 } else if step == 3 {
@@ -108,13 +124,16 @@ struct LoanApplicationFlowView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 do {
-                    loanProducts = try await LoanService.shared.fetchActiveProducts()
-                    if let first = loanProducts.first {
+                    let fetchedProducts = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
+                    isLoadingProducts = false
+                    loanProducts = fetchedProducts
+                    if let first = fetchedProducts.first {
                         selectedProduct = first
                         amount = first.minAmount
                         tenureMonths = Double(first.minTenureMonths)
                     }
                 } catch {
+                    isLoadingProducts = false
                     print("Failed to fetch products: \(error)")
                 }
             }
@@ -123,8 +142,8 @@ struct LoanApplicationFlowView: View {
     
     private func submitApplication() {
         guard let product = selectedProduct, let userId = SupabaseManager.shared.currentUserId else { return }
-        let requiredDocs = product.requiredDocuments?.filter { $0.isMandatory }.map { $0.name } ?? ["Salary Slip", "Bank Statement"]
-        guard requiredDocs.allSatisfy({ applicationDocuments[$0] != nil }) else {
+        let required = product.requiredDocumentTitles
+        guard required.allSatisfy({ applicationDocuments[$0] != nil }) else {
             submissionError = "Upload every required document before submitting."
             return
         }
@@ -156,6 +175,8 @@ struct LoanApplicationFlowView: View {
 struct SelectProductStep: View {
     let products: [LoanProduct]
     @Binding var selected: LoanProduct?
+    let isLoading: Bool
+    let emptyMessage: String
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
@@ -163,9 +184,21 @@ struct SelectProductStep: View {
                 .font(.cardTitle)
                 .foregroundColor(.textPrimary)
             
-            if products.isEmpty {
+            if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
+            } else if products.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 28))
+                        .foregroundColor(.textSecondary)
+                    Text(emptyMessage)
+                        .font(.bodyLarge)
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
             } else {
                 ForEach(products) { product in
                     ProductOptionRow(
@@ -262,12 +295,8 @@ struct DocumentUploadStep: View {
     let product: LoanProduct
     @Binding var documents: [String: Data]
 
-    private var requiredDocuments: [DocumentRequirement] {
-        let configured = product.requiredDocuments ?? []
-        return configured.isEmpty ? [
-            DocumentRequirement(name: "Salary Slip", isMandatory: true),
-            DocumentRequirement(name: "Bank Statement", isMandatory: true)
-        ] : configured
+    private var requiredDocuments: [String] {
+        product.requiredDocumentTitles
     }
 
     var body: some View {

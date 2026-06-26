@@ -19,6 +19,8 @@ final class SupabaseManager {
     // MARK: - Client
 
     let client: SupabaseClient
+    let baseURL: URL
+    let anonKey: String
 
     // MARK: - Init
 
@@ -31,10 +33,27 @@ final class SupabaseManager {
             fatalError("Missing or invalid Supabase.plist configuration. Ensure SUPABASE_URL and SUPABASE_ANON_KEY are set.")
         }
 
+        baseURL = url
+        self.anonKey = anonKey
+
         client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: anonKey
+            supabaseKey: anonKey,
+            options: SupabaseClientOptions(
+                auth: .init(emitLocalSessionAsInitialSession: true),
+                global: .init(session: Self.makeURLSession())
+            )
         )
+    }
+
+    private static func makeURLSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 90
+        configuration.timeoutIntervalForResource = 300
+        configuration.waitsForConnectivity = true
+        configuration.httpMaximumConnectionsPerHost = 4
+        configuration.httpAdditionalHeaders = ["Alt-Svc": "clear"]
+        return URLSession(configuration: configuration)
     }
 
     // MARK: - Convenience Accessors
