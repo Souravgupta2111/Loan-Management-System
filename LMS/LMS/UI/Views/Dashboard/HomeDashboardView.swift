@@ -11,6 +11,7 @@ struct HomeDashboardView: View {
     @State private var showProfile = false
     @State private var showChatHint = false
     @State private var selectedLoanIndex = 0
+    @State private var kycStatus = "pending"
 
     var body: some View {
         NavigationStack {
@@ -21,10 +22,8 @@ struct HomeDashboardView: View {
                     // MARK: - Quick Actions (Always Visible & Connected)
                     quickActionsSection
 
-                    // MARK: - Active Applications (real-time tracking US-08)
-                    if pendingApplicationsCount > 0 {
-                        pendingApplicationsSection
-                    }
+                    // MARK: - Recent Money Flow
+                    recentTransactionsSection
 
                     // MARK: - Active Loans / EMI / My Loans
                     if loans.isEmpty && hasLoaded {
@@ -32,9 +31,9 @@ struct HomeDashboardView: View {
                     } else if !loans.isEmpty {
                         if !activeLoans.isEmpty {
                             loanCarouselSection
+                        } else if pendingApplicationsCount == 0 {
+                            noLoansTip
                         }
-                        quickActionsSection
-                        recentTransactionsSection
                     } else {
                         ProgressView()
                             .frame(maxWidth: .infinity)
@@ -252,13 +251,15 @@ struct HomeDashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    KYCDashboardView()
-                        .environmentObject(authViewModel)
-                } label: {
-                    quickActionCard(icon: "doc.text", label: "KYC")
+                if shouldShowKYCAction {
+                    NavigationLink {
+                        KYCDashboardView(allowsSkip: false)
+                            .environmentObject(authViewModel)
+                    } label: {
+                        quickActionCard(icon: "doc.text", label: "KYC")
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 Button {
                     showChatHint = true
@@ -366,6 +367,80 @@ struct HomeDashboardView: View {
         .padding(.vertical, 8)
     }
 
+    private var pendingApplicationsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Active Applications")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+
+                Spacer()
+
+                NavigationLink {
+                    ApplicationsListView()
+                        .environmentObject(authViewModel)
+                } label: {
+                    Text("View all")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.accentGreen)
+                }
+                .buttonStyle(.plain)
+            }
+
+            VStack(spacing: 10) {
+                ForEach(pendingApplications.prefix(3)) { application in
+                    pendingApplicationRow(application)
+                }
+            }
+        }
+    }
+
+    private func pendingApplicationRow(_ application: LoanListItem) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#EEF4EA"))
+                Image(systemName: application.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.accentGreen)
+            }
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(application.name)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(2)
+
+                Text(application.loanNumber)
+                    .font(.system(size: 12))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(application.status.replacingOccurrences(of: "_", with: " ").capitalized)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.accentGreen)
+                    .lineLimit(1)
+
+                Text("₹\(formatIndian(application.amount))")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.78))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+        )
+    }
+
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "doc.text.magnifyingglass")
@@ -411,6 +486,10 @@ struct HomeDashboardView: View {
         )
     }
 
+    private var noLoansTip: some View {
+        emptyState
+    }
+
     private var currentDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM d"
@@ -418,23 +497,23 @@ struct HomeDashboardView: View {
     }
 
     private var recentTransactions: [DashboardTransaction] {
-        guard !loans.isEmpty else {
+        guard !activeLoans.isEmpty else {
             return [
                 DashboardTransaction(
-                    icon: "arrow.up.right.circle",
+                    icon: "tray",
                     iconColor: .accentGreen,
-                    title: "Apply for your first loan",
-                    subtitle: "No transactions yet",
-                    amountText: "Ready",
+                    title: "No money flow yet",
+                    subtitle: "Transactions appear after loan activity starts",
+                    amountText: "--",
                     isPositive: true
                 )
             ]
         }
 
-        let fallback = loans.first!
-        let loanA = loans.first(where: { $0.status.lowercased() == "active" }) ?? fallback
-        let loanB = loans.dropFirst().first ?? fallback
-        let loanC = loans.dropFirst(2).first ?? fallback
+        let fallback = activeLoans.first!
+        let loanA = activeLoans.first ?? fallback
+        let loanB = activeLoans.dropFirst().first ?? fallback
+        let loanC = activeLoans.dropFirst(2).first ?? fallback
 
         return [
             DashboardTransaction(
@@ -494,16 +573,50 @@ struct HomeDashboardView: View {
         loans.filter { $0.status.lowercased() == "active" }
     }
 
+    private var pendingApplications: [LoanListItem] {
+        loans.filter {
+            ["draft", "submitted", "under_review", "sent_back", "approved", "pending"].contains($0.status.lowercased())
+        }
+    }
+
+    private var pendingApplicationsCount: Int {
+        pendingApplications.count
+    }
+
+    private var shouldShowKYCAction: Bool {
+        !["verified", "submitted"].contains(kycStatus.lowercased())
+    }
+
     private func loadData() async {
         do {
             if let userId = authViewModel.currentUser?.id {
                 loans = try await LoanService.shared.fetchDetailedUserLoans(userId: userId)
+                kycStatus = await fetchKYCStatus(userId: userId)
                 selectedLoanIndex = 0
             }
             hasLoaded = true
         } catch {
             hasLoaded = true
             print("Dashboard load error: \(error)")
+        }
+    }
+
+    private func fetchKYCStatus(userId: UUID) async -> String {
+        struct ProfileStatus: Decodable {
+            let kyc_status: String
+        }
+
+        do {
+            let rows: [ProfileStatus] = try await SupabaseManager.shared.client
+                .from("borrower_profiles")
+                .select("kyc_status")
+                .eq("user_id", value: userId)
+                .execute()
+                .value
+            return rows.first?.kyc_status ?? "pending"
+        } catch {
+            print("Failed to fetch dashboard KYC status: \(error)")
+            return kycStatus
         }
     }
 }

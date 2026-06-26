@@ -4,6 +4,13 @@ import Combine
 struct KYCDashboardView: View {
     @StateObject private var viewModel = KYCViewModel()
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    let allowsSkip: Bool
+
+    init(allowsSkip: Bool = true) {
+        self.allowsSkip = allowsSkip
+    }
     
     var body: some View {
         NavigationStack {
@@ -292,22 +299,40 @@ struct KYCDashboardView: View {
             .navigationTitle("KYC Setup")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                    } else {
-                        Button(action: {
-                            Task {
-                                await viewModel.skipKYC(authViewModel: authViewModel)
+                if !allowsSkip {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chevron.left")
+                                Text("Back")
                             }
-                        }) {
-                            Text("Skip KYC")
-                                .font(.bodyLarge)
-                                .foregroundColor(.accentGreen)
+                            .font(.bodyLarge)
+                            .foregroundColor(.accentGreen)
+                        }
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    if allowsSkip {
+                        if viewModel.isLoading {
+                            ProgressView()
+                        } else {
+                            Button(action: {
+                                Task {
+                                    await viewModel.skipKYC(authViewModel: authViewModel)
+                                }
+                            }) {
+                                Text("Skip KYC")
+                                    .font(.bodyLarge)
+                                    .foregroundColor(.accentGreen)
+                            }
                         }
                     }
                 }
             }
+            .toolbar(.hidden, for: .tabBar)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.isVerified)
             .task {
                 while !Task.isCancelled {

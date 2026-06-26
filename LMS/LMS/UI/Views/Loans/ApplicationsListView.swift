@@ -40,6 +40,7 @@ struct ApplicationsListView: View {
             }
             .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Applications")
+            .toolbar(.hidden, for: .tabBar)
             .task { await loadApplications() }
             .refreshable { await loadApplications() }
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in

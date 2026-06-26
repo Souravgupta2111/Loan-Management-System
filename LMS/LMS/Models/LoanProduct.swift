@@ -288,7 +288,10 @@ struct LoanProduct: Codable, Identifiable, Hashable {
 
     var requiredDocumentTitles: [String] {
         let fallback = ["Salary Slip", "Bank Statement"]
-        let configured = requiredDocuments?.compactMap(\.stringValue) ?? []
+        let configured = requiredDocuments?
+            .filter(\.isMandatory)
+            .map(\.name)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? []
         return configured.isEmpty ? fallback : configured
     }
 }

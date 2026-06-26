@@ -104,14 +104,30 @@ struct LoanApplicationFlowView: View {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                             } else {
-                                PillButton(title: step == 4 ? "Submit" : "Next", style: .primary) {
+                                Button {
+                                    guard canProceed else { return }
                                     if step < 4 {
                                         withAnimation { step += 1 }
                                     } else {
                                         submitApplication()
                                     }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Text(step == 4 ? "SUBMIT" : "NEXT")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .tracking(1)
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(canProceed ? Color.accentDark : Color.gray.opacity(0.35))
+                                    .foregroundColor(canProceed ? .white : .textSecondary)
+                                    .clipShape(Capsule())
                                 }
-                                .disabled(step == 1 && selectedProduct == nil)
+                                .buttonStyle(.plain)
+                                .disabled(!canProceed)
                             }
                         }
                         .padding(Spacing.xl)
@@ -122,6 +138,7 @@ struct LoanApplicationFlowView: View {
             }
             .navigationTitle("Apply for Loan")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .tabBar)
             .task {
                 do {
                     let fetchedProducts = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
@@ -139,11 +156,29 @@ struct LoanApplicationFlowView: View {
             }
         }
     }
+
+    private var canProceed: Bool {
+        if isSubmitting {
+            return false
+        }
+
+        switch step {
+        case 1:
+            return selectedProduct != nil
+        case 3:
+            return requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
+        default:
+            return true
+        }
+    }
+
+    private var requiredDocumentTitles: [String] {
+        selectedProduct?.requiredDocumentTitles ?? []
+    }
     
     private func submitApplication() {
         guard let product = selectedProduct, let userId = SupabaseManager.shared.currentUserId else { return }
-        let required = product.requiredDocumentTitles
-        guard required.allSatisfy({ applicationDocuments[$0] != nil }) else {
+        guard product.requiredDocumentTitles.allSatisfy({ applicationDocuments[$0] != nil }) else {
             submissionError = "Upload every required document before submitting."
             return
         }
@@ -295,8 +330,11 @@ struct DocumentUploadStep: View {
     let product: LoanProduct
     @Binding var documents: [String: Data]
 
-    private var requiredDocuments: [String] {
-        product.requiredDocumentTitles
+    private var requiredDocuments: [DocumentRequirement] {
+        product.requiredDocuments?.filter(\.isMandatory) ?? [
+            DocumentRequirement(name: "Salary Slip"),
+            DocumentRequirement(name: "Bank Statement")
+        ]
     }
 
     var body: some View {

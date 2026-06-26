@@ -10,7 +10,6 @@ struct SelectLoanTypeView: View {
             Color.white.ignoresSafeArea(edges: .bottom)
 
             VStack(alignment: .leading, spacing: 18) {
-                progressBar
                 loanTypeList
                 nextButton
             }
@@ -51,16 +50,7 @@ struct SelectLoanTypeView: View {
         .navigationDestination(isPresented: $navigateToApplication) {
             LoanApplicationFlowView(initialLoanType: selectedLoanType)
         }
-    }
-
-    private var progressBar: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<4, id: \.self) { index in
-                Capsule()
-                    .fill(index == 0 ? Color.accentGreen : Color.gray.opacity(0.16))
-                    .frame(height: 5)
-            }
-        }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private var loanTypeList: some View {

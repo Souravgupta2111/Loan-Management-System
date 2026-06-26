@@ -50,6 +50,7 @@ struct LoanDetailView: View {
         }
         .navigationTitle(loan.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task { await loadRelatedData() }
         .sheet(isPresented: $showShareSheet) {
             if let url = downloadedURL {
