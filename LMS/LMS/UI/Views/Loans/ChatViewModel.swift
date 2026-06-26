@@ -41,18 +41,18 @@ class ChatViewModel: ObservableObject {
         
         Task {
             guard let channel = channel else { return }
-            let changes = await channel.postgresChange(
+            let changes = channel.postgresChange(
                 InsertAction.self,
                 schema: "public",
                 table: "messages",
-                filter: "application_id=eq.\(applicationId.uuidString)"
+                filter: .eq("application_id", value: applicationId)
             )
             
-            await channel.subscribe()
-            
-            for await insert in changes {
-                do {
-                    let data = try JSONSerialization.data(withJSONObject: insert.record, options: [])
+            do {
+                try await channel.subscribeWithError()
+
+                for await insert in changes {
+                    let data = try JSONSerialization.data(withJSONObject: insert.record.mapValues(\.value), options: [])
                     let newMsg = try JSONDecoder().decode(ChatService.MessageResponse.self, from: data)
                     await MainActor.run {
                         if !self.messages.contains(where: { $0.id == newMsg.id }) {
@@ -60,9 +60,9 @@ class ChatViewModel: ObservableObject {
                             self.markUnreadAsRead()
                         }
                     }
-                } catch {
-                    print("Error decoding realtime message: \(error)")
                 }
+            } catch {
+                print("Realtime chat subscription failed: \(error)")
             }
         }
     }
