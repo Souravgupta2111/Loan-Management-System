@@ -1,9 +1,7 @@
 import SwiftUI
+import UIKit
 
-/// Main Tab View — tab bar is a pinned VStack row at the bottom,
-/// NOT a floating ZStack overlay. This ensures NavigationLink
-/// destinations (like SelectLoanTypeView) have their content
-/// naturally bounded above the bar — no button overlap.
+/// Main Tab View — uses the native iOS tab bar with a translucent glass appearance.
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab: TabType = .home
@@ -36,73 +34,65 @@ struct MainTabView: View {
         }
     }
 
-    var body: some View {
-        // VStack — NOT ZStack — so the tab bar sits below the content,
-        // never overlapping NavigationLink destinations.
-        VStack(spacing: 0) {
-            // Tab content fills all remaining space
-            Group {
-                switch selectedTab {
-                case .home:
-                    HomeDashboardView()
-                        .environmentObject(authViewModel)
-                case .loans:
-                    LoansListView()
-                        .environmentObject(authViewModel)
-                case .schedule:
-                    ScheduleOverviewView()
-                        .environmentObject(authViewModel)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemChromeMaterial)
+        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.42)
+        appearance.shadowColor = UIColor.black.withAlphaComponent(0.08)
 
-            // Tab bar — pinned below content, above safe area
-            tabBar
+        let selectedColor = UIColor(Color.accentGreen)
+        let normalColor = UIColor.secondaryLabel
+        let appearances = [
+            appearance.stackedLayoutAppearance,
+            appearance.inlineLayoutAppearance,
+            appearance.compactInlineLayoutAppearance
+        ]
+
+        appearances.forEach { itemAppearance in
+            itemAppearance.selected.iconColor = selectedColor
+            itemAppearance.selected.titleTextAttributes = [
+                .foregroundColor: selectedColor,
+                .font: UIFont.systemFont(ofSize: 11, weight: .semibold)
+            ]
+            itemAppearance.normal.iconColor = normalColor
+            itemAppearance.normal.titleTextAttributes = [
+                .foregroundColor: normalColor,
+                .font: UIFont.systemFont(ofSize: 11, weight: .medium)
+            ]
         }
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().isTranslucent = true
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeDashboardView()
+                .environmentObject(authViewModel)
+                .tabItem {
+                    Label(TabType.home.label, systemImage: selectedTab == .home ? TabType.home.activeIcon : TabType.home.icon)
+                }
+                .tag(TabType.home)
+
+            LoansListView()
+                .environmentObject(authViewModel)
+                .tabItem {
+                    Label(TabType.loans.label, systemImage: selectedTab == .loans ? TabType.loans.activeIcon : TabType.loans.icon)
+                }
+                .tag(TabType.loans)
+
+            ScheduleOverviewView()
+                .environmentObject(authViewModel)
+                .tabItem {
+                    Label(TabType.schedule.label, systemImage: selectedTab == .schedule ? TabType.schedule.activeIcon : TabType.schedule.icon)
+                }
+                .tag(TabType.schedule)
+            }
+        .tint(.accentGreen)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear  { NotificationService.shared.subscribeToNotifications() }
         .onDisappear { NotificationService.shared.unsubscribe() }
-    }
-
-    // MARK: - Tab Bar
-
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(TabType.allCases, id: \.label) { tab in
-                tabButton(tab)
-            }
-        }
-        .padding(.top, 10)
-        .padding(.bottom, 28) // accounts for home indicator
-        .background(Color.white)
-        .overlay(
-            Rectangle()
-                .fill(Color(hex: "#89DBA6").opacity(0.30))
-                .frame(height: 1),
-            alignment: .top
-        )
-    }
-
-    private func tabButton(_ tab: TabType) -> some View {
-        let isActive = selectedTab == tab
-
-        return Button {
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                selectedTab = tab
-            }
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: isActive ? tab.activeIcon : tab.icon)
-                    .font(.system(size: 22, weight: isActive ? .semibold : .regular))
-                    .foregroundColor(isActive ? Color(hex: "#2D8B4E") : Color(hex: "#9E9E9E"))
-
-                Text(tab.label)
-                    .font(.system(size: 10, weight: isActive ? .bold : .regular, design: .rounded))
-                    .foregroundColor(isActive ? Color(hex: "#2D8B4E") : Color(hex: "#9E9E9E"))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-        }
-        .buttonStyle(.plain)
     }
 }
