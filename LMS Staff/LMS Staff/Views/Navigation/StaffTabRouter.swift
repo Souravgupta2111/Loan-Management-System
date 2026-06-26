@@ -1,0 +1,178 @@
+//
+//  StaffTabRouter.swift
+//  LMS Staff
+//
+//  Main navigation router mapping sidebar selection to role-specific detailed views.
+//
+
+import SwiftUI
+
+enum SidebarItem: String, CaseIterable, Identifiable {
+    case officerDashboard
+    case officerApplications
+    case officerPortfolio
+    case officerMessages
+    case officerNotifications
+    
+    case managerDashboard
+    case managerRecommendations
+    case managerDisbursements
+    case managerPortfolio
+    case managerNpa
+    case managerReports
+    case managerMessages
+    
+    case adminDashboard
+    case adminStaff
+    case adminProducts
+    case adminBorrowers
+    case adminAudit
+    case adminNotifications
+    case adminChecklist
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+        case .officerDashboard: return "Dashboard"
+        case .officerApplications: return "My Applications"
+        case .officerPortfolio: return "Active Loans"
+        case .officerMessages: return "Borrower Chats"
+        case .officerNotifications: return "Alert Notifications"
+        
+        case .managerDashboard: return "Overview Dashboard"
+        case .managerRecommendations: return "Approvals Queue"
+        case .managerDisbursements: return "Pending Disbursements"
+        case .managerPortfolio: return "Portfolio Analytics"
+        case .managerNpa: return "NPA & Recoveries"
+        case .managerReports: return "Export Reports"
+        case .managerMessages: return "Officer Chats"
+        
+        case .adminDashboard: return "System Overview"
+        case .adminStaff: return "Staff Accounts"
+        case .adminProducts: return "Loan Catalog"
+        case .adminBorrowers: return "Borrower Database"
+        case .adminAudit: return "Audit Trail Log"
+        case .adminNotifications: return "Alert Templates"
+        case .adminChecklist: return "File Checklists"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .officerDashboard, .managerDashboard, .adminDashboard:
+            return "square.grid.2x2.fill"
+        case .officerApplications:
+            return "doc.on.doc.fill"
+        case .officerPortfolio:
+            return "briefcase.fill"
+        case .officerMessages, .managerMessages:
+            return "bubble.left.and.bubble.right.fill"
+        case .officerNotifications:
+            return "bell.fill"
+            
+        case .managerRecommendations:
+            return "hand.thumbsup.fill"
+        case .managerDisbursements:
+            return "banknote.fill"
+        case .managerPortfolio:
+            return "chart.pie.fill"
+        case .managerNpa:
+            return "exclamationmark.triangle.fill"
+        case .managerReports:
+            return "doc.text.fill"
+            
+        case .adminStaff:
+            return "person.3.fill"
+        case .adminProducts:
+            return "scroll.fill"
+        case .adminBorrowers:
+            return "person.text.rectangle.fill"
+        case .adminAudit:
+            return "clock.arrow.circlepath"
+        case .adminNotifications:
+            return "envelope.fill"
+        case .adminChecklist:
+            return "checkmark.square.fill"
+        }
+    }
+}
+
+struct StaffTabRouter: View {
+    let role: UserRole
+    @State private var selectedItem: SidebarItem?
+    
+    var body: some View {
+        NavigationSplitView {
+            SidebarView(role: role, selectedItem: $selectedItem)
+                .navigationTitle("LMS Portal")
+        } detail: {
+            if let item = selectedItem {
+                detailView(for: item)
+            } else {
+                VStack(spacing: StaffSpacing.md) {
+                    Image(systemName: "building.columns.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .foregroundColor(.staffTextSecondary.opacity(0.3))
+                    Text("Select a Workspace Item")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextSecondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.staffBackground)
+            }
+        }
+        .accentColor(.staffAccent)
+    }
+    
+    @ViewBuilder
+    private func detailView(for item: SidebarItem) -> some View {
+        switch item {
+        // MARK: - Officer Views
+        case .officerDashboard:
+            OfficerDashboardView()
+        case .officerApplications:
+            OfficerDashboardView(preselectedFilter: "Under Review")
+        case .officerPortfolio:
+            ActivePortfolioView()
+        case .officerMessages:
+            OfficerMessagesView()
+        case .officerNotifications:
+            OfficerNotificationsView()
+            
+        // MARK: - Manager Views
+        case .managerDashboard:
+            ManagerDashboardView()
+        case .managerRecommendations:
+            ManagerDashboardView(preselectedView: .recommendations)
+        case .managerDisbursements:
+            PendingDisbursementsView()
+        case .managerPortfolio:
+            PortfolioDashboardView()
+        case .managerNpa:
+            OverdueLoansView()
+        case .managerReports:
+            ReportsView()
+        case .managerMessages:
+            ManagerMessagesView()
+            
+        // MARK: - Admin Views
+        case .adminDashboard:
+            AdminDashboardView()
+        case .adminStaff:
+            StaffManagementView()
+        case .adminProducts:
+            LoanProductListView()
+        case .adminBorrowers:
+            BorrowerSearchView()
+        case .adminAudit:
+            AuditTrailView()
+        case .adminNotifications:
+            NotificationTemplatesView()
+        case .adminChecklist:
+            DocumentChecklistView()
+        }
+    }
+}

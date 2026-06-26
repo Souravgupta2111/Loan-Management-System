@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import Combine
+import UIKit
 
 class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
     @Published var session = AVCaptureSession()
@@ -9,6 +10,9 @@ class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
     private var output = AVCapturePhotoOutput()
     
     func checkPermissions() {
+        #if targetEnvironment(simulator)
+        // No-op on simulator to avoid crash
+        #else
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             setupCamera()
@@ -23,6 +27,7 @@ class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
         default:
             break
         }
+        #endif
     }
     
     private func setupCamera() {
@@ -50,8 +55,21 @@ class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
     }
     
     func capturePhoto() {
+        #if targetEnvironment(simulator)
+        // Mock a photo capture in simulator since camera is unavailable
+        if let dummyImage = UIImage(systemName: "person.crop.circle")?.jpegData(compressionQuality: 0.8) {
+            DispatchQueue.main.async {
+                self.capturedImage = dummyImage
+            }
+        }
+        #else
+        guard session.outputs.contains(output) else {
+            print("Error: Photo output is not connected to the session.")
+            return
+        }
         let settings = AVCapturePhotoSettings()
         output.capturePhoto(with: settings, delegate: self)
+        #endif
     }
     
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
@@ -71,24 +89,29 @@ class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
     }
 }
 
+class PreviewView: UIView {
+    override class var layerClass: AnyClass {
+        return AVCaptureVideoPreviewLayer.self
+    }
+    
+    var videoPreviewLayer: AVCaptureVideoPreviewLayer {
+        return layer as! AVCaptureVideoPreviewLayer
+    }
+}
+
 struct CameraPreview: UIViewRepresentable {
     @ObservedObject var camera: CameraManager
     
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: UIScreen.main.bounds)
-        let preview = AVCaptureVideoPreviewLayer(session: camera.session)
-        preview.frame = view.frame
-        preview.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(preview)
-        
+    func makeUIView(context: Context) -> PreviewView {
+        let view = PreviewView()
+        view.videoPreviewLayer.session = camera.session
+        view.videoPreviewLayer.videoGravity = .resizeAspectFill
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
-        if let layer = uiView.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
-            layer.session = camera.session
-            // Update frame to match bounds to keep it centered in the circle
-            layer.frame = uiView.bounds
+    func updateUIView(_ uiView: PreviewView, context: Context) {
+        if uiView.videoPreviewLayer.session !== camera.session {
+            uiView.videoPreviewLayer.session = camera.session
         }
     }
 }
@@ -117,9 +140,20 @@ struct SelfieCaptureView: View {
                         .frame(width: 200, height: 200)
                         .clipShape(Circle())
                 } else {
+                    #if targetEnvironment(simulator)
+                    ZStack {
+                        Color.black
+                        Image(systemName: "camera.fill")
+                            .font(.largeTitle)
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 200, height: 200)
+                    .clipShape(Circle())
+                    #else
                     CameraPreview(camera: camera)
                         .frame(width: 200, height: 200)
                         .clipShape(Circle())
+                    #endif
                 }
                 
                 Circle()

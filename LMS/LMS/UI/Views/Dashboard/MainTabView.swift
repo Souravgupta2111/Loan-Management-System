@@ -1,4 +1,4 @@
-import SwiftUI
+ import SwiftUI
 
 /// Main Tab View — 3 tabs: Home, Loans, EMI Calculator
 struct MainTabView: View {
@@ -14,6 +14,10 @@ struct MainTabView: View {
             Tab("Loans", systemImage: "indianrupeesign.circle.fill") {
                 LoansListView()
                     .environmentObject(authViewModel)
+            }
+            
+            Tab("Products", systemImage: "list.bullet.rectangle.portrait.fill") {
+                LoanProductsCatalogView()
             }
 
             Tab("EMI Calc", systemImage: "function") {

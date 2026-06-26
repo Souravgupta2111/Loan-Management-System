@@ -105,6 +105,9 @@ Deno.serve(async (request) => {
         status: "valid",
         name: verifiedName ?? "",
         aadhaar_last_four: result.aadhaar_number ?? "",
+        dob: result.dob ?? "",
+        gender: result.gender ?? "",
+        address: result.split_address ?? (typeof result.address === "object" ? result.address : null),
       }), { status: 200, headers: jsonHeaders });
     }
 

@@ -257,6 +257,13 @@ struct KYCDashboardView: View {
                                 
                                 SelfieCaptureView(selfieData: $viewModel.selfieData)
                                 
+                                if let error = viewModel.errorMessage {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.accentRed)
+                                        .padding(.top, Spacing.xs)
+                                }
+                                
                                 if viewModel.isSubmittingFullKYC {
                                     ProgressView()
                                         .frame(maxWidth: .infinity)
@@ -288,8 +295,8 @@ struct KYCDashboardView: View {
             .task {
                 while !Task.isCancelled {
                     await viewModel.refreshKYCStatus()
-                    if viewModel.kycStatus == "verified" {
-                        authViewModel.checkSession()
+                    if viewModel.kycStatus == "verified" || viewModel.kycStatus == "submitted" {
+                        authViewModel.authState = .authenticated
                         return
                     }
                     try? await Task.sleep(for: .seconds(5))

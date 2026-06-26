@@ -11,6 +11,8 @@ struct ProfileView: View {
     @State private var kycStatus = "pending"
     @State private var phone = ""
     @State private var pan = ""
+    @State private var creditScore: Int?
+    @State private var creditBureau: String?
 
     var body: some View {
         NavigationStack {
@@ -55,6 +57,12 @@ struct ProfileView: View {
                         profileRow("Phone", value: phone.isEmpty ? "Not set" : phone)
                         profileRow("PAN", value: pan.isEmpty ? "Not set" : pan)
                         profileRow("KYC Status", value: kycStatus.capitalized)
+                    }
+                    
+                    // MARK: - Credit Score
+                    if let score = creditScore, let bureau = creditBureau {
+                        CreditScoreView(score: score, bureau: bureau)
+                            .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
                     }
 
                     // MARK: - Actions
@@ -164,13 +172,15 @@ struct ProfileView: View {
 
             let profiles: [BorrowerRow] = try await SupabaseManager.shared.client
                 .from("borrower_profiles")
-                .select("kyc_status, pan_number")
+                .select("kyc_status, pan_number, credit_score, credit_bureau")
                 .eq("user_id", value: userId.uuidString)
                 .execute()
                 .value
             if let profile = profiles.first {
                 kycStatus = profile.kycStatus
                 pan = profile.panNumber ?? ""
+                creditScore = profile.creditScore
+                creditBureau = profile.creditBureau?.uppercased() ?? "CIBIL"
             }
         } catch {
             print("Profile load error: \(error)")
@@ -191,8 +201,12 @@ private struct ProfileRow: Decodable {
 private struct BorrowerRow: Decodable {
     let kycStatus: String
     let panNumber: String?
+    let creditScore: Int?
+    let creditBureau: String?
     enum CodingKeys: String, CodingKey {
         case kycStatus = "kyc_status"
         case panNumber = "pan_number"
+        case creditScore = "credit_score"
+        case creditBureau = "credit_bureau"
     }
 }

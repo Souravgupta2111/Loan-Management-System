@@ -43,33 +43,35 @@ struct SignUpView: View {
 
                         // Form card
                         VStack(spacing: Spacing.xl) {
-                            FormField(
-                                label: "Full Name",
-                                placeholder: "Enter your full name",
-                                text: $fullName
-                            )
+                            if !authViewModel.signUpSucceeded {
+                                FormField(
+                                    label: "Full Name",
+                                    placeholder: "Enter your full name",
+                                    text: $fullName
+                                )
 
-                            FormField(
-                                label: "Email Address",
-                                placeholder: "you@example.com",
-                                text: $email,
-                                keyboardType: .emailAddress
-                            )
+                                FormField(
+                                    label: "Email Address",
+                                    placeholder: "you@example.com",
+                                    text: $email,
+                                    keyboardType: .emailAddress
+                                )
 
-                            FormField(
-                                label: "Password",
-                                placeholder: "Minimum 6 characters",
-                                text: $password,
-                                isSecure: true
-                            )
+                                FormField(
+                                    label: "Password",
+                                    placeholder: "Minimum 6 characters",
+                                    text: $password,
+                                    isSecure: true
+                                )
 
-                            FormField(
-                                label: "Confirm Password",
-                                placeholder: "Re-enter your password",
-                                text: $confirmPassword,
-                                isSecure: true,
-                                error: passwordMismatchError
-                            )
+                                FormField(
+                                    label: "Confirm Password",
+                                    placeholder: "Re-enter your password",
+                                    text: $confirmPassword,
+                                    isSecure: true,
+                                    error: passwordMismatchError
+                                )
+                            }
 
                             if let error = localError ?? authViewModel.errorMessage {
                                 Text(error)
@@ -138,6 +140,11 @@ struct SignUpView: View {
                             .foregroundColor(.textPrimary)
                     }
                 }
+            }
+            .onAppear {
+                authViewModel.errorMessage = nil
+                authViewModel.signUpSucceeded = false
+                localError = nil
             }
         }
     }

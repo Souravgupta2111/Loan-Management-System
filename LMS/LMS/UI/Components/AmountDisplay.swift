@@ -5,6 +5,7 @@ import SwiftUI
 struct AmountDisplay: View {
     let amount: Double
     let style: AmountStyle
+    var color: Color? = nil
 
     enum AmountStyle {
         case hero    // 48pt
@@ -17,10 +18,10 @@ struct AmountDisplay: View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.integer)
                 .font(integerFont)
-                .foregroundColor(.textPrimary)
+                .foregroundColor(color ?? .textPrimary)
             Text(parts.decimal)
                 .font(.amountSuper)
-                .foregroundColor(.textSecondary)
+                .foregroundColor(color?.opacity(0.8) ?? .textSecondary)
                 .baselineOffset(baselineOffset)
         }
     }

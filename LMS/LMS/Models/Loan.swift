@@ -161,3 +161,16 @@ struct Loan: Codable, Identifiable, Hashable {
         return String(format: "Base: %.2f%% + Spread: %.2f%%", currentBaseRate, spread)
     }
 }
+
+// MARK: - View Models / Summaries
+
+struct LoanSummary: Identifiable {
+    let id: UUID
+    let name: String
+    let loanType: String
+    let outstandingAmount: Double
+    let emiAmount: Double
+    let status: String
+    let paidPercent: Double
+    let changePercent: Double
+}

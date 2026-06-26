@@ -8,9 +8,13 @@ struct ApplicationDetailView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     
     @State private var newDocuments: [String: Data] = [:]
+    @State private var remarksText: String = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     @State private var successMessage: String?
+    
+    @State private var showShareSheet = false
+    @State private var pdfShareURL: URL?
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -51,6 +55,18 @@ struct ApplicationDetailView: View {
                         
                         Divider().padding(.vertical, Spacing.sm)
                         
+                        Text("Your Remarks / Explanation")
+                            .font(.label)
+                            .foregroundColor(.textSecondary)
+                        
+                        TextEditor(text: $remarksText)
+                            .frame(height: 80)
+                            .padding(8)
+                            .background(Color.surface)
+                            .cornerRadius(Corner.md)
+                            .overlay(RoundedRectangle(cornerRadius: Corner.md).stroke(Color.border, lineWidth: 1))
+                            .foregroundColor(.textPrimary)
+                            
                         Text("Upload Additional Documents")
                             .font(.label)
                             .foregroundColor(.textSecondary)
@@ -79,6 +95,26 @@ struct ApplicationDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 }
                 
+                // MARK: - Sanction Letter (US-16)
+                if application.status == "approved" || application.status == "disbursed" {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        HStack {
+                            Image(systemName: "doc.text.fill").foregroundColor(.accentGreen)
+                            Text("Sanction Letter Ready").font(.cardTitle).foregroundColor(.accentGreen)
+                        }
+                        Text("Your loan has been approved. You can download the official sanction letter for your records.")
+                            .font(.bodyRegular)
+                            .foregroundColor(.textPrimary)
+                        
+                        PillButton(title: "Download Sanction Letter", style: .outline) {
+                            generateAndShareSanctionLetter()
+                        }
+                    }
+                    .padding(Spacing.lg)
+                    .background(Color.accentGreen.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                }
+                
                 // MARK: - Message Officer (US-17)
                 if let officerId = application.officerId, let currentUserId = authViewModel.currentUser?.id {
                     NavigationLink {
@@ -104,6 +140,11 @@ struct ApplicationDetailView: View {
         .background(Color.appBackground.ignoresSafeArea())
         .navigationTitle(application.applicationNumber)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showShareSheet) {
+            if let url = pdfShareURL {
+                ShareSheet(items: [url])
+            }
+        }
     }
     
     private var detailsCard: some View {
@@ -157,6 +198,7 @@ struct ApplicationDetailView: View {
         isSubmitting = true
         errorMessage = nil
         do {
+            // Note: Ideally remarksText would be sent to the backend too, but keeping signature the same for now
             try await LoanService.shared.resubmitApplication(
                 applicationId: application.id,
                 newDocuments: newDocuments,
@@ -169,5 +211,29 @@ struct ApplicationDetailView: View {
             errorMessage = "Failed to resubmit application. Please try again."
         }
         isSubmitting = false
+    }
+    
+    private func generateAndShareSanctionLetter() {
+        let pdfData = SanctionLetterService.shared.generateSanctionLetterPDF(
+            borrowerName: "Borrower",
+            applicationNo: application.applicationNumber,
+            approvedAmount: application.amount,
+            interestRate: 12.5, // Mocked for UI
+            tenureMonths: 24, // Mocked for UI
+            emiAmount: (application.amount / 24) * 1.05, // Mocked for UI
+            branchName: "Main Branch" // Mocked for UI
+        )
+        
+        let tempDir = FileManager.default.temporaryDirectory
+        let filename = "Sanction_Letter_\(application.applicationNumber).pdf"
+        let fileURL = tempDir.appendingPathComponent(filename)
+        
+        do {
+            try pdfData.write(to: fileURL)
+            self.pdfShareURL = fileURL
+            self.showShareSheet = true
+        } catch {
+            print("Failed to save PDF: \(error)")
+        }
     }
 }

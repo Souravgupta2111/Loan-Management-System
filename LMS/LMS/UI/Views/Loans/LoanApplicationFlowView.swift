@@ -123,8 +123,8 @@ struct LoanApplicationFlowView: View {
     
     private func submitApplication() {
         guard let product = selectedProduct, let userId = SupabaseManager.shared.currentUserId else { return }
-        let required = product.requiredDocuments ?? ["Salary Slip", "Bank Statement"]
-        guard required.allSatisfy({ applicationDocuments[$0] != nil }) else {
+        let requiredDocs = product.requiredDocuments?.filter { $0.isMandatory }.map { $0.name } ?? ["Salary Slip", "Bank Statement"]
+        guard requiredDocs.allSatisfy({ applicationDocuments[$0] != nil }) else {
             submissionError = "Upload every required document before submitting."
             return
         }
@@ -262,9 +262,12 @@ struct DocumentUploadStep: View {
     let product: LoanProduct
     @Binding var documents: [String: Data]
 
-    private var requiredDocuments: [String] {
+    private var requiredDocuments: [DocumentRequirement] {
         let configured = product.requiredDocuments ?? []
-        return configured.isEmpty ? ["Salary Slip", "Bank Statement"] : configured
+        return configured.isEmpty ? [
+            DocumentRequirement(name: "Salary Slip", isMandatory: true),
+            DocumentRequirement(name: "Bank Statement", isMandatory: true)
+        ] : configured
     }
 
     var body: some View {
@@ -277,13 +280,13 @@ struct DocumentUploadStep: View {
                 .font(.bodyRegular)
                 .foregroundColor(.textSecondary)
             
-            ForEach(requiredDocuments, id: \.self) { document in
+            ForEach(requiredDocuments, id: \.id) { document in
                 DocumentUploadView(
-                    title: document,
-                    subtitle: "Required",
+                    title: document.name,
+                    subtitle: document.isMandatory ? "Required" : "Optional",
                     documentData: Binding(
-                        get: { documents[document] },
-                        set: { documents[document] = $0 }
+                        get: { documents[document.name] },
+                        set: { documents[document.name] = $0 }
                     )
                 )
             }

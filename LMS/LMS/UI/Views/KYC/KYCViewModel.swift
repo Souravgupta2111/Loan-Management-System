@@ -25,6 +25,9 @@ class KYCViewModel: ObservableObject {
     @Published var aadhaarOTP: String = ""
     @Published var aadhaarReferenceId: String? = nil
     @Published var aadhaarVerifiedName: String? = nil
+    @Published var aadhaarDOB: String? = nil
+    @Published var aadhaarGender: String? = nil
+    @Published var aadhaarAddress: AadhaarAddress? = nil
     
     @Published var addressProofData: Data? = nil
     @Published var selfieData: Data? = nil
@@ -157,6 +160,9 @@ class KYCViewModel: ObservableObject {
             let response = try await KYCService.shared.verifyAadhaarOTP(referenceId: refId, otp: trimmedOTP)
             if response.success {
                 self.aadhaarVerifiedName = response.name
+                self.aadhaarDOB = response.dob
+                self.aadhaarGender = response.gender
+                self.aadhaarAddress = response.address
                 
                 // Cross-check: PAN name vs Aadhaar name
                 if let aadhaarName = response.name, !aadhaarName.isEmpty {
@@ -204,12 +210,53 @@ class KYCViewModel: ObservableObject {
                 let selfiePath = try await KYCService.shared.uploadDocument(data: selfie, type: "selfie", userId: userId.uuidString)
                 try await KYCService.shared.recordDocument(userId: userId, type: "selfie", storagePath: selfiePath, byteCount: selfie.count)
                 
-                try await KYCService.shared.submitFullKYCDocs(userId: userId, aadhaar: aadhaarNumber, pan: panNumber)
-                kycStatus = "verified"
-                authViewModel.checkSession()
+                var addressLine1 = ""
+                if let house = aadhaarAddress?.house, !house.isEmpty {
+                    addressLine1 += house
+                }
+                if let street = aadhaarAddress?.street, !street.isEmpty {
+                    if !addressLine1.isEmpty { addressLine1 += ", " }
+                    addressLine1 += street
+                }
+                
+                var addressLine2 = ""
+                if let landmark = aadhaarAddress?.landmark, !landmark.isEmpty {
+                    addressLine2 += landmark
+                }
+                if let loc = aadhaarAddress?.loc, !loc.isEmpty {
+                    if !addressLine2.isEmpty { addressLine2 += ", " }
+                    addressLine2 += loc
+                }
+                if let po = aadhaarAddress?.po, !po.isEmpty {
+                    if !addressLine2.isEmpty { addressLine2 += ", " }
+                    addressLine2 += po
+                }
+                
+                let city = aadhaarAddress?.dist
+                let state = aadhaarAddress?.state
+                let pincode = aadhaarAddress?.pc
+                
+                let finalDOB = aadhaarDOB ?? dob
+                
+                try await KYCService.shared.submitFullKYCDocs(
+                    userId: userId,
+                    aadhaar: aadhaarNumber,
+                    pan: panNumber,
+                    dob: finalDOB,
+                    gender: aadhaarGender,
+                    addressLine1: addressLine1.isEmpty ? nil : addressLine1,
+                    addressLine2: addressLine2.isEmpty ? nil : addressLine2,
+                    city: city,
+                    state: state,
+                    pincode: pincode,
+                    fullName: fullName
+                )
+                self.kycStatus = "submitted"
+                authViewModel.authState = .authenticated
             }
         } catch {
-            self.errorMessage = "Failed to submit KYC. Please try again."
+            print("KYC Submission Error: \(error)")
+            self.errorMessage = "Failed to submit KYC. Error: \(error.localizedDescription)"
         }
         
         isSubmittingFullKYC = false

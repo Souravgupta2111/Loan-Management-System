@@ -33,23 +33,29 @@ struct StatCard: View {
     }
 }
 
-/// Dark Stat Pill — compact version used inside hero cards (e.g. "2 Active Loans")
 struct DarkStatPill: View {
     let count: Int
     let label: String
 
     var body: some View {
-        VStack(spacing: 2) {
+        HStack(spacing: 8) {
             Text("\(count)")
-                .font(.bodyLarge)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.white.opacity(0.7))
+            
+            Text(label.replacingOccurrences(of: "\n", with: " "))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.85))
+                .lineLimit(1)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color.accentDark)
-        .clipShape(Capsule())
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+        )
     }
 }

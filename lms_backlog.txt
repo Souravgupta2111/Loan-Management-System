@@ -1,0 +1,319 @@
+=== Sheet: Sprint Backlog ===
+Sr.,US ID,Role,User Story,MoSCoW,Risk (Impl.),Dependency,Story Points,Priority,Acceptance Criteria
+1,US-01,Borrower,"As a borrower, I want to register an account so that I can create a secure account.",Must,Medium,-,5,Highest,"- User can register using mobile number or email
+- System sends an OTP to verify the entered mobile number or email
+- User must enter the correct OTP within the valid time to continue
+- System shows an error if the OTP is incorrect or expired
+- System blocks registration if the mobile number or email is already in use
+- User's password must meet the minimum security requirements
+- Account is created only after successful OTP verification"
+2,US-02,Borrower,"As a borrower, I want to reset my password so that I can regain access to my account.",Must,Low,US-01,2,High,"- User can request a password reset from the login screen
+- System sends an OTP to the registered mobile number or email
+- User must enter the correct OTP to proceed with the reset
+- System shows an error if the OTP is incorrect or expired
+- User can set a new password that meets the minimum security requirements
+- User is logged out of all other active sessions after a successful reset"
+3,US-03,Borrower,"As a borrower, I want to complete my KYC so that my identity can be verified.",Must,High,US-01,13,Highest,"- User can complete KYC by entering Aadhaar number, PAN number, and uploading required documents
+- User must upload address proof and income proof as part of KYC
+- User must complete a liveness selfie check as part of KYC
+- System shows an error if any required KYC field or document is missing
+- KYC is marked as submitted only once all required details and documents are provided
+- Uploaded documents are securely stored and only accessible to the user and authorised staff"
+4,US-04,Borrower,"As a borrower, I want to track the status of my KYC submission so that I know whether my documents have been verified, are pending review, or have been rejected.",Must,Low,US-03,2,High,"- User can view their current KYC status at any time
+- KYC status clearly shows whether it is Not Started, In Progress, Submitted, Verified, or Rejected
+- Status updates automatically when an officer reviews the KYC documents
+- User does not need to refresh or relaunch the app to see the latest status
+- If rejected, user can see which specific document caused the rejection"
+5,US-05,Borrower,"As a borrower, I want to resubmit specific KYC documents that were rejected so that I can correct my submission and continue the verification process.",Must,Medium,"US-03, US-27",5,High,"- User can view which specific KYC documents were rejected
+- User can re-upload only the rejected documents, not the entire KYC
+- System replaces the old rejected document with the newly uploaded one
+- Resubmitted documents are sent back to the officer for review
+- KYC status updates automatically once all rejected documents are resubmitted"
+6,US-06,Borrower,"As a borrower, I want to use the EMI calculator to estimate my monthly payment for any loan amount, tenure, and interest rate so that I can make an informed decision before applying.",Must,Low,-,3,Highest,"- User can access the EMI calculator without logging in
+- User can enter any loan amount, tenure, and interest rate
+- System calculates and displays the EMI based on the entered values
+- System shows the total interest payable and total repayment amount
+- EMI updates instantly whenever the user changes any input value"
+7,US-07,Borrower,"As a borrower, I want to apply for a new loan so that I can initiate a loan request.",Must,High,"US-03, US-06, US-65",13,Highest,"- User can select a loan type before starting the application
+- User can enter the desired loan amount and tenure within the allowed limits
+- User can preview the EMI before submitting the application
+- User must upload all required documents based on the selected loan type
+- System blocks submission if KYC is not completed
+- System blocks submission if any required document is missing
+- A unique application number is generated once the application is submitted
+- User cannot edit the loan amount or tenure after submission"
+8,US-08,Borrower,"As a borrower, I want to track my loan application status in real time so that I always know where my application stands.",Must,Medium,US-07,8,High,"- User can view the current status of their loan application at any time
+- Status clearly shows the stage — Submitted, Under Review, Approved, Disbursed, or Rejected
+- Status updates automatically without the user needing to refresh the app
+- User can tap on a past stage to see when it was reached"
+9,US-09,Borrower,"As a borrower, I want to upload additional documents so that I can provide missing information and allow my application to continue processing.",Must,Low,US-27,3,High,"- User can upload additional documents only when requested by the loan officer
+- System only accepts supported file formats (e.g. PDF, JPG, PNG)
+- System shows an error if the file size exceeds the allowed limit
+- Officer is notified once the requested document is uploaded
+- Application moves forward once all requested documents are submitted"
+10,US-10,Borrower,"As a borrower, I want to view the reason my loan application was rejected so that I understand the decision and know what to address before reapplying.",Must,Low,"US-46, US-32",2,High,"- User can view the reason their loan application was rejected
+- Rejection reason is shown exactly as entered by the officer or manager
+- This screen is only visible if the application status is Rejected
+- User can start a new loan application directly from this screen"
+11,US-11,Borrower,"As a borrower, I want to review and respond to remarks when my application is sent back for revision so that I can address the officer's concerns.",Must,Medium,US-47,3,Medium,"- User can view the manager's remarks when an application is sent back for revision
+- User can respond to the remarks and/or re-upload the relevant documents
+- User can resubmit the application after addressing the remarks
+- Application moves back to the loan officer's queue after resubmission"
+12,US-12,Borrower,"As a borrower, I want to view my active loan details so that I have full visibility into my current loan.",Must,Low,US-55,5,High,"- User can view their active loan details including disbursement date and amount
+- User can view the outstanding principal and interest amount
+- User can view the current interest rate applied to the loan
+- All loan details shown are read-only and cannot be edited by the user"
+13,US-13,Borrower,"As a borrower, I want to view my full EMI details so that I can plan my repayments effectively.",Must,Low,US-55,3,High,"- User can view the complete EMI schedule for their loan
+- Each EMI entry shows the due date, amount, and principal/interest breakdown
+- Each EMI is clearly marked as Paid, Upcoming, or Overdue
+- Overdue EMIs show any applicable penalty amount"
+14,US-14,Borrower,"As a borrower, I want to pay my EMI so that I can settle my repayments securely.",Must,High,US-13,8,Highest,"- User can pay an EMI directly through the app
+- User can choose to pay via UPI, card, or netbanking
+- System shows the exact EMI amount, including any penalty, before payment
+- User receives a confirmation once the payment is successfully completed
+- System shows a clear status if the payment is still being processed
+- EMI status updates to Paid automatically after a successful payment
+- Loan status updates to Closed if this was the final EMI"
+15,US-15,Borrower,"As a borrower, I want to view my complete payment history so that I can track every repayment.",Must,Low,US-14,3,High,"- User can view their complete payment history
+- Each entry shows the date, amount, payment mode, and reference number
+- Cash payments and online payments are both shown in the same list
+- User can scroll through past payments without performance issues"
+16,US-16,Borrower,"As a borrower, I want to download my sanction letter and loan agreement so that I have official documentation of my loan approval and terms.",Must,Medium,US-34,3,High,"- User can download the sanction letter once the loan is approved
+- User can download the loan agreement once the loan is disbursed
+- Both documents are downloaded as PDF files
+- System shows an error if the document is not yet available"
+17,US-17,Borrower,"As a borrower, I want to send and receive in-app messages with my assigned loan officer about my application so that all communication is documented in one place.",Should,Low,US-36,3,Medium,"- User can send and receive messages with their assigned loan officer
+- Messages are linked to the specific loan application
+- User receives a notification when the officer replies
+- User can view the full message history for that application at any time"
+18,US-18,Borrower,"As a borrower, I want to receive push notifications for all key loan events so that I never miss a critical update about my loan.",Must,Medium,US-08,5,High,"- User receives push notifications for key events such as OTP, KYC status, application updates, and EMI reminders
+- User receives a notification when an EMI is due soon and when an EMI is overdue
+- User receives a notification when a payment is confirmed
+- Tapping a notification takes the user directly to the relevant screen
+- All notifications are also available to view inside the app's notification list"
+19,US-19,Borrower,"As a borrower, I want to view and update my profile information so that my account details remain accurate.",Should,Low,US-01,2,Low,"- User can update their name, phone number, and address
+- System sends an OTP to verify any change to the phone number
+- Updated information is saved immediately after confirmation
+- System shows an error if the update fails"
+20,US-20,Borrower,"As a borrower, I want to view a repayment dashboard showing my upcoming EMI due date, total outstanding balance, overdue amount if any, and a quick Pay button so that I can see my repayment health at a glance and act immediately.",Must,High,"US-14, US-13",8,High,"- User can view their next EMI due date and total outstanding balance in one place
+- User can view the overdue amount, if any, on the same screen
+- A Pay button is shown when an EMI is due or overdue
+- Tapping Pay takes the user directly into the payment flow for that EMI"
+21,US-21,Borrower,"As a borrower, I want to view my credit score and the bureau it was sourced from so that I can understand my creditworthiness.",Should,Medium,US-19,3,Low,"- User can view their current credit score
+- User can view which credit bureau the score was sourced from
+- System shows a clear message if no credit score is available yet
+- Credit score is shown as read-only and cannot be edited by the user"
+22,US-22,Loan Officer,"As a loan officer, I want to log in to the app so that I can access my assigned loan processing functions.",Must,Medium,-,3,Highest,"- Officer can log in using their employee credentials
+- System grants access only to the features and data permitted for the loan officer role
+- System shows an error for incorrect login credentials
+- Officer is logged out automatically after a defined period of inactivity"
+23,US-23,Loan Officer,"As a loan officer, I want to see all my assigned loan applications in a dashboard so that I can identify which ones need action.",Must,Medium,US-07,5,High,"- Officer can view all loan applications assigned to them in one dashboard
+- Applications needing action are clearly highlighted
+- Officer can see the applicant name, loan type, amount, and status at a glance
+- Dashboard updates automatically when a new application is assigned"
+24,US-24,Loan Officer,"As a loan officer, I want to view the full detail of a loan application so that I can assess all borrower information.",Must,Medium,US-23,5,High,"- Officer can open any assigned application to view its full details
+- Officer can view the applicant's information, requested amount, and purpose
+- Officer can view and open all documents uploaded for the application
+- All borrower-submitted information is shown as read-only"
+25,US-25,Loan Officer,"As a loan officer, I want to view a borrower's credit score and risk summary so that I can evaluate their creditworthiness before making a recommendation.",Must,High,US-24,5,High,"- Officer can view the borrower's credit score on the application detail screen
+- Officer can view a summary of the borrower's credit risk
+- System shows a clear message if the credit score is not yet available
+- Officer can only view this information for applications assigned to them"
+26,US-26,Loan Officer,"As a loan officer, I want to request additional documents from a borrower so that I can obtain missing information needed to process the application.",Must,Low,US-23,3,High,"- Officer can request additional documents from the borrower
+- Officer can specify which document(s) are needed
+- Officer can add a note explaining the request
+- Borrower is notified immediately when a document is requested
+- Application is marked as awaiting borrower response until the document is provided"
+27,US-27,Loan Officer,"As a loan officer, I want to review documents resubmitted by a borrower so that I can continue processing the application.",Must,Low,"US-26, US-05",3,High,"- Officer can view documents resubmitted by the borrower
+- Officer can mark each document as verified or rejected
+- Officer can add a remark if a document is rejected again
+- Application moves forward once all requested documents are verified"
+28,US-28,Loan Officer,"As a loan officer, I want to reject an ineligible loan application with a mandatory reason so that the borrower is informed and the decision is permanently recorded.",Must,Low,US-24,3,High,"- Officer can reject an ineligible loan application
+- System requires a reason before the rejection can be confirmed
+- Borrower is notified of the rejection and the reason
+- Rejected application is recorded permanently and cannot be edited"
+29,US-29,Loan Officer,"As a loan officer, I want to recommend an eligible loan application to the manager so that it proceeds for final approval.",Must,Low,US-24,3,High,"- Officer can recommend an eligible application to the manager
+- Recommend option is only available once the officer's review is complete
+- Application appears in the manager's queue immediately after recommendation
+- Officer cannot recommend the same application more than once"
+30,US-30,Loan Officer,"As a loan officer, I want to receive and review manager send-back remarks so that I can address the gaps and resubmit the application for approval.",Must,Low,US-47,3,High,"- Officer can view the manager's remarks when an application is sent back
+- Officer can take the necessary action to address the remarks
+- Officer can resubmit the application to the manager after addressing the gaps
+- Officer is notified as soon as an application is sent back"
+31,US-31,Loan Officer,"As a loan officer, I want to view the manager's decision on a recommended application so that I can take the appropriate next action.",Must,Low,"US-43, US-44",2,High,"- Officer can view the manager's final decision on a recommended application
+- Decision clearly shows whether it was Approved, Rejected, or Sent Back
+- Officer is notified as soon as the manager makes a decision
+- Officer can take the next appropriate action directly from this screen"
+32,US-32,Loan Officer,"As a loan officer, I want to generate and share the loan sanction letter for a manager-approved application so that the borrower receives their official approval document.",Must,High,US-43,8,High,"- Officer can generate the sanction letter once the manager approves the application
+- Sanction letter includes the approved loan terms
+- Officer can share the sanction letter directly from the app
+- Borrower can independently access the same sanction letter from their account"
+33,US-33,Loan Officer,"As a loan officer, I want to send and receive in-app messages with a borrower about their application so that all communication is documented in one place.",Should,Low,"US-24, US-01",5,Medium,"- Officer can send and receive messages with the borrower about their application
+- Messages are linked to the specific loan application
+- Officer receives a notification when the borrower sends a new message
+- Officer can view the full message history for that application"
+34,US-34,Loan Officer,"As a loan officer, I want to send a message to the manager about a specific loan application so that I can seek clarification on decisions or approvals.",Should,Low,US-36,3,Low,"- Officer can send a message to the manager about a specific application
+- Manager is notified when a new message is received
+- Message is linked to the relevant loan application
+- Officer can view the full message history with the manager"
+35,US-35,Loan Officer,"As a loan officer, I want to view my assigned portfolio of active loans so that I can monitor the post-disbursement status of borrowers I processed.",Must,Medium,US-55,5,Medium,"- Officer can view a list of all active loans they have processed
+- Officer can see the current status of each loan at a glance
+- Officer can see the outstanding balance for each loan
+- List only includes loans the officer personally processed"
+36,US-36,Loan Officer,"As a loan officer, I want to track the repayment status of my assigned borrowers so that I can identify who is on track and who is falling behind.",Must,Medium,US-37,5,Medium,"- Officer can view the repayment status of each assigned borrower
+- System clearly shows which borrowers are on track and which are falling behind
+- Officer can sort or filter the list to identify at-risk borrowers quickly
+- Status reflects the latest repayment data available"
+37,US-37,Loan Officer,"As a loan officer, I want to flag overdue borrower accounts so that they are escalated for NPA monitoring before the threshold is reached.",Must,High,US-38,5,Medium,"- Officer can flag an overdue borrower account for early NPA monitoring
+- Officer must provide a reason when flagging an account
+- Flagged accounts are visible to both the officer and their manager
+- Flagging does not change the loan's status by itself"
+38,US-38,Loan Officer,"As a loan officer, I want to receive push notifications for all key events on my assigned applications so that I can act promptly without constantly checking the app.",Should,Medium,US-23,5,Medium,"- Officer receives push notifications for key events on their assigned applications
+- Notifications include new submissions, document resubmissions, and borrower messages
+- Officer receives an alert when an assigned loan becomes overdue or reaches NPA
+- Tapping a notification takes the officer directly to the relevant application"
+39,US-39,Manager,"As a manager, I want to log in to the app so that I can access data my role permits.",Must,Medium,-,3,Highest,"- Manager can log in using their employee credentials
+- System grants access only to the features and data permitted for the manager role
+- System shows an error for incorrect login credentials
+- Manager is logged out automatically after a defined period of inactivity"
+40,US-40,Manager,"As a manager, I want to see all officer-recommended loan applications in a prioritised list so that I can work through them.",Must,Medium,US-29,5,High,"- Manager can view all officer-recommended applications in one prioritised list
+- List clearly shows the applicant, amount, and recommending officer
+- Oldest unactioned applications are surfaced first
+- List updates automatically as new recommendations come in"
+41,US-41,Manager,"As a manager, I want to approve a loan application and set the disbursement terms so that the borrower's loan can proceed.",Must,High,US-40,8,High,"- Manager can approve a loan application after reviewing its full details
+- Manager can set or adjust the final disbursement amount, tenure, and interest rate
+- System requires all terms to be confirmed before approval is finalised
+- Application moves to the approved list once confirmed"
+42,US-42,Manager,"As a manager, I want to reject a loan application with a required reason so that the borrower understands the decision and the rejection is auditable.",Must,Low,US-40,3,High,"- Manager can reject a loan application
+- System requires a reason before the rejection can be confirmed
+- Borrower is notified of the rejection and the reason
+- Rejected application is recorded permanently"
+43,US-43,Manager,"As a manager, I want to return an application to the officer with specific remarks so that they can address gaps before I make a final decision.",Must,Low,US-40,3,High,"- Manager can return an application to the officer for revision
+- System requires specific remarks before the application can be sent back
+- Officer is notified immediately when an application is sent back
+- Application returns to the officer's active queue"
+44,US-44,Manager,"As a manager, I want to see a chronological timeline of all actions taken on a loan application so that I understand the full decision history before acting.",Must,Low,US-40,8,Medium,"- Manager can view a complete timeline of all actions taken on an application
+- Timeline shows each action, who performed it, and when
+- Timeline is shown in chronological order
+- Timeline cannot be edited or deleted by any user"
+45,US-45,Manager,"As a manager, I want to see my branch's key portfolio metrics on a single dashboard so that I can monitor overall health at a glance every day.",Must,High,US-55,8,High,"- Manager can view key portfolio metrics for their branch on one dashboard
+- Dashboard shows metrics such as total disbursed amount, active loans, and NPA ratio
+- Dashboard reflects the manager's own branch by default
+- Manager can tap any metric to view the related detailed list"
+46,US-46,Manager,"As a manager, I want to filter the portfolio dashboard by officer, branch, or loan product so that I can isolate performance on different basis.",Should,Medium,US-46,3,Medium,"- Manager can filter the portfolio dashboard by officer, branch, or loan product
+- Manager can apply more than one filter at the same time
+- Dashboard updates instantly when a filter is applied
+- Manager can clear all filters in a single action"
+47,US-47,Manager,"As a manager, I want to see collection efficiency trend across the past months so that I can spot deteriorating repayment patterns before they become NPAs.",Could,Medium,US-46,5,Low,"- Manager can view the collection efficiency trend over the past several months
+- Trend respects any filters currently applied on the dashboard
+- A noticeable decline in collection efficiency is clearly highlighted
+- Manager can use this trend to identify accounts at risk of becoming NPAs"
+48,US-48,Manager,"As a manager, I want to see all my approved loans that have not yet been disbursed so that I can process them in order.",Must,Low,US-41,5,High,"- Manager can view all approved loans that have not yet been disbursed
+- List shows the approved amount and how long the loan has been waiting
+- Oldest approved loans are shown first
+- Tapping an entry takes the manager directly into the disbursement flow"
+49,US-49,Manager,"As a manager, I want to verify the borrower's bank account number and IFSC before disbursing so that the loan reaches the correct account.",Must,High,US-49,5,High,"- Manager can view the borrower's bank account number and IFSC code before disbursing
+- System validates the IFSC code before allowing disbursement to proceed
+- Manager cannot proceed with disbursement if the bank details are invalid or unverified
+- System clearly shows an error if the verification fails"
+50,US-50,Manager,"As a manager, I want to see the full generated EMI schedule for a disbursed loan so that I can verify the amortisation is correct before the borrower's first payment.",Must,Medium,US-50,8,High,"- Manager can view the complete EMI schedule generated for a disbursed loan
+- Schedule shows every instalment with due date and amount
+- Manager can verify the schedule before the borrower's first payment is due
+- Schedule is shown as read-only and cannot be edited from this screen"
+51,US-51,Manager,"As a manager, I want to see all overdue loans tiered by severity so that I can prioritise the most critical accounts first.",Must,High,US-39,5,High,"- Manager can view all overdue loans grouped by severity
+- Overdue loans are tiered based on how many days they have been overdue
+- Most critical accounts are clearly highlighted at the top
+- Manager can sort the list by days overdue or by outstanding amount"
+52,US-52,Manager,"As a manager, I want to review the full overdue loan detail and all prior contact history so that I can choose the right resolution path with full context.",Should,High,US-52,5,Medium,"- Manager can view the full details of an overdue loan in one place
+- Manager can view all prior contact history logged for that loan
+- Manager can log a new contact attempt directly from this screen
+- Contact history remains visible regardless of what resolution is chosen later"
+53,US-53,Manager,"As a manager, I want to restructure an NPA loan so that the borrower can resume repayment on achievable terms in case of any grievance.",Should,High,US-53,8,Medium,"- Manager can restructure an NPA loan by setting a revised tenure and/or interest rate
+- Manager can choose to waive part or all of the pending penalty
+- System regenerates the EMI schedule based on the new terms
+- Loan status updates to Restructured once confirmed"
+54,US-54,Manager,"As a manager, I want to write off an NPA loan with a mandatory reason so that it is removed from the active portfolio and permanently recorded for audit and regulatory purposes.",Should,High,US-53,5,Medium,"- Manager can write off an NPA loan
+- System requires a reason before the write-off can be confirmed
+- Written-off loan is removed from the active portfolio
+- Action is recorded permanently and cannot be reversed from the app"
+55,US-55,Manager,"As a manager, I want to escalate an NPA loan to admin with a reason so that cases requiring legal action or regulatory handling can be properly routed.",Should,Medium,US-53,3,Medium,"- Manager can escalate an NPA loan to the admin
+- System requires a reason before the escalation can be submitted
+- Admin is notified immediately when a loan is escalated
+- Escalated loan is clearly marked as awaiting admin action"
+56,US-56,Manager,"As a manager, I want to generate a portfolio, repayment trend, or NPA report for a selected date range and filter so that I can review branch performance data before sharing it.",Should,High,US-46,8,Medium,"- Manager can generate a portfolio, repayment trend, or NPA report
+- Manager can select a specific date range and apply filters before generating
+- Report preview matches exactly what was selected
+- Manager sees a loading indicator while the report is being generated"
+57,US-57,Manager,"As a manager, I want to export a generated report so that I can share it with stakeholders.",Should,Low,US-57,3,Medium,"- Manager can export a generated report as a PDF or CSV file
+- Exported file matches exactly what was shown in the report preview
+- Manager can share the exported file outside the app
+- System shows an error if the export fails"
+58,US-58,Manager,"As a manager, I want to update the interest rate and processing fee and other parameters for a loan product so that our pricing reflects current branch policy.",Could,High,US-65,5,Low,"- Manager can update the interest rate, processing fee, and other parameters for a loan product
+- System only allows changes within the limits set by the admin
+- Updated parameters apply only to new applications, not existing loans
+- All changes are recorded for audit purposes"
+59,US-59,Manager,"As a manager, I want to send an in-app message to a loan officer regarding their application so that I can request clarification or communicate a decision detail directly.",Should,Low,US-36,5,Low,"- Manager can send a message to a loan officer about a specific application
+- Officer is notified when a new message is received
+- Message is linked to the relevant loan application
+- Manager can view the full message history with the officer"
+60,US-60,Admin,"As an admin, I want to log in to the app so that I can access administrative functions.",Must,Medium,-,3,Highest,"- Admin can log in using their employee credentials
+- System grants access only to the features and data permitted for the admin role
+- System shows an error for incorrect login credentials
+- Admin is logged out automatically after a defined period of inactivity"
+61,US-61,Admin,"As an admin, I want to reset my password so that I can regain access to the system.",Should,Low,US-61,2,Low,"- Admin can request a password reset from the login screen
+- System sends an OTP to the registered contact for verification
+- Admin can set a new password that meets the minimum security requirements
+- All other active sessions are logged out after a successful reset"
+62,US-62,Admin,"As an admin, I want to view a loan activity dashboard so that I can monitor system-wide activity.",Must,High,US-46,8,High,"- Admin can view a real-time dashboard of loan activity across all branches
+- Dashboard shows counts of total, pending, approved, rejected, and disbursed applications
+- Dashboard updates automatically without manual refresh
+- Admin can tap any count to view the related filtered list"
+63,US-63,Admin,"As an admin, I want to manage staff accounts and permissions so that employee access to the system is properly controlled.",Must,High,US-61,8,Highest,"- Admin can view a list of all staff accounts
+- Admin can create a new staff account with name, role, and branch
+- Admin can edit an existing staff member's details
+- Admin can activate or deactivate a staff account
+- Deactivating an account immediately revokes that user's access"
+64,US-64,Admin,"As an admin, I want to assign or change staff roles so that permissions match job responsibilities.",Must,Medium,US-64,5,Highest,"- Admin can assign or change the role on any staff account
+- Role change takes effect immediately for that staff member
+- Staff member's permissions update without needing to log out and back in
+- Role changes are recorded for audit purposes"
+65,US-65,Admin,"As an admin, I want to view a borrower's complete profile so that I can access all customer information.",Must,Medium,US-01,5,High,"- Admin can search for and view any borrower's complete profile
+- Profile includes KYC status, credit history, and full loan history
+- Admin can search by name, phone number, or borrower ID
+- Profile is shown as read-only from this screen"
+66,US-66,Admin,"As an admin, I want to create and update a loan product so that new products can be offered.",Must,High,US-61,8,Highest,"- Admin can create a new loan product with type, interest rate, fees, and tenure/amount limits
+- Admin can update the details of an existing loan product
+- New or updated products are available to borrowers immediately once activated
+- Changes do not affect loans that are already disbursed"
+67,US-67,Admin,"As an admin, I want to define and edit loan eligibility criteria so that only qualified borrowers can apply.",Must,Medium,US-67,5,Highest,"- Admin can define eligibility criteria for a loan product
+- Criteria can include minimum income, credit score, age, and employment tenure
+- System rejects invalid criteria, such as a minimum higher than the maximum
+- Updated criteria apply only to new applications going forward"
+68,US-68,Admin,"As an admin, I want to create and edit notification templates so that system communications remain consistent.",Could,Low,-,5,Lowest,"- Admin can create and edit notification templates for system events
+- Templates can include placeholders such as borrower name, amount, and due date
+- Saved templates apply to all future notifications of that event immediately
+- System prevents saving a template with broken or invalid placeholders"
+69,US-69,Admin,"As an admin, I want to view the audit trail so that I can track system activity.",Must,High,-,8,High,"- Admin can view a complete audit trail of actions performed across all roles
+- Each entry shows the actor, the action taken, and when it occurred
+- Audit trail is read-only and cannot be edited or deleted
+- Audit trail loads smoothly even with a large volume of records"
+70,US-70,Admin,"As an admin, I want to configure and update the required document checklist for each loan type so that borrowers and officers always know exactly which documents must be submitted for a specific loan product.",Must,Medium,US-66,5,Medium,"- Admin can define the required document checklist for each loan type
+- Admin can mark each document as mandatory or optional
+- Checklist changes apply immediately to new loan applications
+- Borrowers and officers always see the most current checklist for a loan type"
+
+=== Sheet: Legend ===
+COLUMN,VALUES,MEANING
+MoSCoW,Must,Core feature — ship without it = broken product
+,Should,Important — significantly reduces value if absent
+,Could,Nice to have — include only if capacity allows
+,Won't,Explicitly out of scope for this release
+Risk,Low,Simple CRUD / standard Supabase query — < 1 day
+,Medium,"Moderate complexity — auth, RLS, joins, Edge Fn — 1-3 days"
+,High,"Complex — payment gateways, PDF gen, real-time, NPA cron, biometric — 3+ days"
+Points,2,"Trivial — read-only screen, status display"
+,3,"Simple — one DB write, standard UI"
+,5,"Moderate — multiple DB tables, some Edge Function logic"
+,8,"Complex — multi-step flow, Edge Function chain, external API"
+,13,"Very complex — full feature with many edge cases (KYC, loan application)"
+

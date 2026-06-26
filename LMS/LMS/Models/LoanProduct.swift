@@ -113,7 +113,7 @@ struct LoanProduct: Codable, Identifiable, Hashable {
     var requiresCollateral: Bool
     var isActive: Bool
     var eligibilityCriteria: [String: String]?
-    var requiredDocuments: [String]?
+    var requiredDocuments: [DocumentRequirement]?
 
     let createdAt: Date?
     var updatedAt: Date?
@@ -140,6 +140,38 @@ struct LoanProduct: Codable, Identifiable, Hashable {
         case requiredDocuments = "required_documents"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    // Custom decoder to handle eligibility_criteria containing either String or Number values
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decode(LoanType.self, forKey: .type)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        minAmount = try container.decode(Double.self, forKey: .minAmount)
+        maxAmount = try container.decode(Double.self, forKey: .maxAmount)
+        minTenureMonths = try container.decode(Int.self, forKey: .minTenureMonths)
+        maxTenureMonths = try container.decode(Int.self, forKey: .maxTenureMonths)
+        minInterestRate = try container.decode(Double.self, forKey: .minInterestRate)
+        maxInterestRate = try container.decode(Double.self, forKey: .maxInterestRate)
+        supportedInterestTypes = try container.decode([InterestType].self, forKey: .supportedInterestTypes)
+        spreadOverBase = try container.decode(Double.self, forKey: .spreadOverBase)
+        processingFeePct = try container.decode(Double.self, forKey: .processingFeePct)
+        prepaymentPenaltyPct = try container.decode(Double.self, forKey: .prepaymentPenaltyPct)
+        latePenaltyPctPerMonth = try container.decode(Double.self, forKey: .latePenaltyPctPerMonth)
+        requiresCollateral = try container.decode(Bool.self, forKey: .requiresCollateral)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        requiredDocuments = try container.decodeIfPresent([DocumentRequirement].self, forKey: .requiredDocuments)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+
+        // Flexibly decode eligibility_criteria — values may be String or Number in JSON
+        if let rawDict = try container.decodeIfPresent([String: AnyCodableValue].self, forKey: .eligibilityCriteria) {
+            eligibilityCriteria = rawDict.mapValues { $0.stringValue }
+        } else {
+            eligibilityCriteria = nil
+        }
     }
 
     // MARK: - Computed Properties

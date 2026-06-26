@@ -11,10 +11,26 @@ import SwiftUI
 struct LMS_StaffApp: App {
     // Initialize Supabase on app launch
     private let supabase = SupabaseManager.shared
+    @StateObject private var authViewModel = AuthViewModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.dark)
+                .environmentObject(authViewModel)
+                .onAppear {
+                    // Start global activity monitoring on the window
+                    NotificationCenter.default.addObserver(
+                        forName: NSNotification.Name("UserDidInteract"),
+                        object: nil,
+                        queue: .main
+                    ) { _ in
+                        Task { @MainActor in
+                            authViewModel.resetActivity()
+                        }
+                    }
+                }
         }
     }
 }
+

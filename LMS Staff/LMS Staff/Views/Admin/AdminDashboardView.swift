@@ -1,0 +1,143 @@
+//
+//  AdminDashboardView.swift
+//  LMS Staff
+//
+//  Admin dashboard showing consolidated institutional numbers and audit log feeds.
+//
+
+import SwiftUI
+
+struct AdminDashboardView: View {
+    @StateObject private var vm = AdminDashboardViewModel()
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+                Text("System Administration Console")
+                    .font(.staffTitle)
+                    .foregroundColor(.staffTextPrimary)
+                    .padding(.horizontal, StaffSpacing.lg)
+                    .padding(.top, StaffSpacing.lg)
+                
+                Divider()
+                    .background(Color.staffBorder)
+                    .padding(.horizontal, StaffSpacing.lg)
+                
+                // Consolidation Grid widgets
+                VStack(spacing: StaffSpacing.md) {
+                    HStack(spacing: StaffSpacing.md) {
+                        MetricBlockCard(title: "Consolidated Apps", value: "\(vm.totalApplicationsCount)", icon: "doc.text.fill", color: .staffAccent)
+                        MetricBlockCard(title: "Awaiting Action", value: "\(vm.pendingReviewsCount)", icon: "hourglass", color: .staffAmber)
+                        MetricBlockCard(title: "System NPA Ratio", value: String(format: "%.2f%%", vm.systemNpaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                    }
+                    HStack(spacing: StaffSpacing.md) {
+                        MetricBlockCard(title: "Approved Count", value: "\(vm.approvedCount)", icon: "checkmark.circle.fill", color: .staffGreen)
+                        MetricBlockCard(title: "Rejected Count", value: "\(vm.rejectedCount)", icon: "xmark.circle.fill", color: .staffRed)
+                        MetricBlockCard(title: "Disbursed Count", value: "\(vm.disbursedCount)", icon: "banknote.fill", color: .staffAccent)
+                    }
+                }
+                .padding(.horizontal, StaffSpacing.lg)
+                
+                // Recent Audit Activity Log
+                StaffCard {
+                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                        Text("Recent Security Audit Trail")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Divider()
+                        
+                        if vm.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else if vm.recentActivities.isEmpty {
+                            EmptyStateView(
+                                icon: "clock.arrow.circlepath",
+                                title: "Audit Trail Clean",
+                                message: "No recent transactions logged in security database."
+                            )
+                        } else {
+                            VStack(spacing: 0) {
+                                ForEach(vm.recentActivities) { log in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(log.changeSummary ?? "System Change")
+                                                .font(.staffBody)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.staffTextPrimary)
+                                            
+                                            Text("Table: \(log.tableName) | Action: \(log.action)")
+                                                .font(.staffCaption)
+                                                .foregroundColor(.staffTextSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Text(formatDate(log.createdAt))
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.staffTextSecondary)
+                                    }
+                                    .padding(.vertical, 8)
+                                    
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, StaffSpacing.lg)
+            }
+        }
+        .background(Color.staffBackground)
+        .onAppear {
+            Task {
+                await vm.loadDashboard()
+            }
+        }
+    }
+    
+    private func formatDate(_ date: Date?) -> String {
+        guard let d = date else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: d)
+    }
+}
+
+// MARK: - MetricBlockCard Helper Subview
+struct MetricBlockCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+            HStack {
+                Image(systemName: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .foregroundColor(color)
+                Spacer()
+            }
+            
+            Text(value)
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.staffTextPrimary)
+            
+            Text(title)
+                .font(.staffCaption)
+                .foregroundColor(.staffTextSecondary)
+        }
+        .padding(StaffSpacing.lg)
+        .frame(maxWidth: .infinity)
+        .background(Color.staffSurface)
+        .cornerRadius(StaffCorner.md)
+        .overlay(
+            RoundedRectangle(cornerRadius: StaffCorner.md)
+                .stroke(Color.staffBorder, lineWidth: 1)
+        )
+    }
+}

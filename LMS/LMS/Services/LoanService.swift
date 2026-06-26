@@ -65,7 +65,7 @@ class LoanService {
             let safeType = documentType.lowercased().replacingOccurrences(
                 of: "[^a-z0-9]+", with: "_", options: .regularExpression
             )
-            let path = "\(userId.uuidString)/applications/\(created.id.uuidString)/\(safeType)_\(UUID().uuidString).jpg"
+            let path = "\(userId.uuidString.lowercased())/applications/\(created.id.uuidString.lowercased())/\(safeType)_\(UUID().uuidString.lowercased()).jpg"
             try await SupabaseManager.shared.client.storage.from("documents").upload(
                 path: path, file: data, options: FileOptions(contentType: "image/jpeg")
             )
@@ -247,7 +247,7 @@ class LoanService {
     func resubmitApplication(applicationId: UUID, newDocuments: [String: Data], userId: UUID) async throws {
         // Upload any new documents provided
         for (docType, data) in newDocuments {
-            let filePath = "\(userId.uuidString)/\(docType)_\(UUID().uuidString).jpg"
+            let filePath = "\(userId.uuidString.lowercased())/\(docType)_\(UUID().uuidString.lowercased()).jpg"
             try await SupabaseManager.shared.client.storage
                 .from("documents")
                 .upload(path: filePath, file: data, options: FileOptions(contentType: "image/jpeg"))

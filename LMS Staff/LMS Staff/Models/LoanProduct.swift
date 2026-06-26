@@ -112,8 +112,8 @@ struct LoanProduct: Codable, Identifiable, Hashable {
     // Configuration
     var requiresCollateral: Bool
     var isActive: Bool
-    var eligibilityCriteria: [String: String]?
-    var requiredDocuments: [String]?
+    var eligibilityCriteria: [String: Double]?
+    var requiredDocuments: [DocumentRequirement]?
 
     let createdAt: Date?
     var updatedAt: Date?

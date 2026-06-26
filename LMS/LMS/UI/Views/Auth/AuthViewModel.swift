@@ -138,12 +138,14 @@ class AuthViewModel: ObservableObject {
                 .execute()
                 .value
             
-            if let status = profile.first?.kyc_status, status == "verified" {
+            print("checkKYCStatus: Loaded profile status: \(profile.first?.kyc_status ?? "nil")")
+            if let status = profile.first?.kyc_status, (status == "verified" || status == "submitted") {
                 authState = .authenticated
             } else {
                 authState = .kycRequired
             }
         } catch {
+            print("checkKYCStatus error: \(error)")
             // Profile might not be created immediately, default to kycRequired
             authState = .kycRequired
         }

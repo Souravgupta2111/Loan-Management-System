@@ -27,15 +27,29 @@ struct AadhaarOTPResponse: Codable {
     }
 }
 
+struct AadhaarAddress: Codable {
+    let house: String?
+    let street: String?
+    let landmark: String?
+    let loc: String?
+    let po: String?
+    let dist: String?
+    let state: String?
+    let pc: String?
+}
+
 struct AadhaarVerifyOTPResponse: Codable {
     let success: Bool
     let status: String?
     let name: String?
     let aadhaarLastFour: String?
+    let dob: String?
+    let gender: String?
+    let address: AadhaarAddress?
     let error: String?
 
     enum CodingKeys: String, CodingKey {
-        case success, status, name, error
+        case success, status, name, error, dob, gender, address
         case aadhaarLastFour = "aadhaar_last_four"
     }
 }
@@ -75,7 +89,7 @@ class KYCService {
     
     /// Uploads documents to Supabase storage
     func uploadDocument(data: Data, type: String, userId: String) async throws -> String {
-        let filePath = "\(userId)/\(type)_\(UUID().uuidString).jpg"
+        let filePath = "\(userId.lowercased())/\(type)_\(UUID().uuidString.lowercased()).jpg"
         
         try await SupabaseManager.shared.client.storage
             .from("documents")
@@ -122,10 +136,71 @@ class KYCService {
     }
 
     /// Submission temporarily marks as verified for testing
-    func submitFullKYCDocs(userId: UUID, aadhaar: String, pan: String) async throws {
+    func submitFullKYCDocs(
+        userId: UUID,
+        aadhaar: String,
+        pan: String,
+        dob: String?,
+        gender: String?,
+        addressLine1: String?,
+        addressLine2: String?,
+        city: String?,
+        state: String?,
+        pincode: String?,
+        fullName: String
+    ) async throws {
+        // Normalize gender for Postgres ENUM ('male', 'female', 'other')
+        let normalizedGender: String?
+        if let g = gender?.lowercased() {
+            if g.hasPrefix("m") {
+                normalizedGender = "male"
+            } else if g.hasPrefix("f") {
+                normalizedGender = "female"
+            } else {
+                normalizedGender = "other"
+            }
+        } else {
+            normalizedGender = nil
+        }
+
+        // Normalize DOB for Postgres DATE (YYYY-MM-DD)
+        var formattedDOB: String? = nil
+        if let dobStr = dob {
+            if dobStr.contains("/") {
+                let parts = dobStr.split(separator: "/")
+                if parts.count == 3 {
+                    let day = parts[0]
+                    let month = parts[1]
+                    let year = parts[2]
+                    formattedDOB = "\(year)-\(month)-\(day)"
+                }
+            } else {
+                // If it's already YYYY-MM-DD or other separator
+                formattedDOB = dobStr
+            }
+        }
+
+        // 1. Update full name in users table
+        struct UserUpdate: Encodable {
+            let full_name: String
+        }
+        try await SupabaseManager.shared.client
+            .from("users")
+            .update(UserUpdate(full_name: fullName))
+            .eq("id", value: userId)
+            .execute()
+
+        // 2. Update borrower profile with all extracted demographic details
         struct FullKYCUpdate: Encodable {
             let aadhaar_number: String
             let pan_number: String
+            let date_of_birth: String?
+            let gender: String?
+            let address_line1: String?
+            let address_line2: String?
+            let city: String?
+            let state: String?
+            let pincode: String?
             let kyc_status: String
             let kyc_submitted_at: String
         }
@@ -137,7 +212,14 @@ class KYCService {
             .update(FullKYCUpdate(
                 aadhaar_number: aadhaar,
                 pan_number: pan,
-                kyc_status: "verified", // TEMPORARY: Auto-approve for testing
+                date_of_birth: formattedDOB,
+                gender: normalizedGender,
+                address_line1: addressLine1,
+                address_line2: addressLine2,
+                city: city,
+                state: state,
+                pincode: pincode,
+                kyc_status: "submitted",
                 kyc_submitted_at: now
             ))
             .eq("user_id", value: userId)
