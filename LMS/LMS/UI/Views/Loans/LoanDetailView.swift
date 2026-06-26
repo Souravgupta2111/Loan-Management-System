@@ -1,626 +1,592 @@
 import SwiftUI
-import Supabase
+import Combine
 
-/// Loan Detail View (design.md §8.5)
-/// Hero area with gradient + amount, stat cards, sub-tabs, bottom PAY EMI bar.
+/// Loan Detail View
+/// Premium, scrollable loan detail screen for the My Loans flow.
 struct LoanDetailView: View {
     let loan: LoanListItem
-    @State private var selectedTab: DetailTab = .emi
-    @State private var paymentHistory: [LoanPaymentRow] = []
-    @State private var loanDocuments: [LoanDocumentRow] = []
-    @State private var emiList: [EMIDetailLocal] = []
-    @State private var loadError: String?
-    
-    // Document Download State
-    @State private var isDownloadingId: UUID? = nil
-    @State private var downloadedURL: URL? = nil
-    @State private var showShareSheet = false
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel: LoanDetailViewModel
 
-    enum DetailTab: String, CaseIterable {
-        case emi = "EMI"
-        case payments = "Payments"
-        case documents = "Docs"
-        case info = "Info"
+    init(loan: LoanListItem) {
+        self.loan = loan
+        _viewModel = StateObject(wrappedValue: LoanDetailViewModel(loan: loan))
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
+            Color.gradientMintStart
+                .ignoresSafeArea()
+
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: Spacing.xxl) {
-                    // MARK: - Hero Section
-                    heroSection
+                VStack(alignment: .leading, spacing: Spacing.xxl + 2) {
+                    navigationHeader
+                        .padding(.top, Spacing.lg)
 
-                    // MARK: - Stat Cards
-                    statCardsRow
+                    LoanSummaryCard(
+                        detail: viewModel.detail,
+                        progress: viewModel.animatedProgress,
+                        formatCurrency: viewModel.formatCurrency
+                    )
 
-                    // MARK: - Sub-tabs
-                    subTabPicker
+                    CustomLoanSegmentedControl(selection: $viewModel.selectedTab)
+                        .padding(.top, Spacing.sm)
 
-                    // MARK: - Tab Content
                     tabContent
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                .padding(.horizontal, Spacing.xl)
-                .padding(.bottom, 140)
-            }
-            .background(Color.appBackground.ignoresSafeArea())
-
-            // MARK: - Bottom Glass Bar (PAY EMI)
-            if loan.status.lowercased() == "active" {
-                bottomPayBar
+                .padding(.horizontal, Spacing.xxl)
+                .padding(.bottom, Spacing.xxxl + Spacing.sm)
             }
         }
-        .navigationTitle(loan.name)
+        .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadRelatedData() }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = downloadedURL {
-                ShareSheet(items: [url])
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear { viewModel.animateProgress() }
     }
 
-    // MARK: - Hero Section
-    private var heroSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Loan Amount")
-                .font(.label)
-                .foregroundColor(.textSecondary)
+    private var navigationHeader: some View {
+        ZStack {
+            Text(viewModel.detail.loanName)
+                .font(.system(size: 30, weight: .bold, design: .default))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .padding(.horizontal, 72)
 
-            AmountDisplay(amount: loan.amount, style: .large)
-
-            HStack(spacing: Spacing.sm) {
-                Text(loan.loanNumber)
-                    .font(.caption2)
-                    .foregroundColor(.textTertiary)
-                StatusBadge(status: loan.status)
-            }
-
-            Text("Disbursed: \(loan.disbursedDate)")
-                .font(.caption2)
-                .foregroundColor(.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.xl)
-        .background(
-            LinearGradient(
-                colors: [Color.gradientBeigeStart, Color.gradientBeigeEnd],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Stat Cards
-    private var statCardsRow: some View {
-        HStack(spacing: Spacing.md) {
-            StatCard("Paid", value: "₹\(formatK(loan.paidAmount))", backgroundColor: .accentGreenBg)
-            StatCard("Remaining", value: "₹\(formatK(loan.remainingAmount))", backgroundColor: .accentAmberBg)
-            StatCard("Rate", value: String(format: "%.1f%%", loan.interestRate), backgroundColor: .surfaceMuted)
-        }
-    }
-
-    // MARK: - Sub-tab Picker
-    private var subTabPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Spacing.sm) {
-                ForEach(DetailTab.allCases, id: \.self) { tab in
-                    Button {
-                        withAnimation(.spring(response: 0.3)) { selectedTab = tab }
-                    } label: {
-                        Text(tab.rawValue)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(selectedTab == tab ? .white : .textPrimary)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(selectedTab == tab ? Color.accentDark : Color.surfaceMuted)
-                            .clipShape(Capsule())
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        dismiss()
                     }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .frame(width: 58, height: 58)
+                        .background(Color.surface.opacity(0.86))
+                        .clipShape(Circle())
                 }
+                .buttonStyle(ScaleButtonStyle())
+
+                Spacer()
             }
         }
+        .frame(height: 58)
     }
 
-    // MARK: - Tab Content
     @ViewBuilder
     private var tabContent: some View {
-        switch selectedTab {
-        case .emi:
-            emiScheduleContent
-        case .payments:
-            paymentsContent
+        switch viewModel.selectedTab {
+        case .timeline:
+            TimelineCard(items: viewModel.detail.timeline)
         case .documents:
-            documentsContent
-        case .info:
-            infoContent
+            DocumentsList(documents: viewModel.detail.documents)
+        case .schedule:
+            ScheduleList(schedule: viewModel.detail.schedule, formatCurrency: viewModel.formatCurrency)
+        }
+    }
+}
+
+// MARK: - View Model
+
+private final class LoanDetailViewModel: ObservableObject {
+    @Published var selectedTab: LoanDetailTab = .timeline
+    @Published var animatedProgress = 0.0
+
+    let detail: LoanDetailMock
+
+    init(loan: LoanListItem) {
+        self.detail = LoanDetailMock.make(from: loan)
+    }
+
+    func animateProgress() {
+        animatedProgress = 0
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.88).delay(0.12)) {
+            animatedProgress = detail.repaymentProgress
         }
     }
 
-    // MARK: - EMI Schedule
-    private var emiScheduleContent: some View {
-        VStack(spacing: Spacing.md) {
-            if emiList.isEmpty {
-                Text("No EMI schedule recorded.").foregroundColor(.textSecondary)
-            } else {
-                ForEach(emiList) { emi in
-                    emiRow(emi)
-                }
-                
-                NavigationLink {
-                    EMIScheduleView(loanId: loan.id)
-                } label: {
-                    HStack {
-                        Spacer()
-                        Label("View Complete Schedule & Pay", systemImage: "calendar")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.accentGreen)
-                        Spacer()
-                    }
-                    .padding(14)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Corner.md)
-                            .stroke(Color.border, lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.top, Spacing.sm)
-            }
-        }
-    }
-
-    private func emiRow(_ emi: EMIDetailLocal) -> some View {
-        let isPaid = emi.status == .paid
-        let isOverdue = emi.status == .overdue
-        
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(emi.date)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(isPaid ? Color.accentGreen : (isOverdue ? Color.accentRed : Color.accentAmber))
-                        .frame(width: 6, height: 6)
-                    Text(isPaid ? "Paid" : (isOverdue ? "Overdue" : "Upcoming"))
-                        .font(.badge)
-                        .foregroundColor(isPaid ? .accentGreen : (isOverdue ? .accentRed : .accentAmber))
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(isPaid ? Color.accentGreenBg : (isOverdue ? Color.accentRedBg : Color.accentAmberBg))
-                .clipShape(Capsule())
-            }
-            
-            VStack(spacing: 6) {
-                HStack {
-                    Text("Principal")
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                    Spacer()
-                    Text("₹\(formatIndian(emi.principal))")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.textPrimary)
-                }
-                
-                HStack {
-                    Text("Interest")
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                    Spacer()
-                    Text("₹\(formatIndian(emi.interest))")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.textPrimary)
-                }
-                
-                if emi.penalty > 0 {
-                    HStack {
-                        Text("Penalty")
-                            .font(.caption2)
-                            .foregroundColor(.accentRed)
-                        Spacer()
-                        Text("₹\(formatIndian(emi.penalty))")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.accentRed)
-                    }
-                }
-            }
-            
-            Divider()
-            
-            HStack {
-                Text("Total EMI")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Spacer()
-                Text("₹\(formatIndian(emi.amount))")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-            }
-        }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.lg)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.02), radius: 8, x: 0, y: 3)
-        .opacity(isPaid ? 0.7 : 1.0)
-    }
-
-    // MARK: - Payments
-    private var paymentsContent: some View {
-        LazyVStack(spacing: Spacing.md) {
-            if paymentHistory.isEmpty {
-                Text("No payments recorded.").foregroundColor(.textSecondary)
-            } else {
-                ForEach(paymentHistory) { payment in
-                    paymentRow(date: payment.date, amount: payment.amount, mode: payment.mode, ref: payment.reference)
-                }
-            }
-        }
-    }
-
-    private func paymentRow(date: String, amount: Double, mode: String, ref: String) -> some View {
-        let isCash = mode.lowercased() == "cash" || mode.lowercased() == "cheque"
-        
-        return HStack {
-            Image(systemName: paymentIcon(for: mode))
-                .foregroundColor(isCash ? .accentAmber : .accentGreen)
-                .frame(width: 36, height: 36)
-                .background(isCash ? Color.accentAmberBg : Color.accentGreenBg)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("₹\(formatIndian(amount))")
-                    .font(.bodyLarge)
-                    .foregroundColor(.textPrimary)
-                HStack(spacing: 4) {
-                    Text(date)
-                    Text("•")
-                    Text(mode)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isCash ? Color.accentAmberBg : Color.accentGreenBg)
-                        .foregroundColor(isCash ? .accentAmber : .accentGreen)
-                        .clipShape(Capsule())
-                }
-                .font(.caption2)
-                .foregroundColor(.textSecondary)
-            }
-
-            Spacer()
-
-            Text(ref)
-                .font(.caption2)
-                .foregroundColor(.textTertiary)
-        }
-        .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.md)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Documents
-    private var documentsContent: some View {
-        VStack(spacing: Spacing.md) {
-            if loanDocuments.isEmpty {
-                Text("No loan documents are available.").foregroundColor(.textSecondary)
-            } else {
-                ForEach(loanDocuments) { document in
-                    Button {
-                        if document.storagePath != nil {
-                            Task { await downloadDocument(document) }
-                        }
-                    } label: {
-                        documentRow(document: document)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isDownloadingId != nil)
-                }
-            }
-        }
-    }
-
-    private func documentRow(document: LoanDocumentRow) -> some View {
-        let isDownloading = isDownloadingId == document.id
-        
-        return HStack {
-            Image(systemName: "doc.fill")
-                .foregroundColor(.accentBeigeDk)
-            Text(document.name)
-                .font(.bodyRegular)
-                .foregroundColor(.textPrimary)
-            Spacer()
-            
-            if isDownloading {
-                ProgressView()
-                    .scaleEffect(0.8)
-            } else if document.storagePath != nil {
-                Image(systemName: "arrow.down.circle.fill")
-                    .foregroundColor(.accentGreen)
-                    .font(.system(size: 20))
-            } else {
-                Text("Pending")
-                    .font(.badge)
-                    .foregroundColor(.accentAmber)
-            }
-        }
-        .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.md)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
-    }
-
-    private func downloadDocument(_ doc: LoanDocumentRow) async {
-        guard let path = doc.storagePath else { return }
-        isDownloadingId = doc.id
-        do {
-            let url = try await DocumentDownloadService.shared.downloadDocument(storagePath: path, fileName: doc.name)
-            downloadedURL = url
-            showShareSheet = true
-        } catch {
-            print("Failed to download doc: \(error)")
-        }
-        isDownloadingId = nil
-    }
-
-    // MARK: - Info
-    private var infoContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            infoRow("Loan Type", value: loan.loanType.capitalized)
-            infoRow("Interest Rate", value: String(format: "%.2f%%", loan.interestRate))
-            infoRow("Disbursed", value: loan.disbursedDate)
-            infoRow("Principal", value: "₹\(formatIndian(loan.amount))")
-        }
-        .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.md)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
-    }
-
-    private func infoRow(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.bodyRegular)
-                .foregroundColor(.textSecondary)
-            Spacer()
-            Text(value)
-                .font(.bodyLarge)
-                .foregroundColor(.textPrimary)
-        }
-    }
-
-    // MARK: - Bottom Pay Bar
-    private var bottomPayBar: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Outstanding ₹\(formatIndian(loan.remainingAmount))")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                Text("Check schedule for exact payable amount")
-                    .font(.caption2)
-                    .foregroundColor(.textSecondary)
-            }
-            Spacer()
-            NavigationLink {
-                EMIScheduleView(loanId: loan.id)
-            } label: {
-                Text("Pay EMI")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.accentGreen)
-                    .clipShape(Capsule())
-            }
-        }
-        .padding(Spacing.lg)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: -4)
-        .padding(.horizontal, Spacing.xl)
-        .padding(.bottom, Spacing.sm)
-    }
-
-    // MARK: - Helpers
-    private func formatIndian(_ value: Double) -> String {
+    func formatCurrency(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_IN")
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+        return "₹" + (formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))")
     }
+}
 
-    private func formatK(_ value: Double) -> String {
-        if value >= 100000 {
-            return String(format: "%.1fL", value / 100000)
-        } else if value >= 1000 {
-            return String(format: "%.1fK", value / 1000)
-        }
-        return formatIndian(value)
-    }
+// MARK: - Summary
 
-    private func paymentIcon(for mode: String) -> String {
-        switch mode.lowercased() {
-        case "upi": return "indianrupeesign.circle"
-        case "razorpay": return "creditcard"
-        case "cheque": return "doc.text"
-        case "neft", "rtgs": return "building.columns"
-        case "auto debit": return "arrow.triangle.2.circlepath"
-        default: return "banknote"
-        }
-    }
+private struct LoanSummaryCard: View {
+    let detail: LoanDetailMock
+    let progress: Double
+    let formatCurrency: (Double) -> String
 
-    private func loadRelatedData() async {
-        do {
-            struct PaymentFetch: Decodable {
-                let id: UUID; let amount_paid: Double; let payment_mode: String
-                let razorpay_payment_id: String?; let upi_transaction_id: String?
-                let cheque_number: String?; let bank_reference: String?; let initiated_at: String
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Loan ID")
+                    .font(.cardTitle)
+                    .foregroundColor(.textPrimary)
+
+                Spacer()
+
+                Text(detail.loanNumber)
+                    .font(.system(size: 23, weight: .regular))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            let payments: [PaymentFetch] = try await SupabaseManager.shared.client.from("payments")
-                .select("id, amount_paid, payment_mode, razorpay_payment_id, upi_transaction_id, cheque_number, bank_reference, initiated_at")
-                .eq("loan_id", value: loan.id).order("initiated_at", ascending: false).execute().value
-            paymentHistory = payments.map {
-                LoanPaymentRow(
-                    id: $0.id, date: Self.displayDate($0.initiated_at), amount: $0.amount_paid,
-                    mode: $0.payment_mode.replacingOccurrences(of: "_", with: " ").capitalized,
-                    reference: $0.razorpay_payment_id ?? $0.upi_transaction_id ?? $0.cheque_number ?? $0.bank_reference ?? "Pending"
+            .padding(.bottom, Spacing.xl)
+
+            Divider()
+                .background(Color.border)
+
+            HStack(alignment: .top) {
+                LoanAmountColumn(
+                    title: "Sanctioned",
+                    amount: detail.sanctionedAmount,
+                    subtitle: nil,
+                    alignment: .leading,
+                    formatCurrency: formatCurrency
+                )
+
+                Spacer(minLength: Spacing.lg)
+
+                LoanAmountColumn(
+                    title: "Monthly EMI",
+                    amount: detail.monthlyEMI,
+                    subtitle: detail.emiDueText,
+                    alignment: .trailing,
+                    formatCurrency: formatCurrency
                 )
             }
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.xxl)
 
-            struct LoanApplicationRef: Decodable { let application_id: UUID }
-            let ref: LoanApplicationRef = try await SupabaseManager.shared.client.from("loans")
-                .select("application_id").eq("id", value: loan.id).single().execute().value
-            struct DocumentFetch: Decodable { let id: UUID; let document_type: String; let storage_path: String? }
-            let documents: [DocumentFetch] = try await SupabaseManager.shared.client.from("documents")
-                .select("id, document_type, storage_path").eq("application_id", value: ref.application_id).execute().value
-            loanDocuments = documents.map { LoanDocumentRow(id: $0.id, name: $0.document_type, storagePath: $0.storage_path) }
-            
-            // Fetch EMI schedule
-            struct EMIFetch: Decodable {
-                let id: UUID
-                let due_date: String
-                let total_emi: Double
-                let principal_component: Double
-                let interest_component: Double
-                let penalty_amount: Double
-                let status: String
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                LoanInfoColumn(title: "Tenure", value: detail.tenureText)
+                LoanInfoColumn(title: "Remaining Tenure", value: detail.remainingTenureText)
+                LoanInfoColumn(title: "Interest Rate", value: detail.interestRateText)
             }
-            let schedule: [EMIFetch] = try await SupabaseManager.shared.client
-                .from("emi_schedule")
-                .select()
-                .eq("loan_id", value: loan.id)
-                .order("due_date", ascending: true)
-                .execute()
-                .value
-            
-            if !schedule.isEmpty {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
-                let displayFormatter = DateFormatter()
-                displayFormatter.dateFormat = "MMM yyyy"
-                
-                emiList = schedule.map { s in
-                    let dateStr: String
-                    if let d = formatter.date(from: String(s.due_date.prefix(10))) {
-                        dateStr = displayFormatter.string(from: d)
-                    } else {
-                        dateStr = s.due_date
-                    }
-                    
-                    let emiStatus: EMIDetailLocal.EMIStatus
-                    if s.status == "paid" {
-                        emiStatus = .paid
-                    } else if s.status == "overdue" {
-                        emiStatus = .overdue
-                    } else {
-                        emiStatus = .upcoming
-                    }
-                    
-                    return EMIDetailLocal(
-                        id: s.id, date: dateStr, amount: s.total_emi + s.penalty_amount,
-                        principal: s.principal_component, interest: s.interest_component,
-                        penalty: s.penalty_amount, status: emiStatus
-                    )
+            .padding(.bottom, Spacing.xxl)
+
+            Divider()
+                .background(Color.border)
+
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                Text("Repayment Progress")
+                    .font(.cardTitle)
+                    .foregroundColor(.textSecondary)
+
+                HStack(alignment: .firstTextBaseline) {
+                    Text(detail.remainingEMIText)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+
+                    Spacer()
+
+                    Text(detail.progressText)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.accentGreen)
                 }
-            } else {
-                emiList = getDummyEMIs(for: loan.id)
+
+                LoanProgressBar(progress: progress, color: .accentGreen)
+                    .frame(height: 17)
+                    .padding(.horizontal, Spacing.xs)
             }
-        } catch {
-            loadError = error.localizedDescription
-            emiList = getDummyEMIs(for: loan.id)
+            .padding(.top, Spacing.xxl)
         }
-    }
-
-    private static func displayDate(_ value: String) -> String {
-        guard let date = Formatter.iso8601.date(from: value) else { return value }
-        return date.formatted(date: .abbreviated, time: .omitted)
-    }
-    
-    private func getDummyEMIs(for loanId: UUID) -> [EMIDetailLocal] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
-        
-        let now = Date()
-        var list: [EMIDetailLocal] = []
-        
-        // Match dummy IDs from DB schema if any or create generic
-        let isHome = loan.loanType.lowercased() == "home"
-        let isVehicle = loan.loanType.lowercased() == "vehicle"
-        let isPersonal = loan.loanType.lowercased() == "personal"
-        
-        let monthsCount = isPersonal ? 3 : 6
-        let startOffset = isPersonal ? -2 : -3
-        
-        for i in startOffset...(monthsCount + startOffset) {
-            let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-            let dateStr = formatter.string(from: dueDate)
-            let isPaid = i < 0
-            let isOverdue = i == 0 && !isPaid && !isPersonal
-            let status: EMIDetailLocal.EMIStatus = isPaid ? .paid : (isOverdue ? .overdue : .upcoming)
-            
-            let amount = isHome ? 38500.0 : (isVehicle ? 16200.0 : 9500.0)
-            let principal = amount * 0.75
-            let interest = amount * 0.25
-            
-            list.append(EMIDetailLocal(
-                id: UUID(),
-                date: dateStr,
-                amount: amount + (isOverdue ? 500.0 : 0.0),
-                principal: principal,
-                interest: interest,
-                penalty: isOverdue ? 500.0 : 0.0,
-                status: status
-            ))
-        }
-        return list
+        .padding(.horizontal, Spacing.xxl)
+        .padding(.vertical, Spacing.xxxl)
+        .background(Color.surface.opacity(0.86))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 10, x: 0, y: 7)
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+        )
     }
 }
 
-private struct LoanPaymentRow: Identifiable {
-    let id: UUID; let date: String; let amount: Double; let mode: String; let reference: String
-}
-
-private struct LoanDocumentRow: Identifiable {
-    let id: UUID; let name: String; let storagePath: String?
-}
-
-struct EMIDetailLocal: Identifiable {
-    let id: UUID
-    let date: String
+private struct LoanAmountColumn: View {
+    let title: String
     let amount: Double
-    let principal: Double
-    let interest: Double
-    let penalty: Double
-    var status: EMIStatus
-    
-    enum EMIStatus {
-        case paid
-        case upcoming
-        case overdue
+    let subtitle: String?
+    let alignment: HorizontalAlignment
+    let formatCurrency: (Double) -> String
+
+    var body: some View {
+        VStack(alignment: alignment, spacing: Spacing.sm) {
+            Text(title)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(.textSecondary)
+
+            Text(formatCurrency(amount))
+                .font(.system(size: 30, weight: .bold, design: .default))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.bodyRegular)
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.74)
+            }
+        }
     }
+}
+
+private struct LoanInfoColumn: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: Spacing.xs) {
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.accentGreen)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(value)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Segmented Control
+
+private struct CustomLoanSegmentedControl: View {
+    @Binding var selection: LoanDetailTab
+    @Namespace private var namespace
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(LoanDetailTab.allCases) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+                        selection = tab
+                    }
+                } label: {
+                    Text(tab.title)
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.sm + 2)
+                        .background {
+                            if selection == tab {
+                                Capsule()
+                                    .fill(Color.surface.opacity(0.98))
+                                    .matchedGeometryEffect(id: "selectedLoanDetailTab", in: namespace)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Color.black.opacity(0.07))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Timeline
+
+private struct TimelineCard: View {
+    let items: [LoanTimelineItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                TimelineItemView(item: item, isLast: index == items.count - 1)
+            }
+        }
+        .padding(.horizontal, Spacing.xxxl + 4)
+        .padding(.vertical, Spacing.xxxl - 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.surface.opacity(0.86))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 10, x: 0, y: 7)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+        )
+    }
+}
+
+private struct TimelineItemView: View {
+    let item: LoanTimelineItem
+    let isLast: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.xxxl + 2) {
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color.accentGreen)
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 21, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                if !isLast {
+                    Rectangle()
+                        .fill(Color.accentGreen.opacity(0.62))
+                        .frame(width: 3, height: 54)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(item.title)
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+
+                Text(item.date)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundColor(.textTertiary)
+            }
+            .padding(.top, Spacing.xs)
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - Documents
+
+private struct DocumentsList: View {
+    let documents: [LoanDocumentItem]
+
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            ForEach(documents) { document in
+                LoanDocumentRowView(document: document)
+            }
+        }
+        .padding(Spacing.lg + 2)
+        .background(Color.surface.opacity(0.86))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 10, x: 0, y: 7)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+        )
+    }
+}
+
+private struct LoanDocumentRowView: View {
+    let document: LoanDocumentItem
+
+    var body: some View {
+        HStack(spacing: Spacing.md + 2) {
+            Image(systemName: document.icon)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundColor(.accentGreen)
+                .frame(width: 40, height: 40)
+                .background(Color.accentGreenBg)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(document.title)
+                    .font(.bodyLarge)
+                    .foregroundColor(.textPrimary)
+                Text(document.uploadDate)
+                    .font(.caption2)
+                    .foregroundColor(.textTertiary)
+            }
+
+            Spacer()
+
+            Button { } label: {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.accentGreen)
+            }
+            .buttonStyle(ScaleButtonStyle())
+        }
+        .padding(Spacing.lg)
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
+                .stroke(Color.border, lineWidth: 0.6)
+        )
+    }
+}
+
+// MARK: - Schedule
+
+private struct ScheduleList: View {
+    let schedule: [LoanEMIItem]
+    let formatCurrency: (Double) -> String
+
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            ForEach(schedule) { emi in
+                EMIScheduleRowView(emi: emi, formatCurrency: formatCurrency)
+            }
+        }
+        .padding(Spacing.lg + 2)
+        .background(Color.surface.opacity(0.86))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 10, x: 0, y: 7)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+        )
+    }
+}
+
+private struct EMIScheduleRowView: View {
+    let emi: LoanEMIItem
+    let formatCurrency: (Double) -> String
+
+    var body: some View {
+        HStack(spacing: Spacing.md + 2) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Due Date")
+                    .font(.caption2)
+                    .foregroundColor(.textTertiary)
+                Text(emi.dueDate)
+                    .font(.bodyLarge)
+                    .foregroundColor(.textPrimary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: Spacing.xs) {
+                Text("EMI Amount")
+                    .font(.caption2)
+                    .foregroundColor(.textTertiary)
+                Text(formatCurrency(emi.amount))
+                    .font(.bodyLarge)
+                    .foregroundColor(.textPrimary)
+            }
+
+            StatusBadge(status: emi.status.rawValue)
+        }
+        .padding(Spacing.lg)
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
+                .stroke(Color.border, lineWidth: 0.6)
+        )
+    }
+}
+
+private struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Mock Models
+
+private enum LoanDetailTab: String, CaseIterable, Identifiable {
+    case timeline
+    case documents
+    case schedule
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .timeline: return "Timeline"
+        case .documents: return "Documents"
+        case .schedule: return "Schedule"
+        }
+    }
+}
+
+private struct LoanDetailMock {
+    let loanName: String
+    let loanNumber: String
+    let sanctionedAmount: Double
+    let monthlyEMI: Double
+    let emiDueText: String
+    let tenureText: String
+    let remainingTenureText: String
+    let interestRateText: String
+    let remainingEMIText: String
+    let repaymentProgress: Double
+    let progressText: String
+    let timeline: [LoanTimelineItem]
+    let documents: [LoanDocumentItem]
+    let schedule: [LoanEMIItem]
+
+    static func make(from loan: LoanListItem) -> LoanDetailMock {
+        let sanctionedAmount = loan.amount > 0 ? loan.amount : 800_000
+        let emiAmount = loan.emiAmount > 0 ? loan.emiAmount : 20_000
+        let interestRate = loan.interestRate > 0 ? loan.interestRate : 7.85
+
+        return LoanDetailMock(
+            loanName: loan.name.isEmpty ? "Premium Home Loan" : loan.name,
+            loanNumber: loan.loanNumber.isEmpty ? "HL-2026-00895672" : loan.loanNumber,
+            sanctionedAmount: sanctionedAmount,
+            monthlyEMI: emiAmount,
+            emiDueText: "15th of every month",
+            tenureText: "12 months",
+            remainingTenureText: "11 months",
+            interestRateText: String(format: "%.2f%% p.a.", interestRate),
+            remainingEMIText: "11 EMIs left",
+            repaymentProgress: 0.10,
+            progressText: "10% repaid",
+            timeline: [
+                LoanTimelineItem(title: "Applied", date: "5 July 2026"),
+                LoanTimelineItem(title: "Approved", date: "12 July 2026"),
+                LoanTimelineItem(title: "Disbursed", date: "18 July 2026")
+            ],
+            documents: [
+                LoanDocumentItem(title: "Loan Agreement", uploadDate: "Uploaded 18 July 2026", icon: "doc.text.fill"),
+                LoanDocumentItem(title: "Sanction Letter", uploadDate: "Uploaded 12 July 2026", icon: "doc.richtext.fill"),
+                LoanDocumentItem(title: "Repayment Schedule", uploadDate: "Uploaded 18 July 2026", icon: "calendar.badge.clock")
+            ],
+            schedule: [
+                LoanEMIItem(dueDate: "15 Aug 2026", amount: emiAmount, status: .paid),
+                LoanEMIItem(dueDate: "15 Sep 2026", amount: emiAmount, status: .upcoming),
+                LoanEMIItem(dueDate: "15 Oct 2026", amount: emiAmount, status: .upcoming),
+                LoanEMIItem(dueDate: "15 Nov 2026", amount: emiAmount, status: .overdue)
+            ]
+        )
+    }
+}
+
+private struct LoanTimelineItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let date: String
+}
+
+private struct LoanDocumentItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let uploadDate: String
+    let icon: String
+}
+
+private struct LoanEMIItem: Identifiable {
+    let id = UUID()
+    let dueDate: String
+    let amount: Double
+    let status: LoanEMIStatus
+}
+
+private enum LoanEMIStatus: String {
+    case paid = "Paid"
+    case upcoming = "Upcoming"
+    case overdue = "Overdue"
 }

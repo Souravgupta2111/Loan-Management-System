@@ -65,17 +65,21 @@ class MessageService: ObservableObject {
         Task {
             guard let channel = channel else { return }
             
-            let insertions = await channel.postgresChange(
+            let insertions = channel.postgresChange(
                 InsertAction.self,
                 schema: "public",
                 table: "messages",
-                filter: "application_id=eq.\(applicationId.uuidString)"
+                filter: .eq("application_id", value: applicationId)
             )
             
-            await channel.subscribe()
-            
-            for await _ in insertions {
-                await self.fetchMessages()
+            do {
+                try await channel.subscribeWithError()
+
+                for await _ in insertions {
+                    await self.fetchMessages()
+                }
+            } catch {
+                print("Failed to subscribe to messages: \(error)")
             }
         }
     }

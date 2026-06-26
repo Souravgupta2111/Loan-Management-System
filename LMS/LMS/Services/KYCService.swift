@@ -42,14 +42,14 @@ struct AadhaarVerifyOTPResponse: Codable {
     let success: Bool
     let status: String?
     let name: String?
-    let aadhaarLastFour: String?
     let dob: String?
     let gender: String?
     let address: AadhaarAddress?
+    let aadhaarLastFour: String?
     let error: String?
 
     enum CodingKeys: String, CodingKey {
-        case success, status, name, error, dob, gender, address
+        case success, status, name, dob, gender, address, error
         case aadhaarLastFour = "aadhaar_last_four"
     }
 }
@@ -94,8 +94,8 @@ class KYCService {
         try await SupabaseManager.shared.client.storage
             .from("documents")
             .upload(
-                path: filePath,
-                file: data,
+                filePath,
+                data: data,
                 options: FileOptions(contentType: "image/jpeg")
             )
         
@@ -159,7 +159,7 @@ class KYCService {
         )).execute()
     }
 
-    /// Submission temporarily marks as verified for testing
+    /// Submits KYC details for review after the user completes verification and uploads documents.
     func submitFullKYCDocs(
         userId: UUID,
         aadhaar: String,
@@ -171,50 +171,8 @@ class KYCService {
         city: String?,
         state: String?,
         pincode: String?,
-        fullName: String
+        fullName: String?
     ) async throws {
-        // Normalize gender for Postgres ENUM ('male', 'female', 'other')
-        let normalizedGender: String?
-        if let g = gender?.lowercased() {
-            if g.hasPrefix("m") {
-                normalizedGender = "male"
-            } else if g.hasPrefix("f") {
-                normalizedGender = "female"
-            } else {
-                normalizedGender = "other"
-            }
-        } else {
-            normalizedGender = nil
-        }
-
-        // Normalize DOB for Postgres DATE (YYYY-MM-DD)
-        var formattedDOB: String? = nil
-        if let dobStr = dob {
-            if dobStr.contains("/") {
-                let parts = dobStr.split(separator: "/")
-                if parts.count == 3 {
-                    let day = parts[0]
-                    let month = parts[1]
-                    let year = parts[2]
-                    formattedDOB = "\(year)-\(month)-\(day)"
-                }
-            } else {
-                // If it's already YYYY-MM-DD or other separator
-                formattedDOB = dobStr
-            }
-        }
-
-        // 1. Update full name in users table
-        struct UserUpdate: Encodable {
-            let full_name: String
-        }
-        try await SupabaseManager.shared.client
-            .from("users")
-            .update(UserUpdate(full_name: fullName))
-            .eq("id", value: userId)
-            .execute()
-
-        // 2. Update borrower profile with all extracted demographic details
         struct FullKYCUpdate: Encodable {
             let aadhaar_number: String
             let pan_number: String
@@ -236,8 +194,8 @@ class KYCService {
             .update(FullKYCUpdate(
                 aadhaar_number: aadhaar,
                 pan_number: pan,
-                date_of_birth: formattedDOB,
-                gender: normalizedGender,
+                date_of_birth: dob,
+                gender: normalizedGender(gender),
                 address_line1: addressLine1,
                 address_line2: addressLine2,
                 city: city,
@@ -248,6 +206,20 @@ class KYCService {
             ))
             .eq("user_id", value: userId)
             .execute()
+    }
+
+    private func normalizedGender(_ gender: String?) -> String? {
+        guard let value = gender?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !value.isEmpty else { return nil }
+
+        switch value {
+        case "m", "male":
+            return "male"
+        case "f", "female":
+            return "female"
+        default:
+            return "other"
+        }
     }
     
     func resubmitDocument(userId: UUID, type: String, data: Data) async throws {

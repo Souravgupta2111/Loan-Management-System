@@ -24,23 +24,27 @@ class NotificationService {
         Task {
             guard let channel = channel else { return }
             
-            let insertions = await channel.postgresChange(
+            let insertions = channel.postgresChange(
                 InsertAction.self,
                 schema: "public",
                 table: "notifications",
-                filter: "user_id=eq.\(userId.uuidString)"
+                filter: .eq("user_id", value: userId)
             )
             
-            await channel.subscribe()
-            
-            for await insert in insertions {
-                if let record = insert.record as? [String: Any],
-                   let title = record["title"] as? String,
-                   let body = record["body"] as? String {
-                    await MainActor.run {
-                        self.triggerLocalPush(title: title, body: body)
+            do {
+                try await channel.subscribeWithError()
+
+                for await insert in insertions {
+                    let record = insert.record
+                    if let title = record["title"]?.stringValue,
+                       let body = record["body"]?.stringValue {
+                        await MainActor.run {
+                            self.triggerLocalPush(title: title, body: body)
+                        }
                     }
                 }
+            } catch {
+                print("Failed to subscribe to notifications: \(error)")
             }
         }
     }

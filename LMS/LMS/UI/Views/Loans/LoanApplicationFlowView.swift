@@ -1,19 +1,28 @@
 import SwiftUI
 
 /// Loan Application Flow Wizard (design.md §8.6)
-/// A beautiful multi-step questionnaire that guides the borrower through applying.
+///
+/// Screen flow:
+///   step 1              — Select loan product (list, fetched from backend)
+///   showProductDetail   — Full product detail screen (all info from backend, no hardcoding)
+///   step 2              — Amount & Tenure
+///   step 3              — Document Upload
+///   step 4              — Review & Submit
+///
+/// Toolbar: single glass-circle back button (top-left) that always returns
+/// to SelectLoanTypeView by dismissing the entire flow.
 struct LoanApplicationFlowView: View {
     @Environment(\.dismiss) private var dismiss
 
     let initialLoanType: LoanType?
 
     @State private var step = 1
+    @State private var showProductDetail = false
     @State private var loanProducts: [LoanProduct] = []
     @State private var selectedProduct: LoanProduct?
     @State private var isLoadingProducts = true
-    
-    // Application state
-    @State private var amount: Double = 100000
+
+    @State private var amount: Double = 100_000
     @State private var tenureMonths: Double = 12
     @State private var isSubmitting = false
     @State private var applicationSuccess = false
@@ -25,283 +34,445 @@ struct LoanApplicationFlowView: View {
     init(initialLoanType: LoanType? = nil) {
         self.initialLoanType = initialLoanType
     }
-    
+
+    // MARK: - Body
+
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.appBackground.ignoresSafeArea()
-                
-                if applicationSuccess {
-                    successState
-                } else {
-                    VStack(spacing: 0) {
-                        // Custom Step Indicator Header — only show from step 2 onwards
-                        if step > 1 {
-                            VStack(spacing: 8) {
-                                stepIndicator
-                                stepLabels
-                            }
-                            .padding(.vertical, Spacing.lg)
-                            .background(Color.white)
-                            .shadow(color: .black.opacity(0.02), radius: 6, x: 0, y: 3)
-                        }
-                        
-                        ScrollView {
-                            VStack(spacing: Spacing.xl) {
-                                if step == 1 {
-                                    SelectProductStep(
-                                        products: loanProducts,
-                                        selected: $selectedProduct,
-                                        isLoading: isLoadingProducts,
-                                        emptyMessage: initialLoanType == nil
-                                            ? "No active loan products are available right now."
-                                            : "No \(initialLoanType?.displayName.lowercased() ?? "selected") options are available right now."
-                                    )
-                                } else if step == 2 {
-                                    AmountTenureStep(
-                                        product: selectedProduct!,
-                                        amount: $amount,
-                                        tenureMonths: $tenureMonths
-                                    )
-                                } else if step == 3 {
-                                    DocumentUploadStep(
-                                        product: selectedProduct!,
-                                        documents: $applicationDocuments
-                                    )
-                                } else {
-                                    ReviewSubmitStep(
-                                        product: selectedProduct!,
-                                        amount: amount,
-                                        tenure: Int(tenureMonths)
-                                    )
-                                }
-                            }
-                            .padding(Spacing.xl)
-                            .padding(.bottom, 20)
-                        }
-                        
-                        // Step 4 Terms Checkbox
-                        if step == 4 {
-                            HStack(alignment: .top, spacing: 10) {
-                                Button {
-                                    agreedToTerms.toggle()
-                                } label: {
-                                    Image(systemName: agreedToTerms ? "checkmark.square.fill" : "square")
-                                        .font(.title3)
-                                        .foregroundColor(agreedToTerms ? .accentGreen : .textSecondary)
-                                }
-                                .buttonStyle(.plain)
-                                
-                                Text("I agree to the terms and conditions and authorize the verification of my submitted documents.")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.textSecondary)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.bottom, Spacing.md)
-                        }
-                        
-                        // Footer Actions
-                        VStack(spacing: 8) {
-                            if let submissionError {
-                                Text(submissionError)
-                                    .font(.caption2)
-                                    .foregroundColor(.accentRed)
-                                    .padding(.horizontal, Spacing.xl)
-                            }
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
 
-                            HStack(spacing: 12) {
-                                if step > 1 {
-                                    Button {
-                                        withAnimation { step -= 1 }
-                                    } label: {
-                                        Text("Back")
-                                            .font(.system(size: 15, weight: .semibold))
-                                            .foregroundColor(.textPrimary)
-                                            .frame(width: 90)
-                                            .padding(.vertical, 18)
-                                            .background(Color.surfaceMuted)
-                                            .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(isSubmitting)
-                                }
-
-                                if isSubmitting {
-                                    ZStack {
-                                        Capsule()
-                                            .fill(Color(hex: "#1A1A1A"))
-                                            .frame(height: 56)
-                                        ProgressView().tint(.white)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                } else {
-                                    let isDisabled = (step == 1 && selectedProduct == nil) || (step == 4 && !agreedToTerms)
-                                    Button {
-                                        if step < 4 {
-                                            withAnimation { step += 1 }
-                                        } else {
-                                            submitApplication()
-                                        }
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            Text(step == 4 ? "SUBMIT" : "NEXT")
-                                                .font(.system(size: 16, weight: .bold))
-                                                .tracking(1.5)
-                                            Image(systemName: step == 4 ? "checkmark" : "arrow.right")
-                                                .font(.system(size: 14, weight: .bold))
-                                        }
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 18)
-                                        .background(isDisabled ? Color(hex: "#1A1A1A").opacity(0.4) : Color(hex: "#1A1A1A"))
-                                        .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(isDisabled)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, Spacing.xl)
-                        .padding(.vertical, 16)
-                        .background(Color.white)
-                        .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: -6)
-                    }
-                }
+            if applicationSuccess {
+                successState
+            } else if showProductDetail, let product = selectedProduct {
+                productDetailScreen(product: product)
+            } else {
+                wizardContent
             }
-            .navigationTitle("Apply for Loan")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+        }
+        .navigationTitle(navigationTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            // Single glass-circle back button — always returns to SelectLoanTypeView
+            ToolbarItem(placement: .topBarLeading) {
+                if !applicationSuccess {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.textPrimary)
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 34, height: 34)
+                                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                        }
                     }
-                }
-            }
-            .task {
-                do {
-                    let fetchedProducts = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
-                    isLoadingProducts = false
-                    loanProducts = fetchedProducts
-                    if let first = fetchedProducts.first {
-                        selectedProduct = first
-                        amount = first.minAmount
-                        tenureMonths = Double(first.minTenureMonths)
-                    }
-                } catch {
-                    isLoadingProducts = false
-                    print("Failed to fetch products: \(error)")
+                    .buttonStyle(.plain)
                 }
             }
         }
+        .task {
+            do {
+                let fetched = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
+                isLoadingProducts = false
+                loanProducts = fetched
+                if let first = fetched.first {
+                    selectedProduct = first
+                    amount = first.minAmount
+                    tenureMonths = Double(first.minTenureMonths)
+                }
+            } catch {
+                isLoadingProducts = false
+                print("Failed to fetch products: \(error)")
+            }
+        }
     }
-    
+
+    // MARK: - Navigation title
+
+    private var navigationTitle: String {
+        if applicationSuccess      { return "Application Submitted" }
+        if showProductDetail       { return selectedProduct?.name ?? "Product Details" }
+        switch step {
+        case 1:  return "Select Product"
+        case 2:  return "Loan Details"
+        case 3:  return "Documents"
+        case 4:  return "Review & Submit"
+        default: return "Apply for Loan"
+        }
+    }
+
+    // MARK: - Wizard content
+
+    private var wizardContent: some View {
+        VStack(spacing: 0) {
+            if step > 1 {
+                VStack(spacing: 8) { stepIndicator; stepLabels }
+                    .padding(.vertical, 16)
+                    .background(Color.white)
+                    .shadow(color: .black.opacity(0.02), radius: 6, x: 0, y: 3)
+            }
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    if step == 1 {
+                        SelectProductStep(
+                            products: loanProducts,
+                            selected: $selectedProduct,
+                            isLoading: isLoadingProducts,
+                            emptyMessage: initialLoanType == nil
+                                ? "No active loan products are available right now."
+                                : "No \(initialLoanType?.displayName.lowercased() ?? "selected") options are available right now.",
+                            onViewDetails: { product in
+                                selectedProduct = product
+                                withAnimation { showProductDetail = true }
+                            }
+                        )
+                    } else if step == 2 {
+                        AmountTenureStep(product: selectedProduct!, amount: $amount, tenureMonths: $tenureMonths)
+                    } else if step == 3 {
+                        DocumentUploadStep(product: selectedProduct!, documents: $applicationDocuments)
+                    } else {
+                        ReviewSubmitStep(product: selectedProduct!, amount: amount, tenure: Int(tenureMonths))
+                    }
+                }
+                .padding(24)
+                .padding(.bottom, 20)
+            }
+
+            if step == 4 {
+                HStack(alignment: .top, spacing: 10) {
+                    Button { agreedToTerms.toggle() } label: {
+                        Image(systemName: agreedToTerms ? "checkmark.square.fill" : "square")
+                            .font(.title3)
+                            .foregroundColor(agreedToTerms ? .accentGreen : .textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    Text("I agree to the terms and conditions and authorize the verification of my submitted documents.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 12)
+            }
+
+            footerActions
+        }
+    }
+
+    // MARK: - Product detail screen (all data from backend — zero hardcoding)
+
+    @ViewBuilder
+    private func productDetailScreen(product: LoanProduct) -> some View {
+        VStack(spacing: 0) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
+
+                    // Hero
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "#89DBA6").opacity(0.18))
+                                    .frame(width: 52, height: 52)
+                                Image(systemName: product.type.icon)
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundColor(Color(hex: "#2D8B4E"))
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(product.name)
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.textPrimary)
+                                Text(product.type.displayName)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.textSecondary)
+                            }
+                        }
+                        if let desc = product.description, !desc.isEmpty {
+                            Text(desc)
+                                .font(.system(size: 14))
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
+
+                    // Interest & Rates — fully backend-driven
+                    detailSection(title: "Interest & Rates") {
+                        detailRow(icon: "percent",                    label: "Interest Rate Range",   value: product.formattedRateRange)
+                        detailRow(icon: "arrow.up.arrow.down",        label: "Interest Types",         value: product.formattedInterestTypes)
+                        detailRow(icon: "chart.line.uptrend.xyaxis",  label: "Spread Over RBI Base",   value: String(format: "%.2f%%", product.spreadOverBase))
+                    }
+
+                    // Amount & Tenure — fully backend-driven
+                    detailSection(title: "Loan Amount & Tenure") {
+                        detailRow(icon: "indianrupeesign.circle", label: "Amount Range",       value: product.formattedAmountRange)
+                        detailRow(icon: "calendar",               label: "Tenure Range",       value: product.formattedTenureRange)
+                        detailRow(icon: "lock.shield",            label: "Requires Collateral", value: product.requiresCollateral ? "Yes" : "No")
+                    }
+
+                    // Fees & Penalties — fully backend-driven
+                    detailSection(title: "Fees & Penalties") {
+                        detailRow(icon: "creditcard",             label: "Processing Fee",       value: String(format: "%.2f%%", product.processingFeePct))
+                        detailRow(icon: "arrow.counterclockwise", label: "Prepayment Penalty",   value: String(format: "%.2f%%", product.prepaymentPenaltyPct))
+                        detailRow(icon: "exclamationmark.circle", label: "Late Penalty/Month",   value: String(format: "%.2f%%", product.latePenaltyPctPerMonth))
+                    }
+
+                    // Eligibility criteria — from backend JSON column, admin-editable
+                    if let criteria = product.eligibilityCriteria, !criteria.isEmpty {
+                        detailSection(title: "Eligibility Criteria") {
+                            ForEach(criteria.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                                detailRow(
+                                    icon: "checkmark.seal",
+                                    label: key.replacingOccurrences(of: "_", with: " ").capitalized,
+                                    value: value
+                                )
+                            }
+                        }
+                    }
+
+                    // Required documents — from backend JSON column, admin-editable
+                    let docs = product.requiredDocumentTitles
+                    if !docs.isEmpty {
+                        detailSection(title: "Required Documents") {
+                            ForEach(docs, id: \.self) { doc in
+                                HStack(spacing: 10) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color(hex: "#2D8B4E"))
+                                        .frame(width: 24)
+                                    Text(doc)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.textPrimary)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 6)
+                                Divider().opacity(0.5)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+            }
+
+            // NEXT button on product detail
+            Divider().opacity(0.4)
+            Button {
+                withAnimation { showProductDetail = false; step = 2 }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("NEXT")
+                        .font(.system(size: 16, weight: .bold))
+                        .tracking(1.5)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(Color(hex: "#1A1A1A"))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
+            .padding(.top, 14)
+            .padding(.bottom, 18)
+            .background(Color.appBackground)
+        }
+    }
+
+    // MARK: - Detail section helpers
+
+    private func detailSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.accentGreen)
+                .tracking(1.5)
+            VStack(spacing: 0) { content() }
+                .padding(16)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 3)
+        }
+    }
+
+    private func detailRow(icon: String, label: String, value: String) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .frame(width: 24)
+                Text(label)
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                Spacer()
+                Text(value)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                    .multilineTextAlignment(.trailing)
+            }
+            .padding(.vertical, 10)
+            Divider().opacity(0.4)
+        }
+    }
+
+    // MARK: - Footer actions
+
+    private var footerActions: some View {
+        VStack(spacing: 8) {
+            if let submissionError {
+                Text(submissionError)
+                    .font(.caption2)
+                    .foregroundColor(.accentRed)
+                    .padding(.horizontal, 24)
+            }
+            HStack(spacing: 12) {
+                // Back button (left of NEXT) — kept as-is per requirement 4
+                if step > 1 {
+                    Button {
+                        withAnimation { step -= 1 }
+                    } label: {
+                        Text("Back")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                            .frame(width: 90)
+                            .padding(.vertical, 18)
+                            .background(Color.surfaceMuted)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSubmitting)
+                }
+
+                if isSubmitting {
+                    ZStack {
+                        Capsule().fill(Color(hex: "#1A1A1A")).frame(height: 56)
+                        ProgressView().tint(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    let isDisabled = (step == 1 && selectedProduct == nil) || (step == 4 && !agreedToTerms)
+                    Button {
+                        if step == 1 {
+                            withAnimation { showProductDetail = true }
+                        } else if step < 4 {
+                            withAnimation { step += 1 }
+                        } else {
+                            submitApplication()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(step == 4 ? "SUBMIT" : "NEXT")
+                                .font(.system(size: 16, weight: .bold))
+                                .tracking(1.5)
+                            Image(systemName: step == 4 ? "checkmark" : "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(isDisabled ? Color(hex: "#1A1A1A").opacity(0.4) : Color(hex: "#1A1A1A"))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDisabled)
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(Color.white)
+        .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: -6)
+    }
+
+    // MARK: - Step indicator
+
     private var stepIndicator: some View {
         HStack(spacing: 0) {
             ForEach(1...4, id: \.self) { index in
-                // Step Circle
                 ZStack {
                     Circle()
                         .fill(index <= step ? Color.accentGreen : Color.white)
                         .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.accentGreen, lineWidth: 2)
-                        )
-                    
+                        .overlay(Circle().stroke(Color.accentGreen, lineWidth: 2))
                     if index < step {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                        Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
                     } else if index == step {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 8, height: 8)
+                        Circle().fill(Color.white).frame(width: 8, height: 8)
                     }
                 }
-                
-                // Connecting line
                 if index < 4 {
                     Rectangle()
                         .fill(index < step ? Color.accentGreen : Color.border)
-                        .frame(height: 2)
-                        .frame(maxWidth: .infinity)
+                        .frame(height: 2).frame(maxWidth: .infinity)
                 }
             }
         }
         .padding(.horizontal, 32)
     }
-    
+
     private var stepLabels: some View {
         HStack {
-            stepLabel(text: "Product", isActive: step >= 1)
-            Spacer()
-            stepLabel(text: "Details", isActive: step >= 2)
-            Spacer()
-            stepLabel(text: "Docs", isActive: step >= 3)
-            Spacer()
-            stepLabel(text: "Review", isActive: step >= 4)
+            stepLabel(text: "Product", isActive: step >= 1); Spacer()
+            stepLabel(text: "Details", isActive: step >= 2); Spacer()
+            stepLabel(text: "Docs",    isActive: step >= 3); Spacer()
+            stepLabel(text: "Review",  isActive: step >= 4)
         }
         .padding(.horizontal, 16)
     }
-    
+
     private func stepLabel(text: String, isActive: Bool) -> some View {
         Text(text)
             .font(.system(size: 12, weight: isActive ? .semibold : .medium))
             .foregroundColor(isActive ? .textPrimary : .textTertiary)
     }
-    
+
+    // MARK: - Success state
+
     private var successState: some View {
-        VStack(spacing: Spacing.xxl) {
+        VStack(spacing: 32) {
             ZStack {
-                Circle()
-                    .fill(Color.accentGreenBg)
-                    .frame(width: 120, height: 120)
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 64))
-                    .foregroundColor(.accentGreen)
+                Circle().fill(Color.accentGreenBg).frame(width: 120, height: 120)
+                Image(systemName: "checkmark.seal.fill").font(.system(size: 64)).foregroundColor(.accentGreen)
             }
-            
-            VStack(spacing: Spacing.sm) {
+            VStack(spacing: 12) {
                 Text("Application Submitted!")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                
+                    .font(.system(size: 26, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
                 Text("Your loan application has been successfully submitted and is under review. Our loan officer will get in touch with you shortly.")
-                    .font(.bodyRegular)
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
+                    .font(.bodyRegular).foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center).padding(.horizontal, 16)
             }
-            
             if let applicationNumber {
                 VStack(spacing: 4) {
                     Text("APPLICATION NUMBER")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.textSecondary)
-                        .tracking(1.5)
-                    
+                        .font(.system(size: 11, weight: .semibold)).foregroundColor(.textSecondary).tracking(1.5)
                     Text(applicationNumber)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                        .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(Color.surfaceMuted)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
-            
-            PillButton(title: "Back to Dashboard", style: .primary) {
-                dismiss()
-            }
-            .frame(width: 240)
+            PillButton(title: "Back to Dashboard", style: .primary) { dismiss() }
+                .frame(width: 240)
         }
-        .padding(Spacing.xxl)
+        .padding(32)
     }
-    
+
+    // MARK: - Submit
+
     private func submitApplication() {
-        guard let product = selectedProduct, let userId = SupabaseManager.shared.currentUserId else { return }
+        guard let product = selectedProduct,
+              let userId = SupabaseManager.shared.currentUserId else { return }
         let required = product.requiredDocumentTitles
         guard required.allSatisfy({ applicationDocuments[$0] != nil }) else {
             submissionError = "Upload every required document before submitting."
@@ -312,16 +483,11 @@ struct LoanApplicationFlowView: View {
         Task {
             do {
                 applicationNumber = try await LoanService.shared.submitApplication(
-                    userId: userId,
-                    productId: product.id,
-                    amount: amount,
-                    tenure: Int(tenureMonths),
-                    purpose: "General Funding",
+                    userId: userId, productId: product.id, amount: amount,
+                    tenure: Int(tenureMonths), purpose: "General Funding",
                     documents: applicationDocuments
                 )
-                withAnimation {
-                    applicationSuccess = true
-                }
+                withAnimation { applicationSuccess = true }
             } catch {
                 submissionError = error.localizedDescription
             }
@@ -330,58 +496,48 @@ struct LoanApplicationFlowView: View {
     }
 }
 
-// MARK: - Steps
+// MARK: - SelectProductStep
 
 struct SelectProductStep: View {
     let products: [LoanProduct]
     @Binding var selected: LoanProduct?
     let isLoading: Bool
     let emptyMessage: String
-    
+    var onViewDetails: ((LoanProduct) -> Void)? = nil
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Select Loan Product")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundColor(.textPrimary)
-            
+
             if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
+                ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
             } else if products.isEmpty {
                 VStack(spacing: 10) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 28))
-                        .foregroundColor(.textSecondary)
-                    Text(emptyMessage)
-                        .font(.bodyLarge)
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
+                    Image(systemName: "tray").font(.system(size: 28)).foregroundColor(.textSecondary)
+                    Text(emptyMessage).font(.bodyLarge).foregroundColor(.textSecondary).multilineTextAlignment(.center)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity).padding(.vertical, 20)
             } else {
                 VStack(spacing: 12) {
                     ForEach(products) { product in
                         ProductOptionRow(
                             title: product.name,
                             subtitle: product.formattedAmountRange,
-                            isSelected: selected?.id == product.id
+                            rate: product.formattedStartingRate,
+                            isSelected: selected?.id == product.id,
+                            onViewDetails: { onViewDetails?(product) }
                         )
-                        .onTapGesture {
-                            selected = product
-                        }
+                        .onTapGesture { selected = product }
                     }
                 }
             }
         }
-        .padding(Spacing.lg)
+        .padding(16)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.02), radius: 10, x: 0, y: 4)
     }
 }
@@ -389,319 +545,232 @@ struct SelectProductStep: View {
 struct ProductOptionRow: View {
     let title: String
     let subtitle: String
+    let rate: String
     let isSelected: Bool
-    
+    var onViewDetails: (() -> Void)? = nil
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.bodyLarge)
-                    .foregroundColor(.textPrimary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
+                Text(title).font(.bodyLarge).foregroundColor(.textPrimary)
+                Text(subtitle).font(.caption).foregroundColor(.textSecondary)
+                Text(rate).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(hex: "#2D8B4E"))
             }
             Spacer()
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.accentGreen)
-                    .font(.title3)
-            } else {
-                Circle()
-                    .strokeBorder(Color.border, lineWidth: 1.5)
-                    .frame(width: 22, height: 22)
+            VStack(spacing: 8) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(.accentGreen).font(.title3)
+                } else {
+                    Circle().strokeBorder(Color.border, lineWidth: 1.5).frame(width: 22, height: 22)
+                }
+                if let onViewDetails {
+                    Button { onViewDetails() } label: {
+                        Text("Details")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Color(hex: "#89DBA6").opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .padding(Spacing.lg)
+        .padding(16)
         .background(isSelected ? Color.accentGreenBg.opacity(0.3) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.lg)
-                .stroke(isSelected ? Color.accentGreen : Color.border, lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color.accentGreen : Color.border, lineWidth: 1))
     }
 }
+
+// MARK: - AmountTenureStep
 
 struct AmountTenureStep: View {
     let product: LoanProduct
     @Binding var amount: Double
     @Binding var tenureMonths: Double
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xl) {
-             Text("Loan Amount & Tenure")
-                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                 .foregroundColor(.textPrimary)
-                 
-             // Amount selection with custom labels
-             VStack(alignment: .leading, spacing: Spacing.sm) {
-                 HStack {
-                     Text("Amount")
-                         .font(.bodyLarge)
-                         .foregroundColor(.textSecondary)
-                     Spacer()
-                     Text("₹\(formatIndian(amount))")
-                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                         .foregroundColor(.textPrimary)
-                 }
-                 
-                 Slider(value: $amount, in: product.minAmount...product.maxAmount, step: 10000)
-                     .tint(.accentGreen)
-                 
-                 HStack {
-                     Text(formatCompact(product.minAmount))
-                     Spacer()
-                     Text(formatCompact(product.maxAmount))
-                 }
-                 .font(.caption)
-                 .foregroundColor(.textTertiary)
-             }
-             
-             // Tenure selection using pill/capsule selector
-             VStack(alignment: .leading, spacing: Spacing.sm) {
-                 HStack {
-                     Text("Tenure")
-                         .font(.bodyLarge)
-                         .foregroundColor(.textSecondary)
-                     Spacer()
-                     Text("\(Int(tenureMonths)) Months")
-                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                         .foregroundColor(.textPrimary)
-                 }
-                 
-                 ScrollView(.horizontal, showsIndicators: false) {
-                     HStack(spacing: Spacing.sm) {
-                         ForEach(availableTenureOptions) { option in
-                             Button {
-                                 tenureMonths = option.months
-                             } label: {
-                                 Text(option.label)
-                                     .font(.system(size: 14, weight: .semibold))
-                                     .foregroundColor(tenureMonths == option.months ? .white : .textPrimary)
-                                     .padding(.horizontal, 20)
-                                     .padding(.vertical, 12)
-                                     .background(tenureMonths == option.months ? Color.accentDark : Color.surfaceMuted)
-                                     .clipShape(Capsule())
-                             }
-                             .buttonStyle(.plain)
-                         }
-                     }
-                     .padding(.vertical, 2)
-                 }
-             }
-             
-             // Dynamic calculations card
-             LiveCalculationCard(
-                 product: product,
-                 amount: amount,
-                 tenureMonths: tenureMonths
-             )
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Loan Amount & Tenure")
+                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Amount").font(.bodyLarge).foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("₹\(formatIndian(amount))")
+                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                }
+                Slider(value: $amount, in: product.minAmount...product.maxAmount, step: 10_000).tint(.accentGreen)
+                HStack {
+                    Text(formatCompact(product.minAmount)); Spacer(); Text(formatCompact(product.maxAmount))
+                }.font(.caption).foregroundColor(.textTertiary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Tenure").font(.bodyLarge).foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("\(Int(tenureMonths)) Months")
+                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(availableTenureOptions) { option in
+                            Button { tenureMonths = option.months } label: {
+                                Text(option.label)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(tenureMonths == option.months ? .white : .textPrimary)
+                                    .padding(.horizontal, 20).padding(.vertical, 12)
+                                    .background(tenureMonths == option.months ? Color.accentDark : Color.surfaceMuted)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }.padding(.vertical, 2)
+                }
+            }
+
+            LiveCalculationCard(product: product, amount: amount, tenureMonths: tenureMonths)
         }
-        .padding(Spacing.lg)
+        .padding(16)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.02), radius: 10, x: 0, y: 4)
     }
 
     private struct TenureOption: Identifiable {
-        let id = UUID()
-        let label: String
-        let months: Double
+        let id = UUID(); let label: String; let months: Double
     }
-
     private var availableTenureOptions: [TenureOption] {
-        let allOptions = [
-            TenureOption(label: "1 Year", months: 12),
-            TenureOption(label: "2 Years", months: 24),
-            TenureOption(label: "3 Years", months: 36),
-            TenureOption(label: "5 Years", months: 60),
-            TenureOption(label: "10 Years", months: 120),
-            TenureOption(label: "15 Years", months: 180),
-            TenureOption(label: "20 Years", months: 240),
-            TenureOption(label: "25 Years", months: 300),
+        let all = [
+            TenureOption(label: "1 Year",   months: 12),  TenureOption(label: "2 Years",  months: 24),
+            TenureOption(label: "3 Years",  months: 36),  TenureOption(label: "5 Years",  months: 60),
+            TenureOption(label: "10 Years", months: 120), TenureOption(label: "15 Years", months: 180),
+            TenureOption(label: "20 Years", months: 240), TenureOption(label: "25 Years", months: 300),
             TenureOption(label: "30 Years", months: 360)
         ]
-        
-        let filtered = allOptions.filter { $0.months >= Double(product.minTenureMonths) && $0.months <= Double(product.maxTenureMonths) }
+        let filtered = all.filter { $0.months >= Double(product.minTenureMonths) && $0.months <= Double(product.maxTenureMonths) }
         return filtered.isEmpty ? [TenureOption(label: "\(product.minTenureMonths) Mo", months: Double(product.minTenureMonths))] : filtered
     }
-
-    private func formatCompact(_ value: Double) -> String {
-        if value >= 10000000 {
-            return String(format: "₹%.0fCr", value / 10000000)
-        } else if value >= 100000 {
-            return String(format: "₹%.0fL", value / 100000)
-        } else if value >= 1000 {
-            return String(format: "₹%.0fK", value / 1000)
-        }
-        return "₹\(Int(value))"
+    private func formatCompact(_ v: Double) -> String {
+        if v >= 10_000_000 { return String(format: "₹%.0fCr", v/10_000_000) }
+        if v >= 100_000    { return String(format: "₹%.0fL",  v/100_000) }
+        if v >= 1_000      { return String(format: "₹%.0fK",  v/1_000) }
+        return "₹\(Int(v))"
     }
-    
-    private func formatIndian(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_IN")
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+    private func formatIndian(_ v: Double) -> String {
+        let f = NumberFormatter(); f.locale = Locale(identifier: "en_IN")
+        f.numberStyle = .decimal; f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v)) ?? "\(Int(v))"
     }
 }
 
+// MARK: - LiveCalculationCard
+
 struct LiveCalculationCard: View {
-    let product: LoanProduct
-    let amount: Double
-    let tenureMonths: Double
-    
+    let product: LoanProduct; let amount: Double; let tenureMonths: Double
     var emiDetails: (emi: Double, totalInterest: Double) {
-        let annualRate = product.minInterestRate
-        let monthlyRate = annualRate / 12 / 100
-        let n = tenureMonths
-        let p = amount
-        let emi: Double
-        if monthlyRate > 0 {
-            emi = (p * monthlyRate * pow(1 + monthlyRate, n)) / (pow(1 + monthlyRate, n) - 1)
-        } else {
-            emi = p / n
-        }
-        let totalPayable = emi * n
-        let totalInterest = totalPayable - p
-        return (emi, max(0, totalInterest))
+        let r = product.minInterestRate / 12 / 100; let n = tenureMonths; let p = amount
+        let emi: Double = r > 0 ? (p * r * pow(1+r,n)) / (pow(1+r,n) - 1) : p/n
+        return (emi, max(0, emi*n - p))
     }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("ESTIMATED LOAN DETAILS")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.accentGreen)
-                .tracking(1.5)
-            
+                .font(.system(size: 11, weight: .semibold)).foregroundColor(.accentGreen).tracking(1.5)
             VStack(spacing: 8) {
-                calculationRow(label: "Estimated EMI", value: "₹\(formatIndian(emiDetails.emi))/mo", isHighlighted: true)
+                row("Estimated EMI",           "₹\(fmt(emiDetails.emi))/mo", highlight: true)
                 Divider().background(Color.accentGreen.opacity(0.2))
-                calculationRow(label: "Interest Rate Range", value: product.formattedRateRange)
-                calculationRow(label: "Interest Type", value: product.formattedInterestTypes)
-                calculationRow(label: "Spread over RBI", value: String(format: "%.2f%%", product.spreadOverBase))
-                calculationRow(label: "Total Estimated Interest", value: "₹\(formatIndian(emiDetails.totalInterest))")
+                row("Interest Rate Range",     product.formattedRateRange)
+                row("Interest Type",           product.formattedInterestTypes)
+                row("Spread over RBI",         String(format: "%.2f%%", product.spreadOverBase))
+                row("Total Estimated Interest","₹\(fmt(emiDetails.totalInterest))")
             }
         }
         .padding(16)
         .background(Color.accentGreenBg)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.lg)
-                .stroke(Color.accentGreen.opacity(0.3), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.accentGreen.opacity(0.3), lineWidth: 1))
     }
-    
-    private func calculationRow(label: String, value: String, isHighlighted: Bool = false) -> some View {
+    private func row(_ label: String, _ value: String, highlight: Bool = false) -> some View {
         HStack {
-            Text(label)
-                .font(.system(size: 13, weight: isHighlighted ? .semibold : .regular))
-                .foregroundColor(isHighlighted ? .accentGreen : .textSecondary)
+            Text(label).font(.system(size: 13, weight: highlight ? .semibold : .regular))
+                .foregroundColor(highlight ? .accentGreen : .textSecondary)
             Spacer()
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(isHighlighted ? .accentGreen : .textPrimary)
+            Text(value).font(.system(size: 14, weight: .bold))
+                .foregroundColor(highlight ? .accentGreen : .textPrimary)
         }
     }
-    
-    private func formatIndian(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_IN")
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+    private func fmt(_ v: Double) -> String {
+        let f = NumberFormatter(); f.locale = Locale(identifier: "en_IN")
+        f.numberStyle = .decimal; f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v)) ?? "\(Int(v))"
     }
 }
+
+// MARK: - DocumentUploadStep
 
 struct DocumentUploadStep: View {
     let product: LoanProduct
     @Binding var documents: [String: Data]
-
-    private var requiredDocuments: [String] {
-        product.requiredDocumentTitles
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Required Documents")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            
+                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
             Text("Please upload the documents required for this loan product.")
-                .font(.bodyRegular)
-                .foregroundColor(.textSecondary)
-            
-            ForEach(requiredDocuments, id: \.self) { document in
+                .font(.bodyRegular).foregroundColor(.textSecondary)
+            ForEach(product.requiredDocumentTitles, id: \.self) { doc in
                 DocumentUploadView(
-                    title: document,
-                    subtitle: "Required Document",
-                    documentData: Binding(
-                        get: { documents[document] },
-                        set: { documents[document] = $0 }
-                    )
+                    title: doc, subtitle: "Required Document",
+                    documentData: Binding(get: { documents[doc] }, set: { documents[doc] = $0 })
                 )
             }
         }
     }
 }
 
+// MARK: - ReviewSubmitStep
+
 struct ReviewSubmitStep: View {
-    let product: LoanProduct
-    let amount: Double
-    let tenure: Int
-    
+    let product: LoanProduct; let amount: Double; let tenure: Int
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Review Application")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            
-            VStack(spacing: Spacing.md) {
-                ReviewRow(label: "Product", value: product.name)
+                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+            VStack(spacing: 12) {
+                ReviewRow(label: "Product",       value: product.name)
                 Divider()
-                ReviewRow(label: "Amount", value: "₹\(formatIndian(amount))")
+                ReviewRow(label: "Amount",        value: "₹\(fmt(amount))")
                 Divider()
-                ReviewRow(label: "Tenure", value: "\(tenure) Months")
+                ReviewRow(label: "Tenure",        value: "\(tenure) Months")
                 Divider()
                 ReviewRow(label: "Starting Rate", value: product.formattedStartingRate)
             }
         }
-        .padding(Spacing.xl)
+        .padding(24)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.02), radius: 12, x: 0, y: 4)
     }
-    
-    private func formatIndian(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_IN")
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+    private func fmt(_ v: Double) -> String {
+        let f = NumberFormatter(); f.locale = Locale(identifier: "en_IN")
+        f.numberStyle = .decimal; f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v)) ?? "\(Int(v))"
     }
 }
 
 struct ReviewRow: View {
-    let label: String
-    let value: String
-    
+    let label: String; let value: String
     var body: some View {
         HStack {
-            Text(label)
-                .font(.bodyRegular)
-                .foregroundColor(.textSecondary)
+            Text(label).font(.bodyRegular).foregroundColor(.textSecondary)
             Spacer()
-            Text(value)
-                .font(.bodyLarge)
-                .foregroundColor(.textPrimary)
+            Text(value).font(.bodyLarge).foregroundColor(.textPrimary)
         }
     }
 }
+

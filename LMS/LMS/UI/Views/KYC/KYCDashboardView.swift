@@ -299,21 +299,6 @@ struct KYCDashboardView: View {
             .navigationTitle("KYC Setup")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                if !allowsSkip {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            dismiss()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "chevron.left")
-                                Text("Back")
-                            }
-                            .font(.bodyLarge)
-                            .foregroundColor(.accentGreen)
-                        }
-                    }
-                }
-
                 ToolbarItem(placement: .topBarTrailing) {
                     if allowsSkip {
                         if viewModel.isLoading {

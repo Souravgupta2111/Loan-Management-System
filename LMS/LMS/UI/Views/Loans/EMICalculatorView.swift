@@ -61,13 +61,15 @@ struct EMICalculatorView: View {
             VStack(spacing: 0) {
                 // MARK: - Custom Header
                 HStack {
-//                    Button(action: {
-//                        dismiss()
-//                    }) {
-//                        Image(systemName: "chevron.left")
-//                            .font(.system(size: 20, weight: .semibold))
-//                            .foregroundColor(.accentGreen)
-//                    }
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.accentGreen)
+                    }
+                    .buttonStyle(.plain)
+
                     Spacer()
                     Text("EMI Calculator")
                         .font(.system(size: 17, weight: .bold))
