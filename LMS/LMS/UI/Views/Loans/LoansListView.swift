@@ -125,7 +125,7 @@ struct LoansListView: View {
                     }
                 }
                 .padding(.horizontal, Spacing.xl)
-                .padding(.bottom, 100)
+                .padding(.bottom, 20)
             }
             .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("My Loans")

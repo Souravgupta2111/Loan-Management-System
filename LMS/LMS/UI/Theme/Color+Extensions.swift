@@ -18,6 +18,8 @@ extension Color {
     // MARK: - Accent Colors
     static let accentGreen     = Color(hex: "#2D8B4E")
     static let accentGreenBg   = Color(hex: "#E8F5EC")
+    static let themeGreen      = Color(hex: "#89DBA6")
+    static let themeGreenBg    = Color(hex: "#89DBA6").opacity(0.2)
     static let accentMint      = Color(hex: "#C8E6D0")
     static let accentBeige     = Color(hex: "#F5E6C8")
     static let accentBeigeDk   = Color(hex: "#D4A574")
