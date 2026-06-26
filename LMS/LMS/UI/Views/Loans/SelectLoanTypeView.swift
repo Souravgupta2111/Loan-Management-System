@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Select Loan Product / Type Screen (design.md §8.6 Step 1)
-/// NEXT button is in a VStack below the ScrollView — no ZStack overlay needed
-/// because MainTabView now uses VStack layout (tab bar sits below, not over).
+/// Select Loan Type Screen (design.md §8.6 Step 1)
+/// Cards show only the loan type name + icon — all financial details are
+/// surfaced on the product detail screen and fetched live from the backend.
 struct SelectLoanTypeView: View {
     @Environment(\.dismiss) private var dismiss
     var isTabRoot: Bool = false
@@ -10,13 +10,15 @@ struct SelectLoanTypeView: View {
     @State private var selectedLoanType: LoanType = .personal
     @State private var navigateToApplication = false
 
+    /// Distinct loan types that have at least one active product in the DB.
+    @State private var availableTypes: [LoanType] = []
+    @State private var isLoading = true
+    @State private var loadError: String?
+
     var body: some View {
         VStack(spacing: 0) {
-            // Scrollable content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
-                    progressBar
-
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Choose Loan Type")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -26,14 +28,19 @@ struct SelectLoanTypeView: View {
                             .foregroundColor(.textSecondary)
                     }
 
-                    loanTypeGrid
+                    if isLoading {
+                        loadingGrid
+                    } else if let error = loadError {
+                        errorView(message: error)
+                    } else {
+                        loanTypeGrid
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
                 .padding(.bottom, 20)
             }
 
-            // NEXT button — in the VStack below scroll, above the tab bar
             Divider().opacity(0.4)
 
             Button {
@@ -49,10 +56,13 @@ struct SelectLoanTypeView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                .background(Color(hex: "#1A1A1A"))
+                .background(isLoading || availableTypes.isEmpty
+                    ? Color(hex: "#1A1A1A").opacity(0.4)
+                    : Color(hex: "#1A1A1A"))
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
+            .disabled(isLoading || availableTypes.isEmpty)
             .padding(.horizontal, 24)
             .padding(.top, 14)
             .padding(.bottom, 18)
@@ -87,53 +97,102 @@ struct SelectLoanTypeView: View {
         .navigationDestination(isPresented: $navigateToApplication) {
             LoanApplicationFlowView(initialLoanType: selectedLoanType)
         }
+        .task { await loadLoanTypes() }
+        .refreshable { await loadLoanTypes() }
     }
 
-    // MARK: - Progress bar
+    // MARK: - Data Fetch
 
-    private var progressBar: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<4, id: \.self) { index in
-                Capsule()
-                    .fill(index == 0 ? Color(hex: "#2D8B4E") : Color(hex: "#89DBA6").opacity(0.25))
-                    .frame(height: 5)
+    /// Fetches all active products and collects the distinct loan types present.
+    /// No financial data is derived or displayed here — that lives on the detail screen.
+    @MainActor
+    private func loadLoanTypes() async {
+        isLoading = true
+        loadError = nil
+        do {
+            let products = try await LoanService.shared.fetchActiveProducts()
+            let order: [LoanType] = [.home, .vehicle, .personal, .business,
+                                     .education, .gold, .agriculture, .other]
+            var seen = Set<LoanType>()
+            availableTypes = products
+                .map(\.type)
+                .filter { seen.insert($0).inserted }
+                .sorted { (order.firstIndex(of: $0) ?? 99) < (order.firstIndex(of: $1) ?? 99) }
+
+            if !availableTypes.isEmpty, !availableTypes.contains(selectedLoanType) {
+                selectedLoanType = availableTypes[0]
             }
+        } catch {
+            loadError = "Couldn't load loan types. Pull to refresh."
         }
+        isLoading = false
     }
 
-    // MARK: - Grid
+    // MARK: - Grid (name + icon only)
 
     private var loanTypeGrid: some View {
-        let columns = [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ]
+        let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
         return LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(LoanTypeGridOption.options) { option in
+            ForEach(availableTypes, id: \.rawValue) { loanType in
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                        selectedLoanType = option.type
+                        selectedLoanType = loanType
                     }
                 } label: {
-                    loanTypeCard(for: option)
+                    loanTypeCard(for: loanType)
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
-    private func loanTypeCard(for option: LoanTypeGridOption) -> some View {
-        let isSelected = option.type == selectedLoanType
-        return VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Skeleton loading grid
+
+    private var loadingGrid: some View {
+        let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
+        return LazyVGrid(columns: columns, spacing: 16) {
+            ForEach(0..<4, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.surfaceMuted)
+                    .frame(height: 100)
+                    .shimmering()
+            }
+        }
+    }
+
+    // MARK: - Error view
+
+    private func errorView(message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28))
+                .foregroundColor(.textSecondary)
+            Text(message)
+                .font(.system(size: 15))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+            Button("Retry") { Task { await loadLoanTypes() } }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(Color(hex: "#2D8B4E"))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+
+    // MARK: - Card (name + icon only — no financial info)
+
+    private func loanTypeCard(for loanType: LoanType) -> some View {
+        let isSelected = loanType == selectedLoanType
+        return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 ZStack {
                     Circle()
                         .fill(isSelected ? Color(hex: "#89DBA6").opacity(0.20) : Color.surfaceMuted)
-                    Image(systemName: option.icon)
-                        .font(.system(size: 16, weight: .semibold))
+                    Image(systemName: loanType.icon)
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(isSelected ? Color(hex: "#2D8B4E") : .textSecondary)
                 }
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -141,21 +200,11 @@ struct SelectLoanTypeView: View {
                         .font(.title3)
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(option.title)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                Text(option.rateRange)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
-                Text(option.rateType)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.textSecondary)
-                Text(option.amountRange)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.textSecondary)
-            }
+            Text(loanType.displayName)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundColor(.textPrimary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -163,7 +212,8 @@ struct SelectLoanTypeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isSelected ? Color(hex: "#89DBA6") : Color.border, lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Color(hex: "#89DBA6") : Color.border,
+                        lineWidth: isSelected ? 2 : 1)
         )
         .scaleEffect(isSelected ? 1.02 : 1.0)
         .shadow(color: isSelected ? Color(hex: "#89DBA6").opacity(0.20) : .black.opacity(0.03),
@@ -171,22 +221,30 @@ struct SelectLoanTypeView: View {
     }
 }
 
-// MARK: - Data
+// MARK: - Shimmer
 
-private struct LoanTypeGridOption: Identifiable {
-    let type: LoanType
-    let rateRange: String
-    let rateType: String
-    let amountRange: String
+private extension View {
+    func shimmering() -> some View { self.overlay(ShimmerView()).clipped() }
+}
 
-    var id: String { type.rawValue }
-    var title: String { type.displayName }
-    var icon: String { type.icon }
-
-    static let options: [LoanTypeGridOption] = [
-        LoanTypeGridOption(type: .home,     rateRange: "8.5% - 12.5%", rateType: "Fixed/Floating", amountRange: "₹5L - ₹2Cr"),
-        LoanTypeGridOption(type: .vehicle,  rateRange: "9.2% - 14.0%", rateType: "Fixed/Reducing", amountRange: "₹1L - ₹50L"),
-        LoanTypeGridOption(type: .personal, rateRange: "From 11.5%",   rateType: "Fixed",           amountRange: "₹50K - ₹20L"),
-        LoanTypeGridOption(type: .business, rateRange: "From 10.0%",   rateType: "Fixed/Reducing",  amountRange: "₹2L - ₹1Cr")
-    ]
+private struct ShimmerView: View {
+    @State private var phase: CGFloat = -1
+    var body: some View {
+        GeometryReader { geo in
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .white.opacity(0.4), location: 0.4),
+                    .init(color: .white.opacity(0.4), location: 0.6),
+                    .init(color: .clear, location: 1)
+                ]),
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(width: geo.size.width * 3)
+            .offset(x: geo.size.width * phase)
+            .onAppear {
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 1 }
+            }
+        }
+    }
 }

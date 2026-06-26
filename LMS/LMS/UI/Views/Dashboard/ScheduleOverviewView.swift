@@ -1,13 +1,14 @@
 import SwiftUI
 import Auth
+import Supabase
 
 // MARK: - ScheduleOverviewView
 
 struct ScheduleOverviewView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
 
-    // Raw data from backend
-    @State private var loans: [LoanListItem] = []
+    // Calendar entries built from all backend EMI schedule rows.
+    @State private var emiEntries: [CalendarEMIEntry] = []
     @State private var isLoading = true
 
     // Calendar state — offset in months from "today's month"
@@ -32,23 +33,9 @@ struct ScheduleOverviewView: View {
     /// All EMI items keyed by calendar day
     private var emisByDate: [Date: [CalendarEMIEntry]] {
         var map: [Date: [CalendarEMIEntry]] = [:]
-        for loan in loans {
-            guard loan.status.lowercased() == "active" else { continue }
-            if let rawDate = loan.nextDueDate,
-               let dueDate = LoansListView.parseDateString(rawDate) {
-                let day = calendar.startOfDay(for: dueDate)
-                let isOverdue = day < calendar.startOfDay(for: Date())
-                let entry = CalendarEMIEntry(
-                    loanName: loan.name,
-                    loanType: loan.loanType,
-                    loanNumber: loan.loanNumber,
-                    emiAmount: loan.emiAmount,
-                    dueDate: dueDate,
-                    isPaid: false,
-                    isOverdue: isOverdue
-                )
-                map[day, default: []].append(entry)
-            }
+        for entry in emiEntries {
+            let day = calendar.startOfDay(for: entry.dueDate)
+            map[day, default: []].append(entry)
         }
         return map
     }
@@ -100,12 +87,12 @@ struct ScheduleOverviewView: View {
                     jumpToDate(chosen)
                 }
             }
-            .task { await loadLoans() }
-            .refreshable { await loadLoans() }
+            .task { await loadScheduleEntries() }
+            .refreshable { await loadScheduleEntries() }
             // Reset to today whenever this tab is re-visited
             .onAppear { resetToToday() }
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
-                Task { await loadLoans() }
+                Task { await loadScheduleEntries() }
             }
         }
     }
@@ -430,14 +417,64 @@ struct ScheduleOverviewView: View {
 
     // MARK: - Data Loading
 
-    private func loadLoans() async {
+    private func loadScheduleEntries() async {
         isLoading = true
         defer { isLoading = false }
         do {
             guard let userId = authViewModel.currentUser?.id else { return }
-            loans = try await LoanService.shared.fetchDetailedUserLoans(userId: userId)
+
+            struct LoanScheduleResponse: Decodable {
+                let id: UUID
+                let loan_number: String?
+                let status: String
+                let loan_product: ProductSummary
+                let emi_schedule: [EMIRow]
+
+                struct ProductSummary: Decodable {
+                    let name: String
+                    let type: String
+                }
+
+                struct EMIRow: Decodable {
+                    let id: UUID
+                    let total_emi: Double
+                    let penalty_amount: Double?
+                    let status: String
+                    let due_date: String
+                }
+            }
+
+            let response: [LoanScheduleResponse] = try await SupabaseManager.shared.client
+                .from("loans")
+                .select("id, loan_number, status, loan_product:loan_products(name, type), emi_schedule(id, total_emi, penalty_amount, status, due_date)")
+                .eq("borrower_id", value: userId.uuidString)
+                .eq("status", value: "active")
+                .execute()
+                .value
+
+            let today = calendar.startOfDay(for: Date())
+            emiEntries = response.flatMap { loan in
+                loan.emi_schedule.compactMap { emi -> CalendarEMIEntry? in
+                    guard emi.status.lowercased() != "paid",
+                          let dueDate = LoansListView.parseDateString(emi.due_date) else { return nil }
+
+                    let dueDay = calendar.startOfDay(for: dueDate)
+                    return CalendarEMIEntry(
+                        id: emi.id,
+                        loanName: loan.loan_product.name,
+                        loanType: loan.loan_product.type,
+                        loanNumber: loan.loan_number ?? "N/A",
+                        emiAmount: emi.total_emi + (emi.penalty_amount ?? 0),
+                        dueDate: dueDate,
+                        isPaid: false,
+                        isOverdue: dueDay < today || emi.status.lowercased() == "overdue"
+                    )
+                }
+            }
+            .sorted { $0.dueDate < $1.dueDate }
         } catch {
-            print("ScheduleOverviewView: failed to load loans: \(error)")
+            print("ScheduleOverviewView: failed to load EMI schedule: \(error)")
+            emiEntries = []
         }
     }
 
@@ -481,9 +518,13 @@ struct ScheduleOverviewView: View {
     }
 
     private func formatAmount(_ value: Double) -> String {
-        if value >= 1_00_000 { return String(format: "%.1fL", value / 1_00_000) }
-        if value >= 1_000    { return String(format: "%.1fK", value / 1_000) }
-        return String(format: "%.0f", value)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        formatter.usesGroupingSeparator = true
+        formatter.minimumFractionDigits = value.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
     }
 }
 
@@ -565,7 +606,7 @@ private struct DateJumpSheet: View {
 // MARK: - Supporting Model
 
 private struct CalendarEMIEntry: Identifiable {
-    let id         = UUID()
+    let id         : UUID
     let loanName   : String
     let loanType   : String
     let loanNumber : String

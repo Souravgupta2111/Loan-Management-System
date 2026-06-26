@@ -194,20 +194,11 @@ struct HomeDashboardView: View {
 
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
-        VStack(spacing: 16) {
-            // Decorative divider with title
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(Color(hex: "#89DBA6"))
-                    .frame(height: 1)
-                Text("Quick Actions")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                    .fixedSize()
-                Rectangle()
-                    .fill(Color(hex: "#89DBA6"))
-                    .frame(height: 1)
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quick Actions")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 12) {
                 NavigationLink {
@@ -225,7 +216,7 @@ struct HomeDashboardView: View {
                 .buttonStyle(.plain)
 
                 NavigationLink {
-                    KYCDashboardView()
+                    KYCDashboardView(allowsSkip: false)
                         .environmentObject(authViewModel)
                 } label: {
                     quickActionCard(icon: "doc.on.doc", label: "KYC")
@@ -269,26 +260,12 @@ struct HomeDashboardView: View {
     // MARK: - Transaction History
     private var transactionHistorySection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Decorative divider with title
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(Color(hex: "#89DBA6"))
-                    .frame(height: 1)
-                Text("Transaction History")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                    .fixedSize()
-                Rectangle()
-                    .fill(Color(hex: "#89DBA6"))
-                    .frame(height: 1)
-            }
-
-            // Date header
             HStack {
-                Text(currentDateString)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                Spacer()
+            Text("Transaction History")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 Button { } label: {
                     Text("See more")
                         .font(.system(size: 14, weight: .semibold))
@@ -319,19 +296,9 @@ struct HomeDashboardView: View {
             Spacer()
 
             HStack(spacing: 12) {
-                Text("₹ \(formatIndian(item.amount))")
+                Text(transactionAmountText(item))
                     .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-
-                // Status icon
-                ZStack {
-                    Circle()
-                        .fill(item.statusBg)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: item.statusIcon)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(item.statusColor)
-                }
+                    .foregroundColor(item.direction.color)
             }
         }
         .padding(16)
@@ -402,7 +369,17 @@ struct HomeDashboardView: View {
 
     private var transactionItems: [TxItem] {
         guard !loans.isEmpty else {
-            return [TxItem(title: "Apply for your first loan", subtitle: "No transactions yet", amount: 0, statusIcon: "arrow.up.right", statusColor: Color(hex: "#2D8B4E"), statusBg: Color(hex: "#89DBA6").opacity(0.2))]
+            return [
+                TxItem(
+                    title: "Apply for your first loan",
+                    subtitle: "No transactions yet",
+                    amount: 0,
+                    direction: .credit,
+                    statusIcon: "arrow.up.right",
+                    statusColor: Color(hex: "#2D8B4E"),
+                    statusBg: Color(hex: "#89DBA6").opacity(0.2)
+                )
+            ]
         }
 
         let loanName = (activeLoans.first ?? loans.first!).name
@@ -416,6 +393,7 @@ struct HomeDashboardView: View {
                 title: loanName,
                 subtitle: "\(dateStr) - Auto Debit",
                 amount: emiAmt,
+                direction: .debit,
                 statusIcon: "checkmark",
                 statusColor: .white,
                 statusBg: Color(hex: "#2D8B4E")
@@ -424,6 +402,7 @@ struct HomeDashboardView: View {
                 title: loanName,
                 subtitle: "\(dateStr) - Netbanking",
                 amount: emiAmt,
+                direction: .debit,
                 statusIcon: "clock.badge.exclamationmark",
                 statusColor: .white,
                 statusBg: Color(hex: "#E8732A")
@@ -432,6 +411,7 @@ struct HomeDashboardView: View {
                 title: loanName,
                 subtitle: "\(dateStr) - UPI",
                 amount: emiAmt,
+                direction: .debit,
                 statusIcon: "xmark",
                 statusColor: .white,
                 statusBg: Color(hex: "#D94040")
@@ -445,6 +425,10 @@ struct HomeDashboardView: View {
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+    }
+
+    private func transactionAmountText(_ item: TxItem) -> String {
+        "\(item.direction.sign) ₹\(formatIndian(abs(item.amount)))"
     }
 
     // MARK: - Data Loading
@@ -482,9 +466,29 @@ private struct TxItem {
     let title: String
     let subtitle: String
     let amount: Double
+    let direction: TxDirection
     let statusIcon: String
     let statusColor: Color
     let statusBg: Color
+}
+
+private enum TxDirection {
+    case credit
+    case debit
+
+    var sign: String {
+        switch self {
+        case .credit: return "+"
+        case .debit: return "-"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .credit: return Color(hex: "#2D8B4E")
+        case .debit: return Color(hex: "#D94040")
+        }
+    }
 }
 
 private func formattedNextDueDate(_ rawDate: String?) -> String {
