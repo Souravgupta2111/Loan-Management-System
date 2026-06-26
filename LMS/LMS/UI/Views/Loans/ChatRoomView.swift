@@ -76,6 +76,7 @@ struct ChatRoomView: View {
         }
         .navigationTitle("Message Officer")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             await viewModel.loadMessages()
         }

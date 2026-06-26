@@ -33,8 +33,22 @@ final class SupabaseManager {
 
         client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: anonKey
+            supabaseKey: anonKey,
+            options: SupabaseClientOptions(
+                auth: .init(emitLocalSessionAsInitialSession: true),
+                global: .init(session: Self.makeURLSession())
+            )
         )
+    }
+
+    private static func makeURLSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 90
+        configuration.timeoutIntervalForResource = 300
+        configuration.waitsForConnectivity = true
+        configuration.httpMaximumConnectionsPerHost = 4
+        configuration.httpAdditionalHeaders = ["Alt-Svc": "clear"]
+        return URLSession(configuration: configuration)
     }
 
     // MARK: - Convenience Accessors

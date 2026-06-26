@@ -1,6 +1,10 @@
 import Foundation
 import Supabase
 
+extension Notification.Name {
+    static let loanDataDidChange = Notification.Name("loanDataDidChange")
+}
+
 @MainActor
 class LoanService {
     static let shared = LoanService()
@@ -8,13 +12,17 @@ class LoanService {
     private init() {}
     
     /// Fetches all active loan products from the database
-    func fetchActiveProducts() async throws -> [LoanProduct] {
-        return try await SupabaseManager.shared.client
+    func fetchActiveProducts(for type: LoanType? = nil) async throws -> [LoanProduct] {
+        var query = SupabaseManager.shared.client
             .from("loan_products")
             .select()
             .eq("is_active", value: true)
-            .execute()
-            .value
+
+        if let type {
+            query = query.eq("type", value: type.rawValue)
+        }
+
+        return try await query.execute().value
     }
     
     /// Submits a new loan application and uploads associated documents
@@ -89,6 +97,7 @@ class LoanService {
             .update(SubmissionUpdate(status: "submitted", submitted_at: Formatter.iso8601.string(from: Date())))
             .eq("id", value: created.id).eq("status", value: "draft").execute()
 
+        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
         return created.application_number
     }
     
@@ -119,7 +128,7 @@ class LoanService {
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
-            
+
         return response.map { loan in
             let paidPercent = loan.total_payable > 0 ? (1.0 - (loan.outstanding_principal / loan.total_payable)) : 0.0
             let nextEMI = loan.emi_schedule
@@ -163,36 +172,84 @@ class LoanService {
                 let due_date: String
             }
         }
-        
+
+        struct ApplicationRow: Decodable {
+            let id: UUID
+            let application_number: String?
+            let requested_amount: Double
+            let requested_tenure_months: Int
+            let status: String
+            let submitted_at: String?
+            let loan_product: ProductSummary
+
+            struct ProductSummary: Decodable {
+                let name: String
+                let type: String
+                let min_interest_rate: Double?
+                let max_interest_rate: Double?
+            }
+        }
+
         let response: [SupabaseDetailedLoanResponse] = try await SupabaseManager.shared.client
             .from("loans")
             .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date)")
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
-            
-        return response.map { loan in
+
+        let disbursedLoans = response.map { loan in
             let paidPercent = loan.total_payable > 0 ? (1.0 - (loan.outstanding_principal / loan.total_payable)) : 0.0
             let paidAmount = loan.total_payable - loan.outstanding_principal
             let nextEMI = loan.emi_schedule
                 .filter { $0.status != "paid" }
                 .sorted { $0.due_date < $1.due_date }
-                .first?.total_emi ?? 0
+                .first
             return LoanListItem(
                 id: loan.id,
                 name: loan.loan_product.name,
                 loanType: loan.loan_product.type,
                 loanNumber: loan.loan_number ?? "N/A",
                 amount: loan.principal_amount,
-                emiAmount: nextEMI,
+                emiAmount: nextEMI?.total_emi ?? 0,
                 status: loan.status,
                 paidPercent: paidPercent,
                 interestRate: loan.interest_rate,
                 disbursedDate: loan.disbursement_date ?? "N/A",
+                nextDueDate: nextEMI?.due_date,
                 paidAmount: paidAmount > 0 ? paidAmount : 0,
                 remainingAmount: loan.outstanding_principal
             )
         }
+
+        let applications: [ApplicationRow] = try await SupabaseManager.shared.client
+            .from("loan_applications")
+            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate)")
+            .eq("borrower_id", value: userId)
+            .in("status", values: ["draft", "submitted", "under_review", "sent_back", "approved"])
+            .order("last_updated_at", ascending: false)
+            .execute()
+            .value
+
+        let pendingApplications = applications
+            .map { app in
+                LoanListItem(
+                    id: app.id,
+                    name: app.loan_product.name,
+                    loanType: app.loan_product.type,
+                    loanNumber: app.application_number ?? "Draft application",
+                    amount: app.requested_amount,
+                    emiAmount: 0,
+                    status: app.status,
+                    paidPercent: 0,
+                    interestRate: app.loan_product.min_interest_rate ?? app.loan_product.max_interest_rate ?? 0,
+                    disbursedDate: displayDate(app.submitted_at ?? ""),
+                    nextDueDate: nil,
+                    paidAmount: 0,
+                    remainingAmount: app.requested_amount
+                )
+            }
+
+        return disbursedLoans + pendingApplications
     }
     
     // MARK: - Applications
@@ -230,7 +287,7 @@ class LoanService {
             .eq("borrower_id", value: userId)
             .order("last_updated_at", ascending: false)
             .execute().value
-            
+
         return rows.map {
             ApplicationListItem(
                 id: $0.id, applicationNumber: $0.application_number ?? "Draft",
@@ -282,9 +339,127 @@ class LoanService {
         guard let date = Formatter.iso8601.date(from: value) else { return value }
         return date.formatted(date: .abbreviated, time: .omitted)
     }
+
+    private func uploadDocument(path: String, data: Data) async throws {
+        let maxAttempts = 5
+        var lastError: Error?
+
+        for attempt in 1...maxAttempts {
+            do {
+                try await directUpload(bucket: "documents", path: path, data: data)
+                return
+            } catch {
+                lastError = error
+                print("Document upload attempt \(attempt) failed: \(Self.describeUploadError(error))")
+                guard attempt < maxAttempts, isRetryableUploadError(error) else {
+                    throw LoanSubmissionError.documentUploadFailed(Self.describeUploadError(error))
+                }
+
+                // Exponential backoff: 1s, 2s, 4s, 8s
+                let delay = UInt64(1) << UInt64(attempt - 1)
+                try await Task.sleep(nanoseconds: delay * 1_000_000_000)
+            }
+        }
+
+        throw LoanSubmissionError.documentUploadFailed(
+            lastError.map(Self.describeUploadError) ?? "Upload did not complete."
+        )
+    }
+
+    /// Direct HTTP upload to Supabase Storage REST API, bypassing the SDK's
+    /// storage client which uses QUIC (HTTP/3) and fails on networks with
+    /// small MTU (the 1362-byte UDP packets exceed the 1216-byte MSS).
+    /// Each attempt uses a fresh ephemeral URLSession so that cached QUIC
+    /// connection state is never reused.
+    private func directUpload(bucket: String, path: String, data: Data) async throws {
+        let supabaseURL = SupabaseManager.shared.baseURL
+        let session = try await SupabaseManager.shared.client.auth.session
+
+        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        guard let url = URL(string: "\(supabaseURL)/storage/v1/object/\(bucket)/\(encodedPath)") else {
+            throw LoanSubmissionError.documentUploadFailed("Invalid storage upload URL for path: \(path)")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseManager.shared.anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("false", forHTTPHeaderField: "x-upsert")
+        request.timeoutInterval = 60
+
+        // Use a fresh ephemeral session each time so iOS cannot reuse
+        // cached QUIC connection state that causes "Message too long".
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 120
+        config.waitsForConnectivity = true
+        config.httpAdditionalHeaders = ["Alt-Svc": "clear"]
+        let uploadSession = URLSession(configuration: config)
+        defer { uploadSession.invalidateAndCancel() }
+
+        let (responseData, response) = try await uploadSession.upload(for: request, from: data)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            // 409 = object already exists, treat as success (duplicate upload)
+            if code == 409 { return }
+
+            let responseBody = String(data: responseData, encoding: .utf8) ?? "No response body"
+            throw LoanSubmissionError.documentUploadFailed("Storage upload failed (\(code)): \(responseBody)")
+        }
+    }
+
+    private static func describeUploadError(_ error: Error) -> String {
+        if let submissionError = error as? LoanSubmissionError {
+            switch submissionError {
+            case .kycNotVerified:
+                return submissionError.errorDescription ?? error.localizedDescription
+            case .documentUploadFailed(let reason):
+                return reason
+            }
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return "Network upload failed (\(nsError.code)): \(nsError.localizedDescription)"
+        }
+
+        return error.localizedDescription
+    }
+
+    private func isRetryableUploadError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return [
+                NSURLErrorNetworkConnectionLost,
+                NSURLErrorTimedOut,
+                NSURLErrorCannotConnectToHost,
+                NSURLErrorNotConnectedToInternet,
+                NSURLErrorSecureConnectionFailed,
+                NSURLErrorDataNotAllowed
+            ].contains(nsError.code)
+        }
+
+        let message = error.localizedDescription.lowercased()
+        return message.contains("network connection was lost")
+            || message.contains("timed out")
+            || message.contains("connection reset")
+            || message.contains("message too long")
+    }
 }
 
 enum LoanSubmissionError: LocalizedError {
     case kycNotVerified
-    var errorDescription: String? { "Complete KYC verification before applying for a loan." }
+    case documentUploadFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .kycNotVerified:
+            return "Complete KYC verification before applying for a loan."
+        case .documentUploadFailed(let reason):
+            return "Document upload failed: \(reason)"
+        }
+    }
 }

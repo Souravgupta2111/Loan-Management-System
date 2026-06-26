@@ -1,9 +1,14 @@
 import SwiftUI
 
 struct LoanApplicationFlowView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let initialLoanType: LoanType?
+
     @State private var step = 1
     @State private var loanProducts: [LoanProduct] = []
     @State private var selectedProduct: LoanProduct?
+    @State private var isLoadingProducts = true
     
     // Application state
     @State private var amount: Double = 100000
@@ -13,6 +18,10 @@ struct LoanApplicationFlowView: View {
     @State private var applicationDocuments: [String: Data] = [:]
     @State private var submissionError: String?
     @State private var applicationNumber: String?
+
+    init(initialLoanType: LoanType? = nil) {
+        self.initialLoanType = initialLoanType
+    }
     
     var body: some View {
         NavigationStack {
@@ -36,7 +45,7 @@ struct LoanApplicationFlowView: View {
                         }
                         
                         PillButton(title: "View Dashboard", style: .primary) {
-                            // Close or reset flow
+                            dismiss()
                         }
                     }
                     .padding(Spacing.xl)
@@ -57,7 +66,14 @@ struct LoanApplicationFlowView: View {
                         ScrollView {
                             VStack(spacing: Spacing.xl) {
                                 if step == 1 {
-                                    SelectProductStep(products: loanProducts, selected: $selectedProduct)
+                                    SelectProductStep(
+                                        products: loanProducts,
+                                        selected: $selectedProduct,
+                                        isLoading: isLoadingProducts,
+                                        emptyMessage: initialLoanType == nil
+                                            ? "No active loan products are available right now."
+                                            : "No \(initialLoanType?.displayName.lowercased() ?? "selected") options are available right now."
+                                    )
                                 } else if step == 2 {
                                     AmountTenureStep(product: selectedProduct!, amount: $amount, tenureMonths: $tenureMonths)
                                 } else if step == 3 {
@@ -88,14 +104,30 @@ struct LoanApplicationFlowView: View {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                             } else {
-                                PillButton(title: step == 4 ? "Submit" : "Next", style: .primary) {
+                                Button {
+                                    guard canProceed else { return }
                                     if step < 4 {
                                         withAnimation { step += 1 }
                                     } else {
                                         submitApplication()
                                     }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Text(step == 4 ? "SUBMIT" : "NEXT")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .tracking(1)
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(canProceed ? Color.accentDark : Color.gray.opacity(0.35))
+                                    .foregroundColor(canProceed ? .white : .textSecondary)
+                                    .clipShape(Capsule())
                                 }
-                                .disabled(step == 1 && selectedProduct == nil)
+                                .buttonStyle(.plain)
+                                .disabled(!canProceed)
                             }
                         }
                         .padding(Spacing.xl)
@@ -106,25 +138,47 @@ struct LoanApplicationFlowView: View {
             }
             .navigationTitle("Apply for Loan")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .tabBar)
             .task {
                 do {
-                    loanProducts = try await LoanService.shared.fetchActiveProducts()
-                    if let first = loanProducts.first {
+                    let fetchedProducts = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
+                    isLoadingProducts = false
+                    loanProducts = fetchedProducts
+                    if let first = fetchedProducts.first {
                         selectedProduct = first
                         amount = first.minAmount
                         tenureMonths = Double(first.minTenureMonths)
                     }
                 } catch {
+                    isLoadingProducts = false
                     print("Failed to fetch products: \(error)")
                 }
             }
         }
     }
+
+    private var canProceed: Bool {
+        if isSubmitting {
+            return false
+        }
+
+        switch step {
+        case 1:
+            return selectedProduct != nil
+        case 3:
+            return requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
+        default:
+            return true
+        }
+    }
+
+    private var requiredDocumentTitles: [String] {
+        selectedProduct?.requiredDocumentTitles ?? []
+    }
     
     private func submitApplication() {
         guard let product = selectedProduct, let userId = SupabaseManager.shared.currentUserId else { return }
-        let requiredDocs = product.requiredDocuments?.filter { $0.isMandatory }.map { $0.name } ?? ["Salary Slip", "Bank Statement"]
-        guard requiredDocs.allSatisfy({ applicationDocuments[$0] != nil }) else {
+        guard product.requiredDocumentTitles.allSatisfy({ applicationDocuments[$0] != nil }) else {
             submissionError = "Upload every required document before submitting."
             return
         }
@@ -156,6 +210,8 @@ struct LoanApplicationFlowView: View {
 struct SelectProductStep: View {
     let products: [LoanProduct]
     @Binding var selected: LoanProduct?
+    let isLoading: Bool
+    let emptyMessage: String
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
@@ -163,9 +219,21 @@ struct SelectProductStep: View {
                 .font(.cardTitle)
                 .foregroundColor(.textPrimary)
             
-            if products.isEmpty {
+            if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
+            } else if products.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 28))
+                        .foregroundColor(.textSecondary)
+                    Text(emptyMessage)
+                        .font(.bodyLarge)
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
             } else {
                 ForEach(products) { product in
                     ProductOptionRow(
@@ -263,11 +331,10 @@ struct DocumentUploadStep: View {
     @Binding var documents: [String: Data]
 
     private var requiredDocuments: [DocumentRequirement] {
-        let configured = product.requiredDocuments ?? []
-        return configured.isEmpty ? [
-            DocumentRequirement(name: "Salary Slip", isMandatory: true),
-            DocumentRequirement(name: "Bank Statement", isMandatory: true)
-        ] : configured
+        product.requiredDocuments?.filter(\.isMandatory) ?? [
+            DocumentRequirement(name: "Salary Slip"),
+            DocumentRequirement(name: "Bank Statement")
+        ]
     }
 
     var body: some View {

@@ -140,6 +140,7 @@ struct ApplicationDetailView: View {
         .background(Color.appBackground.ignoresSafeArea())
         .navigationTitle(application.applicationNumber)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showShareSheet) {
             if let url = pdfShareURL {
                 ShareSheet(items: [url])

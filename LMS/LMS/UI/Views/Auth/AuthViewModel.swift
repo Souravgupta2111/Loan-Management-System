@@ -94,10 +94,18 @@ class AuthViewModel: ObservableObject {
     // MARK: - Check Session
     func checkSession() {
         Task {
-            if supabase.currentUser != nil {
-                currentUser = supabase.currentUser
+            do {
+                let session = try await supabase.auth.session
+                guard !session.isExpired else {
+                    currentUser = nil
+                    authState = .splash
+                    return
+                }
+
+                currentUser = session.user
                 await checkKYCStatus()
-            } else {
+            } catch {
+                currentUser = nil
                 authState = .unauthenticated
             }
         }
@@ -107,13 +115,23 @@ class AuthViewModel: ObservableObject {
     private func observeAuthState() {
         Task {
             for await (event, session) in supabase.auth.authStateChanges {
-                self.currentUser = session?.user
-                if event == .signedIn || event == .initialSession {
-                    if session != nil {
+                if event == .signedIn || event == .initialSession || event == .tokenRefreshed {
+                    guard let session else {
+                        currentUser = nil
+                        authState = .unauthenticated
+                        continue
+                    }
+
+                    if session.isExpired {
+                        currentUser = nil
+                        authState = .splash
+                    } else {
+                        currentUser = session.user
                         await checkKYCStatus()
                     }
                 } else if event == .signedOut {
-                    self.authState = .unauthenticated
+                    currentUser = nil
+                    authState = .unauthenticated
                 }
             }
         }

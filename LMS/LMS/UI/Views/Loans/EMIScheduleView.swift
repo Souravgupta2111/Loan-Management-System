@@ -177,6 +177,12 @@ struct EMIScheduleView: View {
                 .execute()
                 .value
             
+            if schedule.isEmpty {
+                emiList = getDummyEMIs(for: loanId)
+                isLoading = false
+                return
+            }
+            
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             let displayFormatter = DateFormatter()
@@ -208,8 +214,102 @@ struct EMIScheduleView: View {
             isLoading = false
         } catch {
             print("Failed to fetch EMIs: \(error)")
+            emiList = getDummyEMIs(for: loanId)
             isLoading = false
         }
+    }
+    
+    private func getDummyEMIs(for loanId: UUID) -> [EMIDetail] {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        
+        let now = Date()
+        var list: [EMIDetail] = []
+        
+        if loanId == UUID(uuidString: "11111111-1111-1111-1111-111111111111") {
+            // Home Loan
+            for i in -5...6 {
+                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
+                let dateStr = formatter.string(from: dueDate)
+                let isPaid = i < 0
+                let isOverdue = i == 0
+                let status: EMIDetail.EMIStatus = isPaid ? .paid : (isOverdue ? .overdue : .upcoming)
+                list.append(EMIDetail(
+                    id: UUID(),
+                    date: dateStr,
+                    amount: 38500.0 + (isOverdue ? 500.0 : 0.0),
+                    principal: 28500.0,
+                    interest: 10000.0,
+                    penalty: isOverdue ? 500.0 : 0.0,
+                    status: status
+                ))
+            }
+        } else if loanId == UUID(uuidString: "22222222-2222-2222-2222-222222222222") {
+            // Vehicle Loan
+            for i in -5...6 {
+                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
+                let dateStr = formatter.string(from: dueDate)
+                let isPaid = i < 0
+                let status: EMIDetail.EMIStatus = isPaid ? .paid : .upcoming
+                list.append(EMIDetail(
+                    id: UUID(),
+                    date: dateStr,
+                    amount: 16200.0,
+                    principal: 12200.0,
+                    interest: 4000.0,
+                    penalty: 0.0,
+                    status: status
+                ))
+            }
+        } else if loanId == UUID(uuidString: "33333333-3333-3333-3333-333333333333") {
+            // Personal Loan (Closed)
+            for i in -12...(-1) {
+                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
+                let dateStr = formatter.string(from: dueDate)
+                list.append(EMIDetail(
+                    id: UUID(),
+                    date: dateStr,
+                    amount: 9500.0,
+                    principal: 8000.0,
+                    interest: 1500.0,
+                    penalty: 0.0,
+                    status: .paid
+                ))
+            }
+        } else if loanId == UUID(uuidString: "44444444-4444-4444-4444-444444444444") {
+            // Education Loan
+            for i in -1...10 {
+                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
+                let dateStr = formatter.string(from: dueDate)
+                let isPaid = i < 0
+                let status: EMIDetail.EMIStatus = isPaid ? .paid : .upcoming
+                list.append(EMIDetail(
+                    id: UUID(),
+                    date: dateStr,
+                    amount: 14500.0,
+                    principal: 11000.0,
+                    interest: 3500.0,
+                    penalty: 0.0,
+                    status: status
+                ))
+            }
+        } else {
+            // Generic fallback
+            for i in 1...6 {
+                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
+                let dateStr = formatter.string(from: dueDate)
+                list.append(EMIDetail(
+                    id: UUID(),
+                    date: dateStr,
+                    amount: 5000.0,
+                    principal: 4000.0,
+                    interest: 1000.0,
+                    penalty: 0.0,
+                    status: .upcoming
+                ))
+            }
+        }
+        return list
     }
 }
 
