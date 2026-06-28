@@ -71,9 +71,9 @@ struct LoansListView: View {
     }
 
     private var totalOutstanding: Double {
-        loans
-            .filter { $0.status.lowercased() == "active" }
-            .reduce(0) { $0 + $1.remainingAmount }
+        loans.reduce(0) {
+            $0 + $1.remainingAmount
+        }
     }
 
     private var activeCount: Int {
@@ -364,6 +364,8 @@ struct LoansListView: View {
 
                         NavigationLink {
 
+                            // Navigates to the custom iOS-native LoanDetailView displaying the
+                            // detailed timeline stages, required & uploaded documents, and EMI schedule.
                             LoanDetailView(loan: loan)
 
                         } label: {
