@@ -491,7 +491,7 @@ struct LoanDetailView: View {
     // MARK: - Realtime Subscriptions
     private func subscribeToRealtimeUpdates() {
         guard realtimeChannels.isEmpty else { return } // already subscribed
-        guard let applicationId = dbDetails?.application.id else { return }
+        guard let applicationId = dbDetails?.application?.id else { return }
         let loanIdStr = loan.id.uuidString
         let appIdStr  = applicationId.uuidString
 
@@ -556,7 +556,7 @@ struct LoanDetailView: View {
         
         do {
             // 1. Fetch Loan Details
-            let details: LoanDetailsFetch = try await SupabaseManager.shared.client.from("loans")
+            let rows: [LoanDetailsFetch] = try await SupabaseManager.shared.client.from("loans")
                 .select("""
                     tenure_months, principal_amount, total_payable, disbursement_date, first_emi_date, closed_at, interest_rate, interest_type,
                     loan_product:loan_products(required_documents),
@@ -565,9 +565,12 @@ struct LoanDetailView: View {
                     )
                 """)
                 .eq("id", value: loan.id)
-                .single()
                 .execute()
                 .value
+
+            guard let details = rows.first else {
+                throw LoanDetailLoadError.loanNotFound
+            }
             
             self.dbDetails = details
             
@@ -658,11 +661,16 @@ struct LoanDetailView: View {
                 let rejection_reason: String?
             }
             
-            let uploadedDocs: [DocumentFetch] = try await SupabaseManager.shared.client.from("documents")
-                .select("id, document_type, storage_path, is_verified, rejection_reason")
-                .eq("application_id", value: details.application.id)
-                .execute()
-                .value
+            let uploadedDocs: [DocumentFetch]
+            if let applicationId = details.application?.id {
+                uploadedDocs = try await SupabaseManager.shared.client.from("documents")
+                    .select("id, document_type, storage_path, is_verified, rejection_reason")
+                    .eq("application_id", value: applicationId)
+                    .execute()
+                    .value
+            } else {
+                uploadedDocs = []
+            }
             
             // Merge required and uploaded documents
             let requirements = details.loan_product.required_documents ?? [
@@ -730,12 +738,17 @@ struct LoanDetailView: View {
                 let actioned_at: String
             }
             
-            let history: [ApprovalHistoryFetch] = try await SupabaseManager.shared.client.from("approval_history")
-                .select("action, to_status, actioned_at")
-                .eq("application_id", value: details.application.id)
-                .order("actioned_at", ascending: true)
-                .execute()
-                .value
+            let history: [ApprovalHistoryFetch]
+            if let applicationId = details.application?.id {
+                history = try await SupabaseManager.shared.client.from("approval_history")
+                    .select("action, to_status, actioned_at")
+                    .eq("application_id", value: applicationId)
+                    .order("actioned_at", ascending: true)
+                    .execute()
+                    .value
+            } else {
+                history = []
+            }
             
             // Build dynamic timeline steps
             var steps: [TimelineStep] = []
@@ -751,8 +764,11 @@ struct LoanDetailView: View {
             
             // Step 1: Applied
             let appliedDate = history.first(where: { $0.action.lowercased() == "submit" })?.actioned_at
-                ?? details.application.submitted_at
-                ?? details.application.created_at
+                ?? details.application?.submitted_at
+                ?? details.application?.created_at
+                ?? details.disbursement_date
+                ?? details.first_emi_date
+                ?? Date().ISO8601Format()
             steps.append(TimelineStep(
                 title: "Applied",
                 subtitle: "Application submitted successfully",
@@ -763,7 +779,7 @@ struct LoanDetailView: View {
             // Step 2: Under Review
             let reviewItem = history.first(where: { $0.to_status.lowercased() == "under_review" || $0.action.lowercased() == "review" })
             let isUnderReview = reviewItem != nil || loan.status.lowercased() != "draft"
-            let reviewDate = reviewItem?.actioned_at ?? details.application.submitted_at
+            let reviewDate = reviewItem?.actioned_at ?? details.application?.submitted_at
             steps.append(TimelineStep(
                 title: "Under Review",
                 subtitle: "Documents and credit check under review",
@@ -774,7 +790,7 @@ struct LoanDetailView: View {
             // Step 3: Approved
             let approvedItem = history.first(where: { $0.to_status.lowercased() == "approved" || $0.action.lowercased() == "approve" })
             let isApproved = approvedItem != nil || details.disbursement_date != nil || ["active", "closed"].contains(loan.status.lowercased())
-            let approveDate = approvedItem?.actioned_at ?? details.application.decided_at
+            let approveDate = approvedItem?.actioned_at ?? details.application?.decided_at
             steps.append(TimelineStep(
                 title: "Approved",
                 subtitle: "Loan application approved",
@@ -840,6 +856,10 @@ struct ApplicationFetch: Decodable {
 
 struct ProductFetch: Decodable {
     let required_documents: [DocumentRequirement]?
+
+    init(required_documents: [DocumentRequirement]?) {
+        self.required_documents = required_documents
+    }
 }
 
 struct LoanDetailsFetch: Decodable {
@@ -852,7 +872,60 @@ struct LoanDetailsFetch: Decodable {
     let interest_rate: Double
     let interest_type: String
     let loan_product: ProductFetch
-    let application: ApplicationFetch
+    let application: ApplicationFetch?
+
+    enum CodingKeys: String, CodingKey {
+        case tenure_months
+        case principal_amount
+        case total_payable
+        case disbursement_date
+        case first_emi_date
+        case closed_at
+        case interest_rate
+        case interest_type
+        case loan_product
+        case application
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        tenure_months = try container.decode(Int.self, forKey: .tenure_months)
+        principal_amount = try container.decode(Double.self, forKey: .principal_amount)
+        total_payable = try container.decode(Double.self, forKey: .total_payable)
+        disbursement_date = try container.decodeIfPresent(String.self, forKey: .disbursement_date)
+        first_emi_date = try container.decodeIfPresent(String.self, forKey: .first_emi_date)
+        closed_at = try container.decodeIfPresent(String.self, forKey: .closed_at)
+        interest_rate = try container.decode(Double.self, forKey: .interest_rate)
+        interest_type = try container.decode(String.self, forKey: .interest_type)
+
+        if let product = try? container.decode(ProductFetch.self, forKey: .loan_product) {
+            loan_product = product
+        } else if let products = try? container.decode([ProductFetch].self, forKey: .loan_product) {
+            loan_product = products.first ?? ProductFetch(required_documents: nil)
+        } else {
+            loan_product = ProductFetch(required_documents: nil)
+        }
+
+        if let joinedApplication = try? container.decodeIfPresent(ApplicationFetch.self, forKey: .application) {
+            application = joinedApplication
+        } else if let joinedApplications = try? container.decodeIfPresent([ApplicationFetch].self, forKey: .application) {
+            application = joinedApplications.first
+        } else {
+            application = nil
+        }
+    }
+}
+
+private enum LoanDetailLoadError: LocalizedError {
+    case loanNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .loanNotFound:
+            return "No details were found for this loan."
+        }
+    }
 }
 
 // MARK: - New Models for UI redone
