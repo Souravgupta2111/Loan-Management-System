@@ -156,6 +156,7 @@ class LoanService {
             let actioned_at: String
             let remarks: String?
             let to_status: String
+            let approved_interest_rate: Double?
         }
         
         struct DocumentRow: Decodable {
@@ -261,7 +262,7 @@ class LoanService {
 
         let response: [SupabaseDetailedLoanResponse] = try await SupabaseManager.shared.client
             .from("loans")
-            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, approval_history(action, actioned_at, remarks, to_status), documents(document_type, file_name, uploaded_at, category, storage_path))")
+            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
@@ -305,7 +306,7 @@ class LoanService {
 
         let applications: [ApplicationRow] = try await SupabaseManager.shared.client
             .from("loan_applications")
-            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status), documents(document_type, file_name, uploaded_at, category, storage_path)")
+            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
             .in("status", values: ["draft", "submitted", "under_review", "sent_back", "approved"])
             .order("last_updated_at", ascending: false)
@@ -314,7 +315,10 @@ class LoanService {
 
         let pendingApplications = applications
             .map { app in
-                LoanListItem(
+                let approvedRate = app.approval_history.compactMap { $0.approved_interest_rate }.last
+                let fallbackRate = app.loan_product.min_interest_rate ?? app.loan_product.max_interest_rate ?? 0
+                
+                return LoanListItem(
                     id: app.id,
                     applicationId: app.id,
                     name: app.loan_product.name,
@@ -324,7 +328,7 @@ class LoanService {
                     emiAmount: 0,
                     status: app.status,
                     paidPercent: 0,
-                    interestRate: app.loan_product.min_interest_rate ?? app.loan_product.max_interest_rate ?? 0,
+                    interestRate: approvedRate ?? fallbackRate,
                     disbursedDate: displayDate(app.submitted_at ?? ""),
                     nextDueDate: nil,
                     paidAmount: 0,

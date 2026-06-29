@@ -82,7 +82,8 @@ class AdminDashboardViewModel: ObservableObject {
     func subscribeToApplicationUpdates() {
         if realtimeChannel != nil { return }
         
-        let channel = supabase.client.realtimeV2.channel("public:loan_applications")
+        let uniqueChannelName = "admin_dashboard_\(UUID().uuidString)"
+        let channel = supabase.client.realtimeV2.channel(uniqueChannelName)
         self.realtimeChannel = channel
         
         Task {

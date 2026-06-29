@@ -835,7 +835,7 @@ private struct LoanDetailMock {
             emiDueView: subtitleView,
             tenureText: "\(totalEMIs) months",
             remainingTenureText: "\(remainingEMIs) months",
-            interestRateText: String(format: "%.2f%%", interestRate),
+            interestRateText: String(format: "%.1f%%", interestRate),
             remainingEMIText: remainingEMIs > 0 ? "\(remainingEMIs) EMIs left" : "All paid",
             repaymentProgress: loan.paidPercent,
             progressText: progressInt > 0 ? "₹\(Int(loan.paidAmount)) paid" : "No EMIs paid",

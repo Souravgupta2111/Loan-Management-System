@@ -7,9 +7,11 @@ struct KYCDashboardView: View {
     @Environment(\.dismiss) private var dismiss
 
     let allowsSkip: Bool
+    let isPresentedModally: Bool
 
-    init(allowsSkip: Bool = true) {
+    init(allowsSkip: Bool = true, isPresentedModally: Bool = false) {
         self.allowsSkip = allowsSkip
+        self.isPresentedModally = isPresentedModally
     }
     
     var body: some View {
@@ -24,7 +26,26 @@ struct KYCDashboardView: View {
                 
                 ScrollView {
                     VStack(spacing: Spacing.xl) {
-                        if viewModel.kycStatus == "submitted" {
+                        if viewModel.kycStatus == "verified" {
+                            VStack(spacing: Spacing.lg) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 52))
+                                    .foregroundColor(.accentGreen)
+                                Text("KYC Verified").font(.sectionTitle)
+                                Text("Your identity has been successfully verified. You have full access to all loan products.")
+                                    .font(.bodyRegular)
+                                    .foregroundColor(.textSecondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                PillButton(title: "Done", style: .primary) {
+                                    dismiss()
+                                }
+                                .padding(.top, Spacing.md)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(Spacing.xxl)
+                            .liquidGlass(cornerRadius: 22)
+                        } else if viewModel.kycStatus == "submitted" {
                             VStack(spacing: Spacing.lg) {
                                 Image(systemName: "clock.badge.checkmark")
                                     .font(.system(size: 52))
@@ -34,6 +55,11 @@ struct KYCDashboardView: View {
                                     .font(.bodyRegular)
                                     .foregroundColor(.textSecondary)
                                     .multilineTextAlignment(.center)
+                                
+                                PillButton(title: "Done", style: .primary) {
+                                    dismiss()
+                                }
+                                .padding(.top, Spacing.md)
                             }
                             .frame(maxWidth: .infinity)
                             .padding(Spacing.xxl)
@@ -296,6 +322,19 @@ struct KYCDashboardView: View {
             .navigationTitle("KYC Setup")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if isPresentedModally {
+                        Button(action: { dismiss() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 16, weight: .regular))
+                            }
+                            .foregroundColor(Color(hex: "#2D8B4E")) // match accent green
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     if allowsSkip {
                         if viewModel.isLoading {
@@ -320,9 +359,9 @@ struct KYCDashboardView: View {
                 while !Task.isCancelled {
                     await viewModel.refreshKYCStatus()
                     if viewModel.kycStatus == "verified" || viewModel.kycStatus == "submitted" {
-                        authViewModel.authState = .authenticated
-                        dismiss()
-                        return
+                        if authViewModel.authState != .authenticated {
+                            authViewModel.authState = .authenticated
+                        }
                     }
                     try? await Task.sleep(for: .seconds(5))
                 }

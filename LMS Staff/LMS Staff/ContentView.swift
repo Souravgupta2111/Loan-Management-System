@@ -6,6 +6,16 @@ struct ContentView: View {
     @State private var showPasswordResetAlert = false
     @State private var newPassword = ""
     
+    private static var lastInteraction: Date = .distantPast
+    
+    static func notifyInteraction() {
+        let now = Date()
+        if now.timeIntervalSince(lastInteraction) > 2.0 {
+            lastInteraction = now
+            NotificationCenter.default.post(name: NSNotification.Name("UserDidInteract"), object: nil)
+        }
+    }
+    
     var body: some View {
         Group {
             switch authViewModel.authState {
@@ -20,7 +30,7 @@ struct ContentView: View {
         .gesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { _ in
-                    NotificationCenter.default.post(name: NSNotification.Name("UserDidInteract"), object: nil)
+                    ContentView.notifyInteraction()
                 }
         )
         .onOpenURL { url in

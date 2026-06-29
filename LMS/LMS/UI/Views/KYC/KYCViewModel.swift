@@ -92,6 +92,15 @@ class KYCViewModel: ObservableObject {
         panErrorMessage = nil
         
         do {
+            if let userId = SupabaseManager.shared.currentUserId {
+                let check = try await KYCService.shared.checkIdentityInUse(pan: normalizedPAN, aadhaar: nil, userId: userId)
+                if check.panInUse {
+                    self.panErrorMessage = "This PAN card is already linked to another account."
+                    isPANLoading = false
+                    return
+                }
+            }
+            
             let response = try await KYCService.shared.verifyPAN(normalizedPAN, name: fullName, dob: dob)
             if response.status.lowercased() == "valid" && response.nameAsPerPanMatch && response.dateOfBirthMatch {
                 panNumber = normalizedPAN
@@ -126,6 +135,15 @@ class KYCViewModel: ObservableObject {
         aadhaarErrorMessage = nil
         
         do {
+            if let userId = SupabaseManager.shared.currentUserId {
+                let check = try await KYCService.shared.checkIdentityInUse(pan: nil, aadhaar: normalizedAadhaar, userId: userId)
+                if check.aadhaarInUse {
+                    self.aadhaarErrorMessage = "This Aadhaar card is already linked to another account."
+                    isAadhaarLoading = false
+                    return
+                }
+            }
+            
             let response = try await KYCService.shared.generateAadhaarOTP(normalizedAadhaar)
             if response.success, let refId = response.referenceId {
                 self.aadhaarReferenceId = refId
@@ -269,9 +287,9 @@ class KYCViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            try await KYCService.shared.updateKYCStatus(userId: userId, status: "verified")
-            kycStatus = "verified"
-            authViewModel.checkSession()
+            try await KYCService.shared.updateKYCStatus(userId: userId, status: "pending")
+            kycStatus = "pending"
+            authViewModel.authState = .authenticated
         } catch {
             print("Skip KYC Error: \(error)")
             self.errorMessage = "Failed to skip KYC. Please try again."

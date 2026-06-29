@@ -35,6 +35,7 @@ struct LoanApplicationFlowView: View {
     @State private var kycStatus: String = "pending"
     @State private var showKYCAlert = false
     @State private var showKYCSheet = false
+    @State private var isCheckingKYC = false
 
     init(initialLoanType: LoanType? = nil) {
         self.initialLoanType = initialLoanType
@@ -87,10 +88,11 @@ struct LoanApplicationFlowView: View {
         } message: {
             Text("Please complete your KYC before applying for a loan.")
         }
-        .fullScreenCover(isPresented: $showKYCSheet, onDismiss: {
-            Task { await fetchKYCStatus() }
-        }) {
+        .navigationDestination(isPresented: $showKYCSheet) {
             KYCDashboardView(allowsSkip: false)
+                .onDisappear {
+                    Task { await fetchKYCStatus() }
+                }
         }
         .task {
             await fetchKYCStatus()
@@ -306,18 +308,31 @@ struct LoanApplicationFlowView: View {
 
             // NEXT button on product detail
             Button {
-                if kycStatus == "pending" || kycStatus == "rejected" {
-                    showKYCAlert = true
-                } else {
-                    withAnimation { showProductDetail = false; step = 2 }
+                guard !isCheckingKYC else { return }
+                Task {
+                    isCheckingKYC = true
+                    await fetchKYCStatus()
+                    isCheckingKYC = false
+                    if kycStatus.lowercased() != "verified" && kycStatus.lowercased() != "approved" {
+                        showKYCAlert = true
+                    } else {
+                        withAnimation { showProductDetail = false; step = 2 }
+                    }
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Text("NEXT")
-                        .font(.system(size: 16, weight: .bold))
-                        .tracking(1.5)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .bold))
+                    if isCheckingKYC {
+                        ProgressView().tint(.white)
+                        Text("CHECKING...")
+                            .font(.system(size: 16, weight: .bold))
+                            .tracking(1.5)
+                    } else {
+                        Text("NEXT")
+                            .font(.system(size: 16, weight: .bold))
+                            .tracking(1.5)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 14, weight: .bold))
+                    }
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -325,6 +340,7 @@ struct LoanApplicationFlowView: View {
                 .background(Color(hex: "#1A1A1A"))
                 .clipShape(Capsule())
             }
+            .disabled(isCheckingKYC)
             .buttonStyle(.plain)
             .padding(.horizontal, 24)
             .padding(.top, 14)

@@ -55,6 +55,7 @@ struct SidebarView: View {
             
             Divider()
                 .background(Color.staffBorder)
+                .padding(.bottom, 12)
             
             // Menu Items List
             List(menuItems(for: role), id: \.self, selection: $selectedItem) { item in

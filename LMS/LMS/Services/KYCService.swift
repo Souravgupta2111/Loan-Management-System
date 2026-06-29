@@ -60,6 +60,26 @@ class KYCService {
     
     private init() {}
     
+    func checkIdentityInUse(pan: String?, aadhaar: String?, userId: UUID) async throws -> (panInUse: Bool, aadhaarInUse: Bool) {
+        struct CheckRequest: Encodable {
+            let p_pan: String?
+            let p_aadhaar: String?
+            let p_user_id: UUID
+        }
+        
+        struct CheckResponse: Decodable {
+            let pan_in_use: Bool
+            let aadhaar_in_use: Bool
+        }
+        
+        let response: CheckResponse = try await SupabaseManager.shared.client
+            .rpc("check_identity_in_use", params: CheckRequest(p_pan: pan, p_aadhaar: aadhaar, p_user_id: userId))
+            .execute()
+            .value
+            
+        return (response.pan_in_use, response.aadhaar_in_use)
+    }
+    
     /// Invokes the authenticated Edge Function so KYC credentials never ship in the app.
     func verifyPAN(_ pan: String, name: String, dob: String) async throws -> PANVerificationResponse {
         struct Request: Encodable { let pan: String; let name: String; let dateOfBirth: String }
@@ -195,7 +215,7 @@ class KYCService {
             .update(FullKYCUpdate(
                 aadhaar_number: aadhaar,
                 pan_number: pan,
-                date_of_birth: dob,
+                date_of_birth: formatDOBForDB(dob),
                 gender: normalizedGender(gender),
                 address_line1: addressLine1,
                 address_line2: addressLine2,
@@ -222,6 +242,26 @@ class KYCService {
         default:
             return "other"
         }
+    }
+    
+    private func formatDOBForDB(_ dob: String?) -> String? {
+        guard let dob = dob, !dob.isEmpty else { return nil }
+        
+        if dob.contains("-") {
+            let parts = dob.split(separator: "-")
+            if parts.count == 3 && parts[0].count == 4 {
+                return dob
+            }
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy"
+        if let date = formatter.date(from: dob) {
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter.string(from: date)
+        }
+        
+        return dob
     }
     
     func resubmitDocument(userId: UUID, type: String, data: Data) async throws {

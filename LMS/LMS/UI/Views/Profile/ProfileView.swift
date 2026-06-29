@@ -527,7 +527,7 @@ struct ProfileView: View {
 
             let profiles: [BorrowerRow] = try await SupabaseManager.shared.client
                 .from("borrower_profiles")
-                .select("kyc_status, pan_number, address")
+                .select("kyc_status, pan_number, address_line1")
                 .eq("user_id", value: userId.uuidString)
                 .execute()
                 .value
@@ -600,7 +600,7 @@ struct ProfileView: View {
         do {
             try await SupabaseManager.shared.client
                 .from("borrower_profiles")
-                .update(["address": draftAddress])
+                .update(["address_line1": draftAddress])
                 .eq("user_id", value: userId.uuidString)
                 .execute()
             address = draftAddress
@@ -636,6 +636,6 @@ private struct BorrowerRow: Decodable {
     enum CodingKeys: String, CodingKey {
         case kycStatus = "kyc_status"
         case panNumber = "pan_number"
-        case address
+        case address = "address_line1"
     }
 }
