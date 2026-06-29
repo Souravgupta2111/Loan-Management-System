@@ -285,6 +285,16 @@ class LoanService {
             let timeline = loan.loan_applications.map { mapTimeline($0.approval_history, $0.submitted_at) } ?? []
             let documents = loan.loan_applications.map { mapDocuments($0.documents) } ?? []
 
+            var approvedRate = loan.loan_applications?.approval_history.compactMap { $0.approved_interest_rate }.last
+            if approvedRate == nil,
+               let approveRow = loan.loan_applications?.approval_history.last(where: { $0.action == "approve" }),
+               let remarks = approveRow.remarks {
+                if let range = remarks.range(of: "Rate: "), let endRange = remarks[range.upperBound...].range(of: "%") {
+                    let rateStr = remarks[range.upperBound..<endRange.lowerBound]
+                    approvedRate = Double(rateStr)
+                }
+            }
+
             return LoanListItem(
                 id: loan.id,
                 applicationId: loan.loan_applications?.id,
@@ -295,7 +305,7 @@ class LoanService {
                 emiAmount: nextEMI?.total_emi ?? 0,
                 status: loan.status,
                 paidPercent: paidPercent,
-                interestRate: loan.interest_rate,
+                interestRate: approvedRate ?? loan.interest_rate,
                 disbursedDate: loan.disbursement_date ?? "N/A",
                 nextDueDate: nextEMI?.due_date,
                 paidAmount: paidAmount > 0 ? paidAmount : 0,
@@ -318,7 +328,16 @@ class LoanService {
 
         let pendingApplications = applications
             .map { app in
-                let approvedRate = app.approval_history.compactMap { $0.approved_interest_rate }.last
+                var approvedRate = app.approval_history.compactMap { $0.approved_interest_rate }.last
+                if approvedRate == nil,
+                   let approveRow = app.approval_history.last(where: { $0.action == "approve" }),
+                   let remarks = approveRow.remarks {
+                    if let range = remarks.range(of: "Rate: "), let endRange = remarks[range.upperBound...].range(of: "%") {
+                        let rateStr = remarks[range.upperBound..<endRange.lowerBound]
+                        approvedRate = Double(rateStr)
+                    }
+                }
+                
                 let approvedAmount = app.approval_history.compactMap { $0.approved_amount }.last
                 let approvedTenure = app.approval_history.compactMap { $0.approved_tenure_months }.last
                 let fallbackRate = app.loan_product.min_interest_rate ?? app.loan_product.max_interest_rate ?? 0
