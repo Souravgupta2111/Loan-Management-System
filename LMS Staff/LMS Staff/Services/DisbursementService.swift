@@ -14,6 +14,14 @@ struct IFSCResponse: Decodable {
     let city: String
     let state: String
     let center: String
+    
+    enum CodingKeys: String, CodingKey {
+        case branch = "BRANCH"
+        case bank = "BANK"
+        case city = "CITY"
+        case state = "STATE"
+        case center = "CENTRE"
+    }
 }
 
 class DisbursementService {
@@ -62,9 +70,21 @@ class DisbursementService {
         interestType: InterestType,
         processingFeePct: Double
     ) async throws -> Loan {
-        guard let staffId = supabase.currentUserId else {
+        guard let userId = supabase.currentUserId else {
             throw NSError(domain: "DisbursementService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
+        
+        // Fetch the staff profile ID because `loans.disbursed_by` references `staff_profiles.id`, not `users.id`
+        struct StaffIdResult: Decodable { let id: UUID }
+        let staffResult: StaffIdResult = try await supabase.database
+            .from("staff_profiles")
+            .select("id")
+            .eq("user_id", value: userId)
+            .single()
+            .execute()
+            .value
+            
+        let staffId = staffResult.id
         
         // 1. Calculate values
         let processingFee = approvedAmount * (processingFeePct / 100.0)
@@ -111,13 +131,12 @@ class DisbursementService {
         let maturityDateStr = dateFormatter.string(from: maturityDate)
         
         // 2. Insert Loan Record
-        let loanPayload: [String: AnyEncodable] = [
+        var loanPayload: [String: AnyEncodable] = [
             "id": AnyEncodable(loanId),
             "application_id": AnyEncodable(application.id),
             "borrower_id": AnyEncodable(application.borrowerId),
             "loan_product_id": AnyEncodable(application.loanProductId),
             "disbursed_by": AnyEncodable(staffId),
-            "branch_id": AnyEncodable(application.branchId ?? UUID()),
             "loan_number": AnyEncodable(loanNumber),
             "principal_amount": AnyEncodable(approvedAmount),
             "interest_rate": AnyEncodable(interestRate),
@@ -142,6 +161,10 @@ class DisbursementService {
             "repayment_mode": AnyEncodable(RepaymentMode.autoDebit.rawValue)
         ]
         
+        if let branchId = application.branchId {
+            loanPayload["branch_id"] = AnyEncodable(branchId)
+        }
+        
         let newLoan: Loan = try await supabase.database
             .from("loans")
             .insert(loanPayload)
@@ -152,6 +175,8 @@ class DisbursementService {
             
         // 3. Generate and Insert EMI Schedule Items
         var balance = approvedAmount
+        var emiPayloads: [[String: AnyEncodable]] = []
+        
         for i in 1...approvedTenure {
             var interestComp = 0.0
             var principalComp = 0.0
@@ -187,9 +212,13 @@ class DisbursementService {
                 "status": AnyEncodable(EMIStatus.upcoming.rawValue)
             ]
             
+            emiPayloads.append(emiPayload)
+        }
+        
+        if !emiPayloads.isEmpty {
             try await supabase.database
                 .from("emi_schedule")
-                .insert(emiPayload)
+                .insert(emiPayloads)
                 .execute()
         }
         

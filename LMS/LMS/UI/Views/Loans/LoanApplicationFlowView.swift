@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 /// Loan Application Flow Wizard (design.md §8.6)
 ///
@@ -31,6 +32,10 @@ struct LoanApplicationFlowView: View {
     @State private var applicationNumber: String?
     @State private var agreedToTerms = false
 
+    @State private var kycStatus: String = "pending"
+    @State private var showKYCAlert = false
+    @State private var showKYCSheet = false
+
     init(initialLoanType: LoanType? = nil) {
         self.initialLoanType = initialLoanType
     }
@@ -39,7 +44,12 @@ struct LoanApplicationFlowView: View {
 
     var body: some View {
         ZStack {
-            Color.appBackground.ignoresSafeArea()
+            LinearGradient(
+                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             if applicationSuccess {
                 successState
@@ -71,7 +81,19 @@ struct LoanApplicationFlowView: View {
                 }
             }
         }
+        .alert("KYC Required", isPresented: $showKYCAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Complete KYC") { showKYCSheet = true }
+        } message: {
+            Text("Please complete your KYC before applying for a loan.")
+        }
+        .fullScreenCover(isPresented: $showKYCSheet, onDismiss: {
+            Task { await fetchKYCStatus() }
+        }) {
+            KYCDashboardView(allowsSkip: false)
+        }
         .task {
+            await fetchKYCStatus()
             do {
                 let fetched = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
                 isLoadingProducts = false
@@ -79,12 +101,31 @@ struct LoanApplicationFlowView: View {
                 if let first = fetched.first {
                     selectedProduct = first
                     amount = first.minAmount
-                    tenureMonths = Double(first.minTenureMonths)
+                    tenureMonths = max(6, min(120, Double(first.minTenureMonths)))
                 }
             } catch {
                 isLoadingProducts = false
                 print("Failed to fetch products: \(error)")
             }
+        }
+    }
+
+    private func fetchKYCStatus() async {
+        do {
+            if let userId = SupabaseManager.shared.currentUserId {
+                struct BorrowerRow: Decodable { let kyc_status: String }
+                let profiles: [BorrowerRow] = try await SupabaseManager.shared.client
+                    .from("borrower_profiles")
+                    .select("kyc_status")
+                    .eq("user_id", value: userId.uuidString)
+                    .execute()
+                    .value
+                if let profile = profiles.first {
+                    kycStatus = profile.kyc_status
+                }
+            }
+        } catch {
+            print("Failed to fetch KYC status: \(error)")
         }
     }
 
@@ -109,7 +150,7 @@ struct LoanApplicationFlowView: View {
             if step > 1 {
                 VStack(spacing: 8) { stepIndicator; stepLabels }
                     .padding(.vertical, 16)
-                    .background(Color.white)
+                    .liquidGlass(cornerRadius: 0)
                     .shadow(color: .black.opacity(0.02), radius: 6, x: 0, y: 3)
             }
 
@@ -125,6 +166,8 @@ struct LoanApplicationFlowView: View {
                                 : "No \(initialLoanType?.displayName.lowercased() ?? "selected") options are available right now.",
                             onViewDetails: { product in
                                 selectedProduct = product
+                                amount = product.minAmount
+                                tenureMonths = max(6, min(120, Double(product.minTenureMonths)))
                                 withAnimation { showProductDetail = true }
                             }
                         )
@@ -198,8 +241,7 @@ struct LoanApplicationFlowView: View {
                     }
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .liquidGlass(cornerRadius: 20)
                     .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
 
                     // Interest & Rates — fully backend-driven
@@ -263,9 +305,12 @@ struct LoanApplicationFlowView: View {
             }
 
             // NEXT button on product detail
-            Divider().opacity(0.4)
             Button {
-                withAnimation { showProductDetail = false; step = 2 }
+                if kycStatus == "pending" || kycStatus == "rejected" {
+                    showKYCAlert = true
+                } else {
+                    withAnimation { showProductDetail = false; step = 2 }
+                }
             } label: {
                 HStack(spacing: 8) {
                     Text("NEXT")
@@ -284,7 +329,6 @@ struct LoanApplicationFlowView: View {
             .padding(.horizontal, 24)
             .padding(.top, 14)
             .padding(.bottom, 18)
-            .background(Color.appBackground)
         }
     }
 
@@ -298,8 +342,7 @@ struct LoanApplicationFlowView: View {
                 .tracking(1.5)
             VStack(spacing: 0) { content() }
                 .padding(16)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .liquidGlass(cornerRadius: 16)
                 .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 3)
         }
     }
@@ -389,9 +432,8 @@ struct LoanApplicationFlowView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(Color.white)
-        .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: -6)
+        .padding(.top, 14)
+        .padding(.bottom, 18)
     }
 
     // MARK: - Step indicator
@@ -535,9 +577,7 @@ struct SelectProductStep: View {
             }
         }
         .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
+        .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.02), radius: 10, x: 0, y: 4)
     }
 }
@@ -615,30 +655,16 @@ struct AmountTenureStep: View {
                     Text("\(Int(tenureMonths)) Months")
                         .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
                 }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(availableTenureOptions) { option in
-                            Button { tenureMonths = option.months } label: {
-                                Text(option.label)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(tenureMonths == option.months ? .white : .textPrimary)
-                                    .padding(.horizontal, 20).padding(.vertical, 12)
-                                    .background(tenureMonths == option.months ? Color.accentDark : Color.surfaceMuted)
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }.padding(.vertical, 2)
-                }
+                Slider(value: $tenureMonths, in: 6...120, step: 1).tint(.accentGreen)
+                HStack {
+                    Text("6 Mo"); Spacer(); Text("120 Mo")
+                }.font(.caption).foregroundColor(.textTertiary)
             }
 
             LiveCalculationCard(product: product, amount: amount, tenureMonths: tenureMonths)
         }
         .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.02), radius: 10, x: 0, y: 4)
+        .liquidGlass(cornerRadius: 20, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.04)
     }
 
     private struct TenureOption: Identifiable {
@@ -675,7 +701,8 @@ struct LiveCalculationCard: View {
     var emiDetails: (emi: Double, totalInterest: Double) {
         let r = product.minInterestRate / 12 / 100; let n = tenureMonths; let p = amount
         let emi: Double = r > 0 ? (p * r * pow(1+r,n)) / (pow(1+r,n) - 1) : p/n
-        return (emi, max(0, emi*n - p))
+        let roundedEMI = round(emi)
+        return (roundedEMI, max(0, roundedEMI * n - p))
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -751,9 +778,7 @@ struct ReviewSubmitStep: View {
             }
         }
         .padding(24)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.border, lineWidth: 0.5))
+        .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.02), radius: 12, x: 0, y: 4)
     }
     private func fmt(_ v: Double) -> String {

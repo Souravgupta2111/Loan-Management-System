@@ -9,13 +9,17 @@ struct EMIScheduleView: View {
     @State private var paymentError: String?
     @State private var emiList: [EMIDetail] = []
     @State private var isLoading = true
-    @State private var showRazorpaySheet = false
     @State private var activeRazorpayOrder: RazorpayOrder? = nil
     
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.appBackground.ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
                 if isLoading {
                     ProgressView()
@@ -82,34 +86,32 @@ struct EMIScheduleView: View {
             .task {
                 await fetchEMIs()
             }
-            .sheet(isPresented: $showRazorpaySheet) {
-                if let order = activeRazorpayOrder {
-                    NavigationStack {
-                        RazorpayWebView(
-                            keyId: order.keyId,
-                            amountPaise: order.amountPaise,
-                            orderId: order.orderId,
-                            onSuccess: { paymentId, _, signature in
-                                showRazorpaySheet = false
-                                Task {
-                                    await confirmPayment(paymentRecordId: order.paymentRecordId, razorpayPaymentId: paymentId, razorpaySignature: signature)
-                                }
-                            },
-                            onFailure: { errorMsg in
-                                showRazorpaySheet = false
-                                paymentError = errorMsg
-                            },
-                            onCancel: {
-                                showRazorpaySheet = false
+            .sheet(item: $activeRazorpayOrder) { order in
+                NavigationStack {
+                    RazorpayWebView(
+                        keyId: order.keyId,
+                        amountPaise: order.amountPaise,
+                        orderId: order.orderId,
+                        onSuccess: { paymentId, _, signature in
+                            activeRazorpayOrder = nil
+                            Task {
+                                await confirmPayment(paymentRecordId: order.paymentRecordId, razorpayPaymentId: paymentId, razorpaySignature: signature)
                             }
-                        )
-                        .navigationTitle("Pay EMI")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Cancel") {
-                                    showRazorpaySheet = false
-                                }
+                        },
+                        onFailure: { errorMsg in
+                            activeRazorpayOrder = nil
+                            paymentError = errorMsg
+                        },
+                        onCancel: {
+                            activeRazorpayOrder = nil
+                        }
+                    )
+                    .navigationTitle("Pay EMI")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") {
+                                activeRazorpayOrder = nil
                             }
                         }
                     }
@@ -126,7 +128,6 @@ struct EMIScheduleView: View {
         do {
             let order = try await PaymentService.shared.createOrder(emiId: emi.id, loanId: loanId)
             activeRazorpayOrder = order
-            showRazorpaySheet = true
         } catch {
             paymentError = "Failed to initiate payment: \(error.localizedDescription)"
         }
@@ -381,8 +382,7 @@ struct EMIRow: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
+        .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
         .opacity(emi.status == .paid ? 0.6 : 1.0)
     }

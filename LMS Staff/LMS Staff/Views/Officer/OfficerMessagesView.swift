@@ -76,6 +76,7 @@ struct OfficerMessagesView: View {
             // Right chat inspector
             if let app = selectedApp {
                 ChatSupportConsole(appWithBorrower: app)
+                    .id(app.application.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: StaffSpacing.md) {

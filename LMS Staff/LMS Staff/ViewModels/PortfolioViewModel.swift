@@ -33,12 +33,12 @@ class PortfolioViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func loadPortfolio() async {
+    func loadPortfolio(forOfficerId officerId: UUID? = nil) async {
         isLoading = true
         errorMessage = nil
         
         do {
-            let fetched = try await portfolioService.fetchLoans()
+            let fetched = try await portfolioService.fetchLoans(officerId: officerId)
             self.loans = fetched
             applyFilters(search: searchText, filter: selectedStatusFilter)
         } catch {
@@ -48,10 +48,10 @@ class PortfolioViewModel: ObservableObject {
         isLoading = false
     }
     
-    func flagLoanAsOverdue(loanId: UUID, reason: String) async -> Bool {
+    func flagLoanAsOverdue(loanId: UUID, reason: String, officerId: UUID? = nil) async -> Bool {
         do {
             try await portfolioService.flagOverdue(loanId: loanId, reason: reason)
-            await loadPortfolio()
+            await loadPortfolio(forOfficerId: officerId)
             return true
         } catch {
             self.errorMessage = error.localizedDescription

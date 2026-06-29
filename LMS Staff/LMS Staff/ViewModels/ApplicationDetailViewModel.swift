@@ -243,8 +243,9 @@ class ApplicationDetailViewModel: ObservableObject {
     
     deinit {
         if let channel = chatChannel {
-            Task {
-                await messageService.unsubscribe(channel)
+            let service = MessageService.shared
+            Task.detached {
+                await service.unsubscribe(channel)
             }
         }
     }

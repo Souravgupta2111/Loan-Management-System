@@ -100,3 +100,13 @@ struct Payment: Codable, Identifiable, Hashable {
         case confirmedAt = "confirmed_at"
     }
 }
+
+extension Payment {
+    var amount: Double {
+        amountPaid
+    }
+    
+    var transactionReference: String? {
+        bankReference ?? upiTransactionId ?? razorpayPaymentId ?? chequeNumber
+    }
+}

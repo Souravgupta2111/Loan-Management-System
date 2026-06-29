@@ -10,6 +10,10 @@ import SwiftUI
 struct AdminDashboardView: View {
     @StateObject private var vm = AdminDashboardViewModel()
     
+    @State private var showMetricDetailSheet: Bool = false
+    @State private var metricDetailTitle: String = ""
+    @State private var metricDetailData: MetricDataType = .applications([])
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: StaffSpacing.lg) {
@@ -26,14 +30,53 @@ struct AdminDashboardView: View {
                 // Consolidation Grid widgets
                 VStack(spacing: StaffSpacing.md) {
                     HStack(spacing: StaffSpacing.md) {
-                        MetricBlockCard(title: "Consolidated Apps", value: "\(vm.totalApplicationsCount)", icon: "doc.text.fill", color: .staffAccent)
-                        MetricBlockCard(title: "Awaiting Action", value: "\(vm.pendingReviewsCount)", icon: "hourglass", color: .staffAmber)
+                        Button(action: {
+                            metricDetailTitle = "Consolidated Apps"
+                            metricDetailData = .applications(vm.allApplicationsList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MetricBlockCard(title: "Consolidated Apps", value: "\(vm.totalApplicationsCount)", icon: "doc.text.fill", color: .staffAccent)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            metricDetailTitle = "Awaiting Action"
+                            metricDetailData = .applications(vm.pendingReviewsList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MetricBlockCard(title: "Awaiting Action", value: "\(vm.pendingReviewsCount)", icon: "hourglass", color: .staffAmber)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
                         MetricBlockCard(title: "System NPA Ratio", value: String(format: "%.2f%%", vm.systemNpaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
                     }
                     HStack(spacing: StaffSpacing.md) {
-                        MetricBlockCard(title: "Approved Count", value: "\(vm.approvedCount)", icon: "checkmark.circle.fill", color: .staffGreen)
-                        MetricBlockCard(title: "Rejected Count", value: "\(vm.rejectedCount)", icon: "xmark.circle.fill", color: .staffRed)
-                        MetricBlockCard(title: "Disbursed Count", value: "\(vm.disbursedCount)", icon: "banknote.fill", color: .staffAccent)
+                        Button(action: {
+                            metricDetailTitle = "Approved Count"
+                            metricDetailData = .applications(vm.approvedList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MetricBlockCard(title: "Approved Count", value: "\(vm.approvedCount)", icon: "checkmark.circle.fill", color: .staffGreen)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            metricDetailTitle = "Rejected Count"
+                            metricDetailData = .applications(vm.rejectedList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MetricBlockCard(title: "Rejected Count", value: "\(vm.rejectedCount)", icon: "xmark.circle.fill", color: .staffRed)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            metricDetailTitle = "Disbursed Count"
+                            metricDetailData = .applications(vm.disbursedList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MetricBlockCard(title: "Disbursed Count", value: "\(vm.disbursedCount)", icon: "banknote.fill", color: .staffAccent)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(.horizontal, StaffSpacing.lg)
@@ -91,8 +134,12 @@ struct AdminDashboardView: View {
         .background(Color.staffBackground)
         .onAppear {
             Task {
+                await AuditService.shared.seedAuditLogsIfEmpty()
                 await vm.loadDashboard()
             }
+        }
+        .sheet(isPresented: $showMetricDetailSheet) {
+            MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
         }
     }
     

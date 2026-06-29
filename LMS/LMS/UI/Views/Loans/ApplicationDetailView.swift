@@ -62,8 +62,7 @@ struct ApplicationDetailView: View {
                         TextEditor(text: $remarksText)
                             .frame(height: 80)
                             .padding(8)
-                            .background(Color.surface)
-                            .cornerRadius(Corner.md)
+                            .liquidGlass(cornerRadius: 8)
                             .overlay(RoundedRectangle(cornerRadius: Corner.md).stroke(Color.border, lineWidth: 1))
                             .foregroundColor(.textPrimary)
                             
@@ -137,7 +136,14 @@ struct ApplicationDetailView: View {
             .padding(.bottom, 100)
             .padding(.top, Spacing.md)
         }
-        .background(Color.appBackground.ignoresSafeArea())
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
         .navigationTitle(application.applicationNumber)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -181,8 +187,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+        .liquidGlass(cornerRadius: 16)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
     }
     

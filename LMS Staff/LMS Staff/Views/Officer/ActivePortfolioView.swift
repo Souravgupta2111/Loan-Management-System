@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ActivePortfolioView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var vm = PortfolioViewModel()
     @State private var selectedLoan: LoanWithDetails?
     
@@ -117,7 +118,9 @@ struct ActivePortfolioView: View {
         .background(Color.staffBackground)
         .onAppear {
             Task {
-                await vm.loadPortfolio()
+                if let staff = authViewModel.currentStaff {
+                    await vm.loadPortfolio(forOfficerId: staff.userId)
+                }
             }
         }
         .sheet(isPresented: $showFlagSheet) {
@@ -253,7 +256,7 @@ struct ActivePortfolioView: View {
                 Button("Flag NPA") {
                     if let loan = selectedLoan?.loan {
                         Task {
-                            if await vm.flagLoanAsOverdue(loanId: loan.id, reason: flagReason) {
+                            if await vm.flagLoanAsOverdue(loanId: loan.id, reason: flagReason, officerId: authViewModel.currentStaff?.userId) {
                                 showFlagSheet = false
                                 flagReason = ""
                             }

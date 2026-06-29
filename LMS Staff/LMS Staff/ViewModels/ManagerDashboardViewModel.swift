@@ -15,6 +15,7 @@ class ManagerDashboardViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var recommendedApplications: [ApplicationWithBorrower] = []
+    @Published var activeLoansList: [LoanWithDetails] = []
     @Published var activeLoansCount: Int = 0
     @Published var totalDisbursed: Double = 0.0
     @Published var npaRatio: Double = 0.0
@@ -44,7 +45,8 @@ class ManagerDashboardViewModel: ObservableObject {
             
             // Fetch total active loans
             let activeLoans = try await LoanPortfolioService.shared.fetchLoans()
-            self.activeLoansCount = activeLoans.filter { $0.loan.status == .active || $0.loan.status == .restructured || $0.loan.status == .npa }.count
+            self.activeLoansList = activeLoans.filter { $0.loan.status == .active || $0.loan.status == .restructured || $0.loan.status == .npa }
+            self.activeLoansCount = self.activeLoansList.count
             
             // 2. Fetch applications that are recommended (under_review status)
             let allApplications = try await appService.fetchAllApplications()
@@ -79,7 +81,8 @@ class ManagerDashboardViewModel: ObservableObject {
             // Record history
             try await appService.addApprovalHistory(
                 applicationId: applicationId,
-                action: "APPROVE",
+                action: "approve",
+                toStatus: "approved",
                 remarks: "Approved terms: INR \(approvedAmount), Rate: \(interestRate)%, Tenure: \(tenureMonths) months."
             )
             
@@ -121,10 +124,11 @@ class ManagerDashboardViewModel: ObservableObject {
                 .eq("id", value: applicationId)
                 .execute()
             
-            try await appService.addApprovalHistory(
-                applicationId: applicationId,
+            try await AuditService.shared.logAction(
                 action: "REASSIGN",
-                remarks: "Reassigned to officer \(newOfficerId.uuidString)"
+                tableName: "loan_applications",
+                recordId: applicationId,
+                summary: "Reassigned to officer \(newOfficerId.uuidString)"
             )
             
             await loadDashboard()

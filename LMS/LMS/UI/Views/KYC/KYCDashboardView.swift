@@ -15,7 +15,12 @@ struct KYCDashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.appBackground.ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: Spacing.xl) {
@@ -23,7 +28,7 @@ struct KYCDashboardView: View {
                             VStack(spacing: Spacing.lg) {
                                 Image(systemName: "clock.badge.checkmark")
                                     .font(.system(size: 52))
-                                    .foregroundColor(.accentAmber)
+                                    .foregroundColor(Color(hex: "#1A1A1A"))
                                 Text("KYC Submitted").font(.sectionTitle)
                                 Text("Your documents are awaiting officer review. This status updates automatically.")
                                     .font(.bodyRegular)
@@ -32,8 +37,7 @@ struct KYCDashboardView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(Spacing.xxl)
-                            .background(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
+                            .liquidGlass(cornerRadius: 22)
                         } else if viewModel.kycStatus == "rejected" {
                             VStack(spacing: Spacing.md) {
                                 Image(systemName: "exclamationmark.triangle.fill")
@@ -91,8 +95,7 @@ struct KYCDashboardView: View {
                                 }
                             }
                             .padding(Spacing.xxl)
-                            .background(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
+                            .liquidGlass(cornerRadius: 22)
                         } else {
                         VStack(alignment: .leading, spacing: Spacing.lg) {
                             Text("PAN Verification")
@@ -154,9 +157,7 @@ struct KYCDashboardView: View {
                             }
                         }
                         .padding(Spacing.xl)
-                        .background(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-                        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+                        .liquidGlass(cornerRadius: 22)
                         
                         if viewModel.isVerified {
                             // Phase 2 of KYC: Aadhaar Verification (OTP Flow)
@@ -241,9 +242,7 @@ struct KYCDashboardView: View {
                                 }
                             }
                             .padding(Spacing.xl)
-                            .background(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-                            .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+                            .liquidGlass(cornerRadius: 22)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                             
                             if viewModel.isAadhaarVerified {
@@ -285,9 +284,7 @@ struct KYCDashboardView: View {
                                 }
                                 }
                                 .padding(Spacing.xl)
-                                .background(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-                                .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+                                .liquidGlass(cornerRadius: 22)
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
                         }
@@ -324,6 +321,7 @@ struct KYCDashboardView: View {
                     await viewModel.refreshKYCStatus()
                     if viewModel.kycStatus == "verified" || viewModel.kycStatus == "submitted" {
                         authViewModel.authState = .authenticated
+                        dismiss()
                         return
                     }
                     try? await Task.sleep(for: .seconds(5))

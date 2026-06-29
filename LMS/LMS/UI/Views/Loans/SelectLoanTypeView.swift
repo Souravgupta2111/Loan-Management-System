@@ -41,7 +41,7 @@ struct SelectLoanTypeView: View {
                 .padding(.bottom, 20)
             }
 
-            Divider().opacity(0.4)
+
 
             Button {
                 navigateToApplication = true
@@ -66,14 +66,20 @@ struct SelectLoanTypeView: View {
             .padding(.horizontal, 24)
             .padding(.top, 14)
             .padding(.bottom, 18)
-            .background(Color.appBackground)
+
         }
-        .background(Color.appBackground.ignoresSafeArea())
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
         .navigationBarBackButtonHidden(true)
         .navigationTitle(isTabRoot ? "Apply" : "Select Loan Type")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.white, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             if !isTabRoot {
                 ToolbarItem(placement: .topBarLeading) {
@@ -208,16 +214,14 @@ struct SelectLoanTypeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isSelected ? Color(hex: "#89DBA6").opacity(0.07) : Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isSelected ? Color(hex: "#89DBA6") : Color.border,
-                        lineWidth: isSelected ? 2 : 1)
+        .liquidGlass(
+            cornerRadius: 18,
+            borderColor: isSelected ? Color(hex: "#89DBA6") : Color.border,
+            borderOpacity: isSelected ? 1.0 : 0.5,
+            shadowOpacity: isSelected ? 0.1 : 0.03,
+            shadowRadius: 8
         )
         .scaleEffect(isSelected ? 1.02 : 1.0)
-        .shadow(color: isSelected ? Color(hex: "#89DBA6").opacity(0.20) : .black.opacity(0.03),
-                radius: 8, x: 0, y: 3)
     }
 }
 

@@ -1,14 +1,10 @@
-//
-//  ContentView.swift
-//  LMS Staff
-//
-//  Main application router and global interaction detection.
-//
-
 import SwiftUI
+import Supabase
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var showPasswordResetAlert = false
+    @State private var newPassword = ""
     
     var body: some View {
         Group {
@@ -27,6 +23,40 @@ struct ContentView: View {
                     NotificationCenter.default.post(name: NSNotification.Name("UserDidInteract"), object: nil)
                 }
         )
+        .onOpenURL { url in
+            Task {
+                do {
+                    // 1. Let Supabase process the reset password URL and log the user in
+                    try await SupabaseManager.shared.client.auth.session(from: url)
+                    
+                    // 2. If it was a password reset link, show the alert to type a new password
+                    if url.absoluteString.contains("reset-password") {
+                        showPasswordResetAlert = true
+                    }
+                } catch {
+                    print("Failed to handle auth URL: \(error)")
+                }
+            }
+        }
+        .alert("Set New Password", isPresented: $showPasswordResetAlert) {
+            SecureField("New Password", text: $newPassword)
+            Button("Save") {
+                Task {
+                    do {
+                        // 3. Update the password for the newly logged-in user
+                        try await SupabaseManager.shared.client.auth.update(user: Supabase.UserAttributes(password: newPassword))
+                        newPassword = ""
+                    } catch {
+                        print("Error updating password: \(error)")
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                newPassword = ""
+            }
+        } message: {
+            Text("Please enter a new password for your account.")
+        }
     }
 }
 

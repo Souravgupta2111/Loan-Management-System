@@ -69,6 +69,7 @@ struct ManagerMessagesView: View {
             // Right chat window
             if let app = selectedApp {
                 ManagerOfficerChatConsole(appWithBorrower: app)
+                    .id(app.application.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: StaffSpacing.md) {
@@ -207,15 +208,9 @@ struct ManagerOfficerChatConsole: View {
                 
                 Button(action: {
                     Task {
-                        // Send message to the officer
-                        let officerId = appWithBorrower.application.assignedOfficerId ?? appWithBorrower.borrower.id
-                        _ = try? await MessageService.shared.sendMessage(
-                            applicationId: appWithBorrower.application.id,
-                            receiverId: officerId,
-                            content: messageText
-                        )
+                        // Send message using the view model so it updates UI correctly
+                        await detailVm.sendChatMessage(messageText, isInternal: true)
                         messageText = ""
-                        await detailVm.loadAllDetails()
                     }
                 }) {
                     Image(systemName: "paperplane.fill")

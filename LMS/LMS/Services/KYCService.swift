@@ -185,6 +185,7 @@ class KYCService {
             let pincode: String?
             let kyc_status: String
             let kyc_submitted_at: String
+            let kyc_verified_at: String
         }
         
         let now = Formatter.iso8601.string(from: Date())
@@ -201,8 +202,9 @@ class KYCService {
                 city: city,
                 state: state,
                 pincode: pincode,
-                kyc_status: "submitted",
-                kyc_submitted_at: now
+                kyc_status: "verified",
+                kyc_submitted_at: now,
+                kyc_verified_at: now
             ))
             .eq("user_id", value: userId)
             .execute()
@@ -255,8 +257,8 @@ class KYCService {
             .eq("category", value: "kyc")
             .execute()
         
-        // 3. Update KYC status to submitted so it goes back to review
-        try await updateKYCStatus(userId: userId, status: "submitted")
+        // 3. Update KYC status to verified (auto-verified)
+        try await updateKYCStatus(userId: userId, status: "verified")
     }
 }
 

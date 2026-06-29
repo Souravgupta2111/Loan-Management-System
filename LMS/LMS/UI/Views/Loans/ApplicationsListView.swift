@@ -38,7 +38,14 @@ struct ApplicationsListView: View {
                 .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, 100)
             }
-            .background(Color.appBackground.ignoresSafeArea())
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
             .navigationTitle("Applications")
             .toolbar(.hidden, for: .tabBar)
             .task { await loadApplications() }
@@ -79,13 +86,8 @@ struct ApplicationsListView: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
+        .liquidGlass(cornerRadius: 16)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.lg)
-                .stroke(Color.border, lineWidth: 0.5)
-        )
     }
 
     private func formatIndian(_ value: Double) -> String {

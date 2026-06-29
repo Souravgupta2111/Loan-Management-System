@@ -245,8 +245,9 @@ struct ScheduleOverviewView: View {
         let isToday    = thisDay == today
         let isSelected = thisDay == calendar.startOfDay(for: selectedDate)
         let emis       = emisByDate[thisDay] ?? []
-        let hasPaid    = emis.contains { $0.isPaid }
-        let hasUnpaid  = emis.contains { !$0.isPaid }
+        let hasPaid     = emis.contains { $0.isPaid }
+        let hasOverdue  = emis.contains { $0.isOverdue }
+        let hasUpcoming = emis.contains { !$0.isPaid && !$0.isOverdue }
 
         return Button {
             withAnimation(.easeInOut(duration: 0.18)) { selectedDate = date }
@@ -278,8 +279,11 @@ struct ScheduleOverviewView: View {
                     if hasPaid {
                         Circle().fill(Color(hex: "#2D8B4E")).frame(width: 5, height: 5)
                     }
-                    if hasUnpaid {
+                    if hasOverdue {
                         Circle().fill(Color(hex: "#D94040")).frame(width: 5, height: 5)
+                    }
+                    if hasUpcoming {
+                        Circle().fill(Color(hex: "#1A1A1A")).frame(width: 5, height: 5)
                     }
                     if emis.isEmpty {
                         Circle().fill(Color.clear).frame(width: 5, height: 5)
@@ -354,10 +358,13 @@ struct ScheduleOverviewView: View {
     private func emiDetailRow(_ entry: CalendarEMIEntry) -> some View {
         let accentColor: Color = entry.isPaid   ? Color(hex: "#2D8B4E")
                                : entry.isOverdue ? Color(hex: "#D94040")
-                               :                   Color(hex: "#E8A830")
+                               :                   Color(hex: "#2D8B4E")
         let bgColor: Color     = entry.isPaid   ? Color(hex: "#E8F5EC")
                                : entry.isOverdue ? Color(hex: "#FDE8E8")
-                               :                   Color(hex: "#FFF3D6")
+                               :                   Color.clear
+        let badgeTextColor: Color = entry.isPaid ? Color(hex: "#2D8B4E")
+                               : entry.isOverdue ? Color(hex: "#D94040")
+                               :                   Color(hex: "#1A1A1A")
         let statusText = entry.isPaid ? "Paid" : entry.isOverdue ? "Overdue" : "Upcoming"
         let statusIcon = entry.isPaid ? "checkmark.circle.fill"
                        : entry.isOverdue ? "exclamationmark.triangle.fill"
@@ -370,7 +377,7 @@ struct ScheduleOverviewView: View {
                 .padding(.vertical, 4)
 
             ZStack {
-                Circle().fill(bgColor).frame(width: 42, height: 42)
+                Circle().fill(entry.isPaid ? Color(hex: "#E8F5EC") : entry.isOverdue ? Color(hex: "#FDE8E8") : Color(hex: "#E8F5EC")).frame(width: 42, height: 42)
                 Image(systemName: loanIcon(entry.loanType))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(accentColor)
@@ -396,7 +403,7 @@ struct ScheduleOverviewView: View {
                     Image(systemName: statusIcon).font(.system(size: 10, weight: .bold))
                     Text(statusText).font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundColor(accentColor)
+                .foregroundColor(badgeTextColor)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(bgColor)
@@ -427,6 +434,9 @@ struct ScheduleOverviewView: View {
                 let id: UUID
                 let loan_number: String?
                 let status: String
+                let principal_amount: Double
+                let outstanding_principal: Double
+                let total_payable: Double
                 let loan_product: ProductSummary
                 let emi_schedule: [EMIRow]
 
@@ -446,7 +456,7 @@ struct ScheduleOverviewView: View {
 
             let response: [LoanScheduleResponse] = try await SupabaseManager.shared.client
                 .from("loans")
-                .select("id, loan_number, status, loan_product:loan_products(name, type), emi_schedule(id, total_emi, penalty_amount, status, due_date)")
+                .select("id, loan_number, principal_amount, outstanding_principal, total_payable, status, loan_product:loan_products(name, type), emi_schedule(id, total_emi, penalty_amount, status, due_date)")
                 .eq("borrower_id", value: userId.uuidString)
                 .eq("status", value: "active")
                 .execute()
@@ -454,11 +464,18 @@ struct ScheduleOverviewView: View {
 
             let today = calendar.startOfDay(for: Date())
             emiEntries = response.flatMap { loan in
-                loan.emi_schedule.compactMap { emi -> CalendarEMIEntry? in
-                    guard emi.status.lowercased() != "paid",
-                          let dueDate = LoansListView.parseDateString(emi.due_date) else { return nil }
+                let paidAmount = loan.total_payable - loan.outstanding_principal
+                let emiAmount = loan.emi_schedule.first?.total_emi ?? 20000
+                let actualPaidCount = emiAmount > 0 ? Int(paidAmount / emiAmount) : 0
+                
+                let sortedEMIs = loan.emi_schedule.sorted { $0.due_date < $1.due_date }
+
+                return sortedEMIs.enumerated().compactMap { index, emi -> CalendarEMIEntry? in
+                    guard let dueDate = LoansListView.parseDateString(emi.due_date) else { return nil }
 
                     let dueDay = calendar.startOfDay(for: dueDate)
+                    // Override mock status if it falls within the mathematically paid count
+                    let isPaid = emi.status.lowercased() == "paid" || index < actualPaidCount
                     return CalendarEMIEntry(
                         id: emi.id,
                         loanName: loan.loan_product.name,
@@ -466,8 +483,8 @@ struct ScheduleOverviewView: View {
                         loanNumber: loan.loan_number ?? "N/A",
                         emiAmount: emi.total_emi + (emi.penalty_amount ?? 0),
                         dueDate: dueDate,
-                        isPaid: false,
-                        isOverdue: dueDay < today || emi.status.lowercased() == "overdue"
+                        isPaid: isPaid,
+                        isOverdue: (!isPaid && dueDay < today) || emi.status.lowercased() == "overdue"
                     )
                 }
             }

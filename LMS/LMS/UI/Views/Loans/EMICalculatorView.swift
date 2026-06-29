@@ -106,7 +106,11 @@ struct EMICalculatorView: View {
                 }
             }
             .background(
-                Color(hex: "#F5FDF8")
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
                 .ignoresSafeArea()
             )
             .toolbar(.hidden, for: .navigationBar)
@@ -189,7 +193,7 @@ struct EMICalculatorView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, 14)
-                .background(Color.surfaceMuted)
+                .background(Color.black.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 .contentShape(Rectangle())
             }
@@ -220,34 +224,32 @@ struct EMICalculatorView: View {
 
 
     private var summaryCards: some View {
-        GlassEffectContainer {
-            HStack(spacing: Spacing.md) {
-                // Total Interest card
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("₹\(formatIndian(calculateTotalInterest()))")
-                        .font(.cardTitle)
-                        .foregroundColor(.textPrimary)
-                    Text("Total Interest")
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Spacing.lg)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20, style: .continuous))
-
-                // Total Amount card
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("₹\(formatIndian(amount + calculateTotalInterest()))")
-                        .font(.cardTitle)
-                        .foregroundColor(.textPrimary)
-                    Text("Total Amount")
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Spacing.lg)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20, style: .continuous))
+        HStack(spacing: Spacing.md) {
+            // Total Interest card
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("₹\(formatIndian(calculateTotalInterest()))")
+                    .font(.cardTitle)
+                    .foregroundColor(.textPrimary)
+                Text("Total Interest")
+                    .font(.caption2)
+                    .foregroundColor(.textSecondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.lg)
+            .liquidGlass(cornerRadius: 16)
+
+            // Total Amount card
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("₹\(formatIndian(amount + calculateTotalInterest()))")
+                    .font(.cardTitle)
+                    .foregroundColor(.textPrimary)
+                Text("Total Amount")
+                    .font(.caption2)
+                    .foregroundColor(.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.lg)
+            .liquidGlass(cornerRadius: 16)
         }
     }
 
@@ -374,7 +376,7 @@ struct EMICalculatorView: View {
                         .frame(width: 140)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.surfaceMuted)
+                        .background(Color.black.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: Corner.sm))
                         .onSubmit {
                             commitEdit(value: value, range: range, step: step, parseFromEdit: parseFromEdit)
@@ -386,7 +388,7 @@ struct EMICalculatorView: View {
                         .foregroundColor(.textPrimary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.surfaceMuted)
+                        .background(Color.black.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: Corner.sm))
                         .onTapGesture {
                             editingText = formatForEdit(value.wrappedValue)
@@ -578,12 +580,7 @@ struct CalculatorAmortizationSheet: View {
                                 }
                             }
                         }
-                        .background(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Corner.lg)
-                                .stroke(Color.border, lineWidth: 0.5)
-                        )
+                        .liquidGlass(cornerRadius: 16)
                         
                         // MARK: - Loan Overview Card
                         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -613,18 +610,20 @@ struct CalculatorAmortizationSheet: View {
                             }
                         }
                         .padding(Spacing.xl)
-                        .background(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Corner.lg)
-                                .stroke(Color.border, lineWidth: 0.5)
-                        )
+                        .liquidGlass(cornerRadius: 16)
                     }
                     .padding(.horizontal, Spacing.xl)
                     .padding(.bottom, 40)
                 }
             }
-            .background(Color.appBackground.ignoresSafeArea())
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
             .toolbar(.hidden, for: .navigationBar)
         }
     }

@@ -31,6 +31,10 @@ struct ManagerDashboardView: View {
     @State private var selectedOfficerId: UUID? = nil
     @State private var remarks: String = ""
     
+    @State private var showMetricDetailSheet: Bool = false
+    @State private var metricDetailTitle: String = ""
+    @State private var metricDetailData: MetricDataType = .loans([])
+    
     var body: some View {
         HStack(spacing: 0) {
             // Left column: Queue list and metrics
@@ -44,12 +48,42 @@ struct ManagerDashboardView: View {
                 // KPI summary widgets
                 VStack(spacing: StaffSpacing.sm) {
                     HStack(spacing: StaffSpacing.sm) {
-                        MiniStatCard(title: "Active Portfolio", value: "INR \(String(format: "%.0f", vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
-                        MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
+                        Button(action: {
+                            metricDetailTitle = "Active Portfolio"
+                            metricDetailData = .loans(vm.activeLoansList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MiniStatCard(title: "Active Portfolio", value: "INR \(String(format: "%.0f", vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            metricDetailTitle = "Active Loans"
+                            metricDetailData = .loans(vm.activeLoansList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                     HStack(spacing: StaffSpacing.sm) {
-                        MiniStatCard(title: "Collection Eff.", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
-                        MiniStatCard(title: "NPA Ratio", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                        Button(action: {
+                            metricDetailTitle = "Collection Efficiency"
+                            metricDetailData = .loans(vm.activeLoansList)
+                            showMetricDetailSheet = true
+                        }) {
+                            MiniStatCard(title: "Collection Eff.", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            metricDetailTitle = "NPA Ratio"
+                            metricDetailData = .loans(vm.activeLoansList.filter { $0.loan.status == .npa })
+                            showMetricDetailSheet = true
+                        }) {
+                            MiniStatCard(title: "NPA Ratio", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(StaffSpacing.lg)
@@ -153,6 +187,9 @@ struct ManagerDashboardView: View {
         .sheet(isPresented: $showReassignSheet) {
             reassignOfficerSheet
         }
+        .sheet(isPresented: $showMetricDetailSheet) {
+            MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
+        }
     }
     
     // MARK: - Inspection Panel Subviews
@@ -255,32 +292,66 @@ struct ManagerDashboardView: View {
                 .foregroundColor(.staffTextPrimary)
             
             if let item = selectedApp {
-                VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                    Text("Approved Amount: INR \(String(format: "%.2f", approvedAmount))")
-                        .font(.staffBody)
-                        .foregroundColor(.staffTextPrimary)
-                    Slider(value: $approvedAmount, in: item.product.minAmount...item.product.maxAmount, step: 10000)
+                VStack(alignment: .leading, spacing: StaffSpacing.xl) {
                     
-                    Text("Approved Tenure: \(approvedTenure) Months")
-                        .font(.staffBody)
-                        .foregroundColor(.staffTextPrimary)
-                    Stepper("\(approvedTenure) Months", value: $approvedTenure, in: item.product.minTenureMonths...item.product.maxTenureMonths, step: 1)
+                    VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                        Text("Approved Amount: INR \(String(format: "%.2f", approvedAmount))")
+                            .font(.staffBody)
+                            .fontWeight(.medium)
+                            .foregroundColor(.staffTextPrimary)
+                        Slider(value: $approvedAmount, in: item.product.minAmount...item.product.maxAmount, step: 10000)
+                            .tint(.staffAccent)
+                    }
                     
-                    Text("Approved Interest Rate: \(String(format: "%.2f", approvedRate))% Per Annum")
-                        .font(.staffBody)
-                        .foregroundColor(.staffTextPrimary)
-                    Slider(value: $approvedRate, in: item.product.minInterestRate...item.product.maxInterestRate, step: 0.25)
+                    Divider().background(Color.staffBorder)
+                    
+                    VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                        Text("Approved Tenure: \(approvedTenure) Months")
+                            .font(.staffBody)
+                            .fontWeight(.medium)
+                            .foregroundColor(.staffTextPrimary)
+                        Stepper("\(approvedTenure) Months", value: $approvedTenure, in: item.product.minTenureMonths...item.product.maxTenureMonths, step: 1)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                    
+                    Divider().background(Color.staffBorder)
+                    
+                    VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                        Text("Approved Interest Rate: \(String(format: "%.2f", approvedRate))% Per Annum")
+                            .font(.staffBody)
+                            .fontWeight(.medium)
+                            .foregroundColor(.staffTextPrimary)
+                        Slider(value: $approvedRate, in: item.product.minInterestRate...item.product.maxInterestRate, step: 0.25)
+                            .tint(.staffAccent)
+                    }
                 }
-                .padding()
+                .padding(StaffSpacing.xl)
                 .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
+                .cornerRadius(StaffCorner.lg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.lg)
+                        .stroke(Color.staffBorder, lineWidth: 1)
+                )
             }
             
-            HStack {
-                Button("Cancel") { showApprovalSheet = false }
-                    .foregroundColor(.staffTextSecondary)
+            HStack(spacing: StaffSpacing.md) {
+                StaffButton(
+                    title: "Cancel",
+                    style: .outline,
+                    icon: "xmark",
+                    isFullWidth: false
+                ) {
+                    showApprovalSheet = false
+                }
+                
                 Spacer()
-                Button("Sanction Approval") {
+                
+                StaffButton(
+                    title: "Sanction Approval",
+                    style: .primary,
+                    icon: "checkmark.seal.fill",
+                    isFullWidth: true
+                ) {
                     if let app = selectedApp?.application {
                         Task {
                             if await vm.approveApplication(applicationId: app.id, approvedAmount: approvedAmount, tenureMonths: approvedTenure, interestRate: approvedRate) {
@@ -290,8 +361,6 @@ struct ManagerDashboardView: View {
                         }
                     }
                 }
-                .foregroundColor(.staffGreen)
-                .fontWeight(.bold)
             }
         }
         .padding(30)

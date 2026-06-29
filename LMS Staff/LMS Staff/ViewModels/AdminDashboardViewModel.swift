@@ -19,6 +19,13 @@ class AdminDashboardViewModel: ObservableObject {
     @Published var approvedCount: Int = 0
     @Published var rejectedCount: Int = 0
     @Published var disbursedCount: Int = 0
+    
+    @Published var allApplicationsList: [ApplicationWithBorrower] = []
+    @Published var pendingReviewsList: [ApplicationWithBorrower] = []
+    @Published var approvedList: [ApplicationWithBorrower] = []
+    @Published var rejectedList: [ApplicationWithBorrower] = []
+    @Published var disbursedList: [ApplicationWithBorrower] = []
+    
     @Published var systemNpaRatio: Double = 0.0
     
     @Published var recentActivities: [AuditLog] = []
@@ -43,11 +50,18 @@ class AdminDashboardViewModel: ObservableObject {
         do {
             // 1. Fetch system metrics
             let allApps = try await appService.fetchAllApplications()
-            self.totalApplicationsCount = allApps.count
-            self.pendingReviewsCount = allApps.filter { $0.application.status == .underReview || $0.application.status == .submitted }.count
-            self.approvedCount = allApps.filter { $0.application.status == .approved }.count
-            self.rejectedCount = allApps.filter { $0.application.status == .rejected }.count
-            self.disbursedCount = allApps.filter { $0.application.status == .disbursed }.count
+            
+            self.allApplicationsList = allApps
+            self.pendingReviewsList = allApps.filter { $0.application.status == .underReview || $0.application.status == .submitted }
+            self.approvedList = allApps.filter { $0.application.status == .approved }
+            self.rejectedList = allApps.filter { $0.application.status == .rejected }
+            self.disbursedList = allApps.filter { $0.application.status == .disbursed }
+            
+            self.totalApplicationsCount = self.allApplicationsList.count
+            self.pendingReviewsCount = self.pendingReviewsList.count
+            self.approvedCount = self.approvedList.count
+            self.rejectedCount = self.rejectedList.count
+            self.disbursedCount = self.disbursedList.count
             
             // System-wide reports
             let report = try await reportService.compileConsolidatedReport()

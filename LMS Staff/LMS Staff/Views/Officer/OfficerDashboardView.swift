@@ -129,6 +129,7 @@ struct OfficerDashboardView: View {
                         }
                     }
                 )
+                .id(app.application.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: StaffSpacing.md) {

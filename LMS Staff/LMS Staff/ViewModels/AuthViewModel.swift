@@ -96,6 +96,28 @@ class AuthViewModel: ObservableObject {
         isLoading = false
     }
     
+    func resetPassword(employeeId: String) async {
+        isLoading = true
+        errorMessage = nil
+        
+        let cleanedId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard authService.isValidEmployeeId(cleanedId) else {
+            self.errorMessage = "Invalid Employee ID format. Must start with ADM-, MGR-, or OFF-."
+            isLoading = false
+            return
+        }
+        
+        let email = "\(cleanedId.lowercased())@lms.internal"
+        
+        do {
+            try await supabase.auth.resetPasswordForEmail(email, redirectTo: URL(string: "lmsstaffapp://reset-password"))
+            isLoading = false
+        } catch {
+            isLoading = false
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
     func logout() async {
         stopInactivityTimer()
         do {

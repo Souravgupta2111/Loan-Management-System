@@ -1,7 +1,8 @@
 import Foundation
 import Supabase
 
-struct RazorpayOrder: Decodable {
+struct RazorpayOrder: Decodable, Identifiable {
+    var id: String { orderId }
     let paymentRecordId: UUID
     let orderId: String
     let keyId: String

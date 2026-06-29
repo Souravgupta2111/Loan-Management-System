@@ -251,7 +251,7 @@ class KYCViewModel: ObservableObject {
                     pincode: pincode,
                     fullName: fullName
                 )
-                self.kycStatus = "submitted"
+                self.kycStatus = "verified"
                 authViewModel.authState = .authenticated
             }
         } catch {

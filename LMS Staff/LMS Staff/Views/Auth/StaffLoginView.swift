@@ -12,7 +12,22 @@ struct StaffLoginView: View {
     
     @State private var employeeId: String = ""
     @State private var password: String = ""
-    @State private var showResetAlert: Bool = false
+    
+    enum ActiveAlert: Identifiable {
+        case supportNeeded
+        case adminEmailSent(email: String)
+        case invalidId
+        
+        var id: String {
+            switch self {
+            case .supportNeeded: return "supportNeeded"
+            case .adminEmailSent(let email): return "adminEmailSent-\(email)"
+            case .invalidId: return "invalidId"
+            }
+        }
+    }
+    
+    @State private var activeAlert: ActiveAlert? = nil
     
     var body: some View {
         GeometryReader { geo in
@@ -107,7 +122,19 @@ struct StaffLoginView: View {
                         .disabled(employeeId.isEmpty || password.isEmpty)
                         
                         Button(action: {
-                            showResetAlert = true
+                            let cleanId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                            if cleanId.isEmpty || !AuthService.shared.isValidEmployeeId(cleanId) {
+                                activeAlert = .invalidId
+                            } else if cleanId.hasPrefix("ADM-") {
+                                Task {
+                                    await authViewModel.resetPassword(employeeId: cleanId)
+                                    if authViewModel.errorMessage == nil {
+                                        activeAlert = .adminEmailSent(email: "\(cleanId.lowercased())@lms.internal")
+                                    }
+                                }
+                            } else {
+                                activeAlert = .supportNeeded
+                            }
                         }) {
                             Text("Reset Password?")
                                 .font(.staffCaption)
@@ -124,12 +151,27 @@ struct StaffLoginView: View {
             }
         }
         .ignoresSafeArea()
-        .alert(isPresented: $showResetAlert) {
-            Alert(
-                title: Text("Need Help Signing In?"),
-                message: Text("Password resets must be requested directly from your System Administrator (US-61). Please contact support at admin@lms.internal."),
-                dismissButton: .default(Text("Understood"))
-            )
+        .alert(item: $activeAlert) { alertType in
+            switch alertType {
+            case .supportNeeded:
+                return Alert(
+                    title: Text("Need Help Signing In?"),
+                    message: Text("Password resets must be requested directly from your System Administrator (US-61). Please contact support at admin@lms.internal."),
+                    dismissButton: .default(Text("Understood"))
+                )
+            case .adminEmailSent(let email):
+                return Alert(
+                    title: Text("Check Your Email"),
+                    message: Text("We've sent a password reset link to \(email). Please check your inbox."),
+                    dismissButton: .default(Text("Understood"))
+                )
+            case .invalidId:
+                return Alert(
+                    title: Text("Invalid Employee ID"),
+                    message: Text("Please enter a valid Employee ID (e.g., ADM-0001) in the Employee ID field to request a password reset."),
+                    dismissButton: .default(Text("Understood"))
+                )
+            }
         }
     }
 }

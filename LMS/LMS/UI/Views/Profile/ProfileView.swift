@@ -66,7 +66,14 @@ struct ProfileView: View {
                 .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, 60)
             }
-            .background(Color.appBackground.ignoresSafeArea())
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -110,13 +117,7 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.xxl)
-        .background(Color(hex: "#89DBA6").opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color(hex: "#89DBA6").opacity(0.30), lineWidth: 1)
-        )
-        .shadow(color: Color(hex: "#89DBA6").opacity(0.15), radius: 12, x: 0, y: 4)
+        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.04)
     }
 
     // MARK: - Editable Section
@@ -200,13 +201,7 @@ struct ProfileView: View {
             }
             .padding(Spacing.lg)
         }
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color(hex: "#89DBA6").opacity(0.20), lineWidth: 1)
-        )
+        .liquidGlass(cornerRadius: 22)
     }
 
     private var addressRow: some View {
@@ -346,13 +341,7 @@ struct ProfileView: View {
             divider
             actionRow(icon: "questionmark.circle.fill", title: "Help & Support", color: .textPrimary)
         }
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
-        .overlay(
-            RoundedRectangle(cornerRadius: Corner.xl)
-                .stroke(Color(hex: "#89DBA6").opacity(0.20), lineWidth: 1)
-        )
+        .liquidGlass(cornerRadius: 22)
     }
 
     // MARK: - Reusable Subviews

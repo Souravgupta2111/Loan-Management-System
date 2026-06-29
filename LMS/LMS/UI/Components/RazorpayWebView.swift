@@ -20,9 +20,11 @@ struct RazorpayWebView: UIViewRepresentable {
 
         let config = WKWebViewConfiguration()
         config.userContentController = contentController
+        config.preferences.javaScriptCanOpenWindowsAutomatically = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         webView.backgroundColor = .black
         webView.scrollView.isScrollEnabled = false
         
@@ -111,11 +113,18 @@ struct RazorpayWebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
         var parent: RazorpayWebView
 
         init(_ parent: RazorpayWebView) {
             self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url {
+                webView.load(URLRequest(url: url))
+            }
+            return nil
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

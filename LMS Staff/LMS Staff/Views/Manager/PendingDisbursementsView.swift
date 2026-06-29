@@ -305,6 +305,12 @@ struct PendingDisbursementsView: View {
             }
             
             HStack {
+                if let error = vm.errorMessage {
+                    Text(error)
+                        .font(.staffCaption)
+                        .foregroundColor(.staffRed)
+                }
+                
                 Spacer()
                 
                 StaffButton(
@@ -325,6 +331,8 @@ struct PendingDisbursementsView: View {
                             if isSuccess {
                                 showAmortizationReview = false
                                 selectedApp = nil
+                            } else {
+                                print("Disbursal failed: \(vm.errorMessage ?? "Unknown error")")
                             }
                         }
                     }

@@ -16,6 +16,7 @@ struct ApplicationWithBorrower: Identifiable, Hashable {
     let product: LoanProduct
 }
 
+@MainActor
 class ApplicationService {
     
     static let shared = ApplicationService()
@@ -40,7 +41,7 @@ class ApplicationService {
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
             .select()
-            .eq("assigned_officer_id", value: officerId)
+            .or("assigned_officer_id.eq.\(officerId.uuidString),status.eq.submitted")
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -114,17 +115,16 @@ class ApplicationService {
         )
     }
     
-    /// Updates the application status and notes down rejection/send-back remarks.
     func updateStatus(applicationId: UUID, status: ApplicationStatus, reason: String? = nil) async throws {
-        var updateDict: [String: String] = ["status": status.rawValue]
+        var updateDict: [String: AnyEncodable] = ["status": AnyEncodable(status.rawValue)]
         
         if status == .rejected {
-            updateDict["rejection_reason"] = reason ?? "Rejected by credit guidelines"
-            updateDict["decided_at"] = ISO8601DateFormatter().string(from: Date())
+            updateDict["rejection_reason"] = AnyEncodable(reason ?? "Rejected by credit guidelines")
+            updateDict["decided_at"] = AnyEncodable(ISO8601DateFormatter().string(from: Date()))
         } else if status == .sentBack {
-            updateDict["sent_back_reason"] = reason ?? "Requested additional details"
+            updateDict["sent_back_reason"] = AnyEncodable(reason ?? "Requested additional details")
         } else if status == .approved {
-            updateDict["decided_at"] = ISO8601DateFormatter().string(from: Date())
+            updateDict["decided_at"] = AnyEncodable(ISO8601DateFormatter().string(from: Date()))
         }
         
         try await supabase.database
@@ -133,10 +133,21 @@ class ApplicationService {
             .eq("id", value: applicationId)
             .execute()
         
+        var actionValue = ""
+        switch status {
+        case .underReview: actionValue = "review"
+        case .approved: actionValue = "approve"
+        case .rejected: actionValue = "reject"
+        case .sentBack: actionValue = "send_back"
+        case .disbursed: actionValue = "disburse"
+        default: actionValue = "submit"
+        }
+        
         // Log action in approval history
         try await addApprovalHistory(
             applicationId: applicationId,
-            action: status.rawValue.uppercased(),
+            action: actionValue,
+            toStatus: status.rawValue,
             remarks: reason
         )
         
@@ -149,14 +160,14 @@ class ApplicationService {
         )
     }
     
-    /// Adds a record to the `approval_history` table for this application.
-    func addApprovalHistory(applicationId: UUID, action: String, remarks: String?) async throws {
+    func addApprovalHistory(applicationId: UUID, action: String, toStatus: String, remarks: String?) async throws {
         guard let currentUserId = supabase.currentUserId else { return }
         
         let payload: [String: AnyEncodable] = [
             "application_id": AnyEncodable(applicationId),
-            "staff_id": AnyEncodable(currentUserId),
+            "actor_id": AnyEncodable(currentUserId),
             "action": AnyEncodable(action),
+            "to_status": AnyEncodable(toStatus),
             "remarks": AnyEncodable(remarks ?? "")
         ]
         
@@ -191,10 +202,11 @@ class ApplicationService {
             message: "A loan officer has requested: \(documentTypes.joined(separator: ", ")). Remarks: \(remarks)"
         )
         
-        try await addApprovalHistory(
-            applicationId: applicationId,
+        try await AuditService.shared.logAction(
             action: "REQUEST_DOCUMENTS",
-            remarks: "Requested: \(documentTypes.joined(separator: ", ")). Notes: \(remarks)"
+            tableName: "loan_applications",
+            recordId: applicationId,
+            summary: "Requested: \(documentTypes.joined(separator: ", ")). Notes: \(remarks)"
         )
     }
 }

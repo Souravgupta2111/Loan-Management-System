@@ -111,7 +111,7 @@ struct LoansListView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
 
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
 
                     balanceHeroCard
                         .padding(.top, 4)
@@ -122,13 +122,17 @@ struct LoansListView: View {
 
                     loanCardsList
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 28)
+                .padding(.bottom, 100)
             }
             .background(
-                Color(hex: "#FAFAF8")
-                    .ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
             )
             .navigationTitle("My Loans")
             .navigationBarTitleDisplayMode(.inline)
@@ -157,18 +161,18 @@ struct LoansListView: View {
 
     private var balanceHeroCard: some View {
 
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
 
             // Icon + Title
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
 
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(hex: "#89DBA6").opacity(0.25))
-                        .frame(width: 46, height: 46)
+                    Circle()
+                        .fill(Color(hex: "#E8F5EC"))
+                        .frame(width: 40, height: 40)
 
                     Image(systemName: "indianrupeesign.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 19, weight: .semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
 
@@ -176,52 +180,30 @@ struct LoansListView: View {
                     .font(.system(size: 18,
                                   weight: .bold,
                                   design: .rounded))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color(hex: "#1A1A1A"))
 
                 Spacer()
             }
 
             // Amount
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
 
                 Text("Outstanding Balance")
-                    .font(.system(size: 13))
-                    .foregroundColor(.textSecondary)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#6B6B6B"))
 
                 Text("₹ \(formatIndian(totalOutstanding))")
-                    .font(.system(size: 36,
+                    .font(.system(size: 30,
                                   weight: .bold,
                                   design: .rounded))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color(hex: "#1A1A1A"))
                     .minimumScaleFactor(0.75)
                     .lineLimit(1)
             }
         }
-        .padding(20)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(hex: "#89DBA6").opacity(0.15))
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 24,
-                style: .continuous
-            )
-        )
-        .overlay(
-            RoundedRectangle(
-                cornerRadius: 24,
-                style: .continuous
-            )
-            .stroke(
-                Color(hex: "#89DBA6").opacity(0.30),
-                lineWidth: 1
-            )
-        )
-        .shadow(
-            color: Color(hex: "#89DBA6").opacity(0.18),
-            radius: 12,
-            x: 0,
-            y: 4
-        )
+        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.06)
     }
 
     //
@@ -230,29 +212,24 @@ struct LoansListView: View {
 
     private var filterSection: some View {
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
 
-            HStack(spacing: 12) {
-
-//                Rectangle()
-//                    .fill(Color(hex: "#89DBA6"))
-//                    .frame(height: 1)
-
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D8B4E"))
                 Text("FILTER LOANS")
-                    .font(.system(size: 16,
+                    .font(.system(size: 13,
                                   weight: .semibold,
                                   design: .rounded))
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color(hex: "#6B6B6B"))
+                    .tracking(0.8)
                     .fixedSize()
-
-//                Rectangle()
-//                    .fill(Color(hex: "#89DBA6"))
-//                    .frame(height: 1)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
 
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
 
                     ForEach(LoanFilter.allCases) { filter in
                         filterChip(filter)
@@ -276,19 +253,19 @@ struct LoansListView: View {
             Text(filter.rawValue)
                 .font(
                     .system(
-                        size: 14,
+                        size: 15,
                         weight: isSelected ? .semibold : .regular
                     )
                 )
                 .foregroundColor(
-                    isSelected ? .white : .textSecondary
+                    isSelected ? .white : Color(hex: "#6B6B6B")
                 )
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 .background(
                     isSelected
                     ? Color(hex: "#2D8B4E")
-                    : Color.white
+                    : Color.clear
                 )
                 .clipShape(Capsule())
                 .overlay(
@@ -296,18 +273,11 @@ struct LoansListView: View {
                         .stroke(
                             isSelected
                             ? Color.clear
-                            : Color(hex: "#89DBA6").opacity(0.35),
+                            : Color.white.opacity(0.5),
                             lineWidth: 1
                         )
                 )
-                .shadow(
-                    color: isSelected
-                    ? Color(hex: "#2D8B4E").opacity(0.22)
-                    : .clear,
-                    radius: 8,
-                    x: 0,
-                    y: 3
-                )
+                .liquidGlass(cornerRadius: 999)
         }
         .buttonStyle(.plain)
     }
@@ -325,16 +295,16 @@ struct LoansListView: View {
                 Text("Current Loans")
                     .font(
                         .system(
-                            size: 24,
+                            size: 20,
                             weight: .bold,
                             design: .rounded
                         )
                     )
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color(hex: "#1A1A1A"))
 
                 Text("\(filteredLoans.count) of \(loans.count) loans")
-                    .font(.system(size: 13))
-                    .foregroundColor(.textSecondary)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#6B6B6B"))
             }
 
             Spacer()
@@ -358,7 +328,7 @@ struct LoansListView: View {
 
             } else {
 
-                LazyVStack(spacing: 14) {
+                LazyVStack(spacing: 10) {
 
                     ForEach(filteredLoans) { loan in
 
@@ -381,17 +351,17 @@ struct LoansListView: View {
 
     private func loanCard(_ loan: LoanListItem) -> some View {
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
 
             // Top Row
 
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
 
                 ZStack {
 
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "#89DBA6").opacity(0.20))
-                        .frame(width: 44, height: 44)
+                    Circle()
+                        .fill(Color(hex: "#E8F5EC"))
+                        .frame(width: 38, height: 38)
 
                     Image(systemName: loanIcon(for: loan.loanType))
                         .font(.system(size: 17, weight: .semibold))
@@ -403,13 +373,13 @@ struct LoansListView: View {
                     Text(loan.name)
                         .font(
                             .system(
-                                size: 16,
+                                size: 17,
                                 weight: .bold,
                                 design: .rounded
                             )
                         )
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(2)
+                        .foregroundColor(Color(hex: "#1A1A1A"))
+                        .lineLimit(1)
 
                     statusBadge(for: loan.status)
                 }
@@ -419,56 +389,57 @@ struct LoansListView: View {
                 VStack(alignment: .trailing, spacing: 2) {
 
                     Text("Balance")
-                        .font(.system(size: 12))
-                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text("₹\(formatIndian(loan.remainingAmount))")
                         .font(
                             .system(
-                                size: 20,
+                                size: 19,
                                 weight: .bold,
                                 design: .rounded
                             )
                         )
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(Color(hex: "#1A1A1A"))
                 }
             }
 
             // Progress
 
-            HStack(spacing: 10) {
+            if loan.paidPercent > 0 {
+                HStack(spacing: 8) {
 
-                GeometryReader { geo in
+                    GeometryReader { geo in
 
-                    ZStack(alignment: .leading) {
+                        ZStack(alignment: .leading) {
 
-                        Capsule()
-                            .fill(Color(hex: "#89DBA6").opacity(0.25))
-                            .frame(height: 6)
+                            Capsule()
+                                .fill(Color(hex: "#C8E6D0").opacity(0.5))
+                                .frame(height: 5)
 
-                        Capsule()
-                            .fill(
-                                loan.status.lowercased() == "closed"
-                                ? Color.gray.opacity(0.45)
-                                : Color(hex: "#2D8B4E")
-                            )
-                            .frame(
-                                width: geo.size.width * CGFloat(min(loan.paidPercent, 1)),
-                                height: 6
-                            )
+                            Capsule()
+                                .fill(
+                                    loan.status.lowercased() == "closed"
+                                    ? Color.gray.opacity(0.45)
+                                    : Color(hex: "#2D8B4E")
+                                )
+                                .frame(
+                                    width: geo.size.width * CGFloat(min(loan.paidPercent, 1)),
+                                    height: 5
+                                )
+                        }
                     }
-                }
-                .frame(height: 6)
+                    .frame(height: 5)
 
-                Text("\(Int(loan.paidPercent * 100))% repaid")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
-                    .fixedSize()
+                    Text("\(Int(loan.paidPercent * 100))% repaid")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .fixedSize()
+                }
             }
 
-            Rectangle()
-                .fill(Color(hex: "#89DBA6").opacity(0.25))
-                .frame(height: 1)
+            Divider()
+                .background(Color.white.opacity(0.3))
 
             // Bottom Row
 
@@ -477,16 +448,16 @@ struct LoansListView: View {
                 VStack(alignment: .leading, spacing: 2) {
 
                     Text("Monthly EMI")
-                        .font(.system(size: 12))
-                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text(
                         loan.emiAmount > 0
                         ? "₹\(formatIndian(loan.emiAmount))"
                         : "N/A"
                     )
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "#1A1A1A"))
                 }
 
                 Spacer()
@@ -494,43 +465,21 @@ struct LoansListView: View {
                 VStack(alignment: .trailing, spacing: 2) {
 
                     Text("Next Due")
-                        .font(.system(size: 12))
-                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text(
                         loan.status.lowercased() == "closed"
                         ? "Paid off"
                         : formattedDate(loan.nextDueDate)
                     )
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "#1A1A1A"))
                 }
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 20,
-                style: .continuous
-            )
-        )
-        .overlay(
-            RoundedRectangle(
-                cornerRadius: 20,
-                style: .continuous
-            )
-            .stroke(
-                Color(hex: "#89DBA6").opacity(0.25),
-                lineWidth: 1
-            )
-        )
-        .shadow(
-            color: Color(hex: "#89DBA6").opacity(0.12),
-            radius: 10,
-            x: 0,
-            y: 4
-        )
+        .padding(14)
+        .liquidGlass(cornerRadius: 20)
     }
 
     // MARK: - Status Badge
@@ -545,14 +494,14 @@ struct LoansListView: View {
                 return (
                     "Active",
                     Color(hex: "#2D8B4E"),
-                    Color(hex: "#89DBA6").opacity(0.20)
+                    Color(hex: "#E8F5EC")
                 )
 
             case "closed":
                 return (
                     "Closed",
-                    .textSecondary,
-                    Color.surfaceMuted
+                    Color(hex: "#6B6B6B"),
+                    Color(hex: "#F5F5F0")
                 )
 
             case "submitted",
@@ -563,24 +512,24 @@ struct LoansListView: View {
 
                 return (
                     "Pending",
-                    Color.orange,
-                    Color.orange.opacity(0.12)
+                    Color(hex: "#E8A830"),
+                    Color(hex: "#FFF3D6")
                 )
 
             case "rejected":
 
                 return (
                     "Rejected",
-                    .red,
-                    .red.opacity(0.10)
+                    Color(hex: "#D94040"),
+                    Color(hex: "#FDE8E8")
                 )
 
             default:
 
                 return (
                     status.capitalized,
-                    .textSecondary,
-                    Color.surfaceMuted
+                    Color(hex: "#6B6B6B"),
+                    Color(hex: "#F5F5F0")
                 )
             }
 
@@ -599,37 +548,30 @@ struct LoansListView: View {
 
     private var emptyState: some View {
 
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
 
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 42))
-                .foregroundColor(Color(hex: "#2D8B4E"))
+                .font(.system(size: 36))
+                .foregroundColor(Color(hex: "#C8E6D0"))
 
-            Text("No \(selectedFilter.rawValue.lowercased()) loans")
+            Text(selectedFilter == .all ? "No loans yet" : "No \(selectedFilter.rawValue.lowercased()) loans")
                 .font(
                     .system(
-                        size: 20,
+                        size: 18,
                         weight: .bold,
                         design: .rounded
                     )
                 )
+                .foregroundColor(Color(hex: "#1A1A1A"))
 
             Text("Try another filter to view a different loan set.")
-                .font(.system(size: 15))
-                .foregroundColor(.textSecondary)
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "#6B6B6B"))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(
-                    Color(hex: "#89DBA6").opacity(0.25),
-                    lineWidth: 1
-                )
-        )
+        .padding(.vertical, 36)
+        .liquidGlass(cornerRadius: 24)
     }
     // MARK: - Helpers
 
@@ -753,9 +695,31 @@ struct LoansListView: View {
 
 // MARK: - LoanListItem Model
 
+struct LoanListItemEMI: Equatable {
+    let amount: Double
+    let status: String
+    let dueDate: String
+}
+
+struct LoanTimelineEvent: Equatable {
+    let title: String
+    let date: String
+    let remarks: String?
+}
+
+struct LoanDocumentEvent: Equatable {
+    let title: String
+    let documentType: String
+    let category: String
+    let storagePath: String
+    let uploadDate: String
+    let icon: String
+}
+
 struct LoanListItem: Identifiable {
 
     let id: UUID
+    let applicationId: UUID?
     let name: String
     let loanType: String
     let loanNumber: String
@@ -772,6 +736,10 @@ struct LoanListItem: Identifiable {
 
     let paidAmount: Double
     let remainingAmount: Double
+    let requestedTenure: Int?
+    let emiSchedule: [LoanListItemEMI]?
+    let timeline: [LoanTimelineEvent]?
+    let documents: [LoanDocumentEvent]?
 
     var icon: String {
 

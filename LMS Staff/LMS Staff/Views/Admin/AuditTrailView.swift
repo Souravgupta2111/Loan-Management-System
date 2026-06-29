@@ -105,6 +105,7 @@ struct AuditTrailView: View {
     private func loadAuditLogs() async {
         isLoading = true
         do {
+            await AuditService.shared.seedAuditLogsIfEmpty()
             let fetched = try await AuditService.shared.fetchAuditLogs(limit: 100)
             self.logs = fetched
             self.filteredLogs = fetched

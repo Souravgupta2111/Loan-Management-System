@@ -395,41 +395,43 @@ struct ApplicationDetailView: View {
     }
     
     private var actionButtonBar: some View {
-        HStack(spacing: StaffSpacing.md) {
-            if vm.application.status == .approved || vm.application.status == .disbursed {
-                Spacer()
-                StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
-                    generateAndShareSanctionLetter()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: StaffSpacing.md) {
+                if vm.application.status == .approved || vm.application.status == .disbursed {
+                    Spacer()
+                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
+                        generateAndShareSanctionLetter()
+                    }
+                    .frame(width: 300)
+                } else if vm.application.status == .rejected {
+                    Spacer()
+                    Text("Application Rejected")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffRed)
+                    Spacer()
+                } else {
+                    StaffButton(title: "Request Docs", style: .outline, icon: "doc.badge.plus") {
+                        showRequestDocsSheet = true
+                    }
+                    
+                    StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
+                        showSendBackSheet = true
+                    }
+                    
+                    StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                        showRejectSheet = true
+                    }
+                    
+                    Spacer(minLength: 20)
+                    
+                    StaffButton(title: "Recommend to Manager", style: .primary, icon: "hand.thumbsup.fill") {
+                        showRecommendSheet = true
+                    }
+                    .frame(minWidth: 240)
                 }
-                .frame(width: 300)
-            } else if vm.application.status == .rejected {
-                Spacer()
-                Text("Application Rejected")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffRed)
-                Spacer()
-            } else {
-                StaffButton(title: "Request Documents", style: .outline, icon: "doc.badge.plus") {
-                    showRequestDocsSheet = true
-                }
-                
-                StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
-                    showSendBackSheet = true
-                }
-                
-                StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                    showRejectSheet = true
-                }
-                
-                Spacer()
-                
-                StaffButton(title: "Recommend to Manager", style: .primary, icon: "hand.thumbsup.fill") {
-                    showRecommendSheet = true
-                }
-                .frame(width: 280)
             }
+            .padding(StaffSpacing.lg)
         }
-        .padding(StaffSpacing.lg)
         .background(Color.staffSurface)
     }
     

@@ -15,6 +15,7 @@ struct LoanWithDetails: Identifiable, Hashable {
     let product: LoanProduct
 }
 
+@MainActor
 class LoanPortfolioService {
     
     static let shared = LoanPortfolioService()
@@ -23,7 +24,7 @@ class LoanPortfolioService {
     private init() {}
     
     /// Fetches all active/restructured/NPA loans in the system, joining borrower and product data in-memory.
-    func fetchLoans(status: LoanStatus? = nil) async throws -> [LoanWithDetails] {
+    func fetchLoans(status: LoanStatus? = nil, officerId: UUID? = nil) async throws -> [LoanWithDetails] {
         var query = supabase.database
             .from("loans")
             .select()
@@ -37,7 +38,26 @@ class LoanPortfolioService {
             .execute()
             .value
             
-        return try await populateLoans(loans)
+        var populated = try await populateLoans(loans)
+        
+        if let officerId = officerId {
+            struct AppIdResponse: Decodable {
+                let id: UUID
+            }
+            
+            let responses: [AppIdResponse] = try await supabase.database
+                .from("loan_applications")
+                .select("id")
+                .eq("assigned_officer_id", value: officerId)
+                .execute()
+                .value
+                
+            let appIds = responses.map { $0.id }
+            
+            populated = populated.filter { appIds.contains($0.loan.applicationId) }
+        }
+            
+        return populated
     }
     
     /// Helper to join products and users in-memory.
