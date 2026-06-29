@@ -157,6 +157,8 @@ class LoanService {
             let remarks: String?
             let to_status: String
             let approved_interest_rate: Double?
+            let approved_amount: Double?
+            let approved_tenure_months: Int?
         }
         
         struct DocumentRow: Decodable {
@@ -224,6 +226,7 @@ class LoanService {
             let outstanding_principal: Double
             let total_payable: Double
             let interest_rate: Double
+            let tenure_months: Int
             let status: String
             let disbursement_date: String?
             let loan_product: ProductSummary
@@ -262,7 +265,7 @@ class LoanService {
 
         let response: [SupabaseDetailedLoanResponse] = try await SupabaseManager.shared.client
             .from("loans")
-            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
+            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, tenure_months, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
@@ -297,7 +300,7 @@ class LoanService {
                 nextDueDate: nextEMI?.due_date,
                 paidAmount: paidAmount > 0 ? paidAmount : 0,
                 remainingAmount: loan.outstanding_principal,
-                requestedTenure: loan.loan_applications?.requested_tenure_months,
+                requestedTenure: loan.tenure_months,
                 emiSchedule: emiSchedule,
                 timeline: timeline,
                 documents: documents
@@ -306,7 +309,7 @@ class LoanService {
 
         let applications: [ApplicationRow] = try await SupabaseManager.shared.client
             .from("loan_applications")
-            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path)")
+            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
             .in("status", values: ["draft", "submitted", "under_review", "sent_back", "approved"])
             .order("last_updated_at", ascending: false)
@@ -316,6 +319,8 @@ class LoanService {
         let pendingApplications = applications
             .map { app in
                 let approvedRate = app.approval_history.compactMap { $0.approved_interest_rate }.last
+                let approvedAmount = app.approval_history.compactMap { $0.approved_amount }.last
+                let approvedTenure = app.approval_history.compactMap { $0.approved_tenure_months }.last
                 let fallbackRate = app.loan_product.min_interest_rate ?? app.loan_product.max_interest_rate ?? 0
                 
                 return LoanListItem(
@@ -324,7 +329,7 @@ class LoanService {
                     name: app.loan_product.name,
                     loanType: app.loan_product.type,
                     loanNumber: app.application_number ?? "Draft application",
-                    amount: app.requested_amount,
+                    amount: approvedAmount ?? app.requested_amount,
                     emiAmount: 0,
                     status: app.status,
                     paidPercent: 0,
@@ -332,8 +337,8 @@ class LoanService {
                     disbursedDate: displayDate(app.submitted_at ?? ""),
                     nextDueDate: nil,
                     paidAmount: 0,
-                    remainingAmount: app.requested_amount,
-                    requestedTenure: app.requested_tenure_months,
+                    remainingAmount: approvedAmount ?? app.requested_amount,
+                    requestedTenure: approvedTenure ?? app.requested_tenure_months,
                     emiSchedule: nil,
                     timeline: mapTimeline(app.approval_history, app.submitted_at),
                     documents: mapDocuments(app.documents)

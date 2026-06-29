@@ -12,6 +12,8 @@ struct ApplicationDetailView: View {
     let onStatusUpdated: () -> Void
     
     @StateObject private var vm: ApplicationDetailViewModel
+    @Environment(\.openURL) private var openURL
+    
     @State private var activeTab: InspectorTab = .profile
     
     // Bottom Action Sheets
@@ -246,6 +248,23 @@ struct ApplicationDetailView: View {
                         Spacer()
                         
                         // Action buttons
+                        Button(action: {
+                            Task {
+                                if let url = await vm.getDocumentUrl(for: doc) {
+                                    openURL(url)
+                                }
+                            }
+                        }) {
+                            Text("View")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffAccent)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.staffAccent.opacity(0.15))
+                                .cornerRadius(StaffCorner.sm)
+                        }
+                        
                         if doc.isVerified {
                             Text("Verified")
                                 .font(.staffCaption)

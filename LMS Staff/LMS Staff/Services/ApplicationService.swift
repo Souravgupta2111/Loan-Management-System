@@ -115,8 +115,12 @@ class ApplicationService {
         )
     }
     
-    func updateStatus(applicationId: UUID, status: ApplicationStatus, reason: String? = nil) async throws {
+    func updateStatus(applicationId: UUID, status: ApplicationStatus, reason: String? = nil, assignedOfficerId: UUID? = nil) async throws {
         var updateDict: [String: AnyEncodable] = ["status": AnyEncodable(status.rawValue)]
+        
+        if let officerId = assignedOfficerId {
+            updateDict["assigned_officer_id"] = AnyEncodable(officerId)
+        }
         
         if status == .rejected {
             updateDict["rejection_reason"] = AnyEncodable(reason ?? "Rejected by credit guidelines")

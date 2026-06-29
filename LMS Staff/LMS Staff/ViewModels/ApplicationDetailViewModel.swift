@@ -100,6 +100,19 @@ class ApplicationDetailViewModel: ObservableObject {
         }
     }
     
+    func getDocumentUrl(for document: LMSDocument) async -> URL? {
+        guard let bucket = document.storageBucket, let path = document.storagePath else {
+            self.errorMessage = "Document file is missing storage information."
+            return nil
+        }
+        do {
+            return try await documentService.getSignedUrl(bucket: bucket, path: path)
+        } catch {
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+    
     func requestDocuments(documentTypes: [String], remarks: String) async -> Bool {
         do {
             try await appService.requestDocuments(
@@ -208,10 +221,19 @@ class ApplicationDetailViewModel: ObservableObject {
     
     // MARK: - Decision Actions
     
+    private func getOfficerIdIfNeeded() -> UUID? {
+        if application.assignedOfficerId == nil {
+            return supabase.currentUserId
+        }
+        return nil
+    }
+    
     func recommendToManager() async -> Bool {
         do {
-            try await appService.updateStatus(applicationId: application.id, status: .underReview, reason: "Recommended for manager approval by officer.")
+            let officerId = getOfficerIdIfNeeded()
+            try await appService.updateStatus(applicationId: application.id, status: .underReview, reason: "Recommended for manager approval by officer.", assignedOfficerId: officerId)
             self.application.status = .underReview
+            if let oid = officerId { self.application.assignedOfficerId = oid }
             return true
         } catch {
             self.errorMessage = error.localizedDescription
@@ -221,8 +243,10 @@ class ApplicationDetailViewModel: ObservableObject {
     
     func rejectApplication(reason: String) async -> Bool {
         do {
-            try await appService.updateStatus(applicationId: application.id, status: .rejected, reason: reason)
+            let officerId = getOfficerIdIfNeeded()
+            try await appService.updateStatus(applicationId: application.id, status: .rejected, reason: reason, assignedOfficerId: officerId)
             self.application.status = .rejected
+            if let oid = officerId { self.application.assignedOfficerId = oid }
             return true
         } catch {
             self.errorMessage = error.localizedDescription
@@ -232,8 +256,10 @@ class ApplicationDetailViewModel: ObservableObject {
     
     func sendBackToBorrower(reason: String) async -> Bool {
         do {
-            try await appService.updateStatus(applicationId: application.id, status: .sentBack, reason: reason)
+            let officerId = getOfficerIdIfNeeded()
+            try await appService.updateStatus(applicationId: application.id, status: .sentBack, reason: reason, assignedOfficerId: officerId)
             self.application.status = .sentBack
+            if let oid = officerId { self.application.assignedOfficerId = oid }
             return true
         } catch {
             self.errorMessage = error.localizedDescription

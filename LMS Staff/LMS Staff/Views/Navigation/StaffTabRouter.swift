@@ -24,6 +24,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     
     case adminDashboard
     case adminStaff
+    case adminBranches
     case adminProducts
     case adminBorrowers
     case adminAudit
@@ -50,6 +51,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         
         case .adminDashboard: return "System Overview"
         case .adminStaff: return "Staff Accounts"
+        case .adminBranches: return "Branch Management"
         case .adminProducts: return "Loan Catalog"
         case .adminBorrowers: return "Borrower Database"
         case .adminAudit: return "Audit Trail Log"
@@ -84,6 +86,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             
         case .adminStaff:
             return "person.3.fill"
+        case .adminBranches:
+            return "building.2.fill"
         case .adminProducts:
             return "scroll.fill"
         case .adminBorrowers:
@@ -163,6 +167,8 @@ struct StaffTabRouter: View {
             AdminDashboardView()
         case .adminStaff:
             StaffManagementView()
+        case .adminBranches:
+            BranchManagementView()
         case .adminProducts:
             LoanProductListView()
         case .adminBorrowers:

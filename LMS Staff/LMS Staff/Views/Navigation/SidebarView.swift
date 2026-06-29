@@ -126,7 +126,7 @@ struct SidebarView: View {
         case .manager:
             return [.managerDashboard, .managerRecommendations, .managerDisbursements, .managerPortfolio, .managerNpa, .managerReports, .managerMessages]
         case .admin:
-            return [.adminDashboard, .adminStaff, .adminProducts, .adminBorrowers, .adminAudit, .adminNotifications, .adminChecklist]
+            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminBorrowers, .adminAudit, .adminNotifications, .adminChecklist]
         case .borrower:
             return []
         }
