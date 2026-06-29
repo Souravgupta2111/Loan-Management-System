@@ -53,7 +53,7 @@ class AdminDashboardViewModel: ObservableObject {
             
             self.allApplicationsList = allApps
             self.pendingReviewsList = allApps.filter { $0.application.status == .underReview || $0.application.status == .submitted }
-            self.approvedList = allApps.filter { $0.application.status == .approved }
+            self.approvedList = allApps.filter { $0.application.status == .approved || $0.application.status == .disbursed }
             self.rejectedList = allApps.filter { $0.application.status == .rejected }
             self.disbursedList = allApps.filter { $0.application.status == .disbursed }
             

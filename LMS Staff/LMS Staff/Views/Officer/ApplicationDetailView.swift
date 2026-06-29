@@ -13,6 +13,7 @@ struct ApplicationDetailView: View {
     
     @StateObject private var vm: ApplicationDetailViewModel
     @State private var activeTab: InspectorTab = .profile
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     // Bottom Action Sheets
     @State private var showRejectSheet: Bool = false
@@ -124,8 +125,10 @@ struct ApplicationDetailView: View {
                 .background(Color.staffBorder)
             
             // Bottom Action Bar (Context-dependent on Application Status)
-            if vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack {
-                actionButtonBar
+            if authViewModel.currentUser?.role != .admin {
+                if vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack {
+                    actionButtonBar
+                }
             }
         }
         .task {

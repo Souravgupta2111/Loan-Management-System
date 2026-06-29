@@ -87,6 +87,7 @@ struct MetricDetailSheet: View {
                 .hidden()
             )
         }
+        .frame(minWidth: 950, minHeight: 750)
     }
 }
 

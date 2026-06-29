@@ -63,6 +63,7 @@ struct LoanApplicationFlowView: View {
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             // Single glass-circle back button — always returns to SelectLoanTypeView
             ToolbarItem(placement: .topBarLeading) {
@@ -394,6 +395,21 @@ struct LoanApplicationFlowView: View {
                     .foregroundColor(.accentRed)
                     .padding(.horizontal, 24)
             }
+            if step == 3 {
+                let hasMissingDocs = {
+                    if let product = selectedProduct {
+                        return !product.requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
+                    }
+                    return true
+                }()
+                if hasMissingDocs {
+                    Text("Please upload all required documents to proceed.")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(.accentRed)
+                        .padding(.horizontal, 24)
+                        .transition(.opacity)
+                }
+            }
             HStack(spacing: 12) {
                 // Back button (left of NEXT) — kept as-is per requirement 4
                 if step > 1 {
@@ -419,7 +435,19 @@ struct LoanApplicationFlowView: View {
                     }
                     .frame(maxWidth: .infinity)
                 } else {
-                    let isDisabled = (step == 1 && selectedProduct == nil) || (step == 4 && !agreedToTerms)
+                    let isDisabled: Bool = {
+                        if step == 1 {
+                            return selectedProduct == nil
+                        } else if step == 3 {
+                            if let product = selectedProduct {
+                                return !product.requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
+                            }
+                            return true
+                        } else if step == 4 {
+                            return !agreedToTerms
+                        }
+                        return false
+                    }()
                     Button {
                         if step == 1 {
                             withAnimation { showProductDetail = true }
