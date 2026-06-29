@@ -61,16 +61,61 @@ class ApplicationDetailViewModel: ObservableObject {
                 .execute()
                 .value
             
+            let actorIds = Array(Set(logs.map { $0.actorId }))
+            var actorsMap: [UUID: AppUser] = [:]
+            if !actorIds.isEmpty {
+                let users: [AppUser] = try await supabase.database
+                    .from("users")
+                    .select()
+                    .in("id", values: actorIds)
+                    .execute()
+                    .value
+                for user in users {
+                    actorsMap[user.id] = user
+                }
+            }
+            
             self.timelineItems = logs.map { log in
-                StaffTimelineView.TimelineItem(
+                let actorUser = actorsMap[log.actorId]
+                let actorName = actorUser?.fullName ?? "System"
+                let roleName = actorUser?.role.rawValue ?? "system"
+                
+                var icon = "clock"
+                var color = Color.staffTextSecondary
+                
+                switch log.action {
+                case .submit:
+                    icon = "paperplane.fill"
+                    color = .staffAccent
+                case .review:
+                    icon = "eye.fill"
+                    color = .staffAmber
+                case .approve:
+                    icon = "checkmark.circle.fill"
+                    color = .staffGreen
+                case .reject:
+                    icon = "xmark.circle.fill"
+                    color = .staffRed
+                case .sendBack:
+                    icon = "arrow.uturn.backward.circle.fill"
+                    color = .staffOrange
+                case .disburse:
+                    icon = "banknote.fill"
+                    color = .staffAccent
+                case .escalate:
+                    icon = "arrow.up.circle.fill"
+                    color = .staffRed
+                }
+                
+                return StaffTimelineView.TimelineItem(
                     id: log.id,
                     action: log.action.displayName,
-                    actor: "Staff User", // Simplified for display
-                    role: "Staff",
+                    actor: actorName,
+                    role: roleName,
                     remarks: log.remarks,
                     timestamp: log.actionedAt ?? Date(),
-                    icon: "clock",
-                    color: .staffTextSecondary
+                    icon: icon,
+                    color: color
                 )
             }
             

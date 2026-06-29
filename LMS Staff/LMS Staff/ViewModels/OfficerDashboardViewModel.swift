@@ -14,10 +14,22 @@ class OfficerDashboardViewModel: ObservableObject {
     
     // MARK: - Published Properties
     
-    @Published var applications: [ApplicationWithBorrower] = []
+    @Published var applications: [ApplicationWithBorrower] = [] {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
     @Published var filteredApplications: [ApplicationWithBorrower] = []
-    @Published var searchText: String = ""
-    @Published var selectedStatusFilter: String = "All"
+    @Published var searchText: String = "" {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
+    @Published var selectedStatusFilter: String = "All" {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
     
     @Published var statsPendingCount: Int = 0
     @Published var statsUnderReviewCount: Int = 0
@@ -28,17 +40,8 @@ class OfficerDashboardViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private let applicationService = ApplicationService.shared
-    private var cancellables = Set<AnyCancellable>()
     
-    init() {
-        // Debounce search and filter updates
-        Publishers.CombineLatest($searchText, $selectedStatusFilter)
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .sink { [weak self] search, filter in
-                self?.applyFilters(search: search, filter: filter)
-            }
-            .store(in: &cancellables)
-    }
+    init() {}
     
     // MARK: - Load Data
     

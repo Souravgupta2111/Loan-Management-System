@@ -122,11 +122,14 @@ struct SidebarView: View {
     private func menuItems(for role: UserRole) -> [SidebarItem] {
         switch role {
         case .officer:
-            return [.officerDashboard, .officerApplications, .officerPortfolio, .officerMessages, .officerNotifications]
+            return [.officerDashboard, .officerApplications, .officerPortfolio]
+            // Hidden: .officerMessages, .officerNotifications
         case .manager:
-            return [.managerDashboard, .managerRecommendations, .managerDisbursements, .managerPortfolio, .managerNpa, .managerReports, .managerMessages]
+            return [.managerDashboard, .managerRecommendations, .managerDisbursements]
+            // Hidden: .managerPortfolio, .managerNpa, .managerReports, .managerMessages
         case .admin:
-            return [.adminDashboard, .adminStaff, .adminProducts, .adminBorrowers, .adminAudit, .adminNotifications, .adminChecklist]
+            return [.adminDashboard, .adminStaff, .adminProducts, .adminBorrowers, .adminChecklist]
+            // Hidden: .adminAudit, .adminNotifications
         case .borrower:
             return []
         }

@@ -38,6 +38,7 @@ class ApplicationService {
     
     /// Fetches applications assigned to a specific loan officer.
     func fetchApplications(forOfficerId officerId: UUID) async throws -> [ApplicationWithBorrower] {
+        // 1. Fetch applications directly assigned to officer or submitted
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
             .select()
@@ -46,7 +47,41 @@ class ApplicationService {
             .execute()
             .value
         
-        return try await populateApplications(applications)
+        // 2. Fetch applications officer previously actioned (e.g. recommended to manager)
+        struct HistoryID: Codable {
+            let application_id: UUID
+        }
+        
+        let historyLogs: [HistoryID] = (try? await supabase.database
+            .from("approval_history")
+            .select("application_id")
+            .eq("actor_id", value: officerId)
+            .execute()
+            .value) ?? []
+        let actionedAppIds = Array(Set(historyLogs.map { $0.application_id }))
+        
+        var allApps = applications
+        if !actionedAppIds.isEmpty {
+            let additionalApps: [LoanApplication] = try await supabase.database
+                .from("loan_applications")
+                .select()
+                .in("id", values: actionedAppIds)
+                .execute()
+                .value
+            
+            var seenIds = Set(allApps.map { $0.id })
+            for app in additionalApps {
+                if !seenIds.contains(app.id) {
+                    allApps.append(app)
+                    seenIds.insert(app.id)
+                }
+            }
+        }
+        
+        // Sort by created_at descending
+        allApps.sort { ($0.createdAt ?? Date()) > ($1.createdAt ?? Date()) }
+        
+        return try await populateApplications(allApps)
     }
     
     /// Helper to join products, users, and borrower profiles in-memory.
