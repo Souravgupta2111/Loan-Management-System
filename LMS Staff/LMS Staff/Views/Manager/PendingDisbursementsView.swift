@@ -324,7 +324,7 @@ struct PendingDisbursementsView: View {
                                 application: app,
                                 bankAccount: inputAccountNo,
                                 ifscCode: inputIfscCode,
-                                interestRate: product.minInterestRate,
+                                interestRate: vm.approvedRates[app.id] ?? product.minInterestRate,
                                 interestType: product.supportedInterestTypes.first ?? .reducing,
                                 processingFeePct: product.processingFeePct
                             )
@@ -350,7 +350,7 @@ struct PendingDisbursementsView: View {
     private func calculateReviewSchedule(_ item: ApplicationWithBorrower) {
         let principal = item.application.requestedAmount
         let tenure = item.application.requestedTenureMonths
-        let rate = item.product.minInterestRate
+        let rate = vm.approvedRates[item.application.id] ?? item.product.minInterestRate
         let type = item.product.supportedInterestTypes.first ?? .reducing
         
         let monthlyRate = (rate / 12.0) / 100.0

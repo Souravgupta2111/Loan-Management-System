@@ -83,7 +83,10 @@ class ManagerDashboardViewModel: ObservableObject {
                 applicationId: applicationId,
                 action: "approve",
                 toStatus: "approved",
-                remarks: "Approved terms: INR \(approvedAmount), Rate: \(interestRate)%, Tenure: \(tenureMonths) months."
+                remarks: "Approved terms: INR \(approvedAmount), Rate: \(interestRate)%, Tenure: \(tenureMonths) months.",
+                approvedAmount: approvedAmount,
+                approvedTenure: tenureMonths,
+                approvedRate: interestRate
             )
             
             await loadDashboard()

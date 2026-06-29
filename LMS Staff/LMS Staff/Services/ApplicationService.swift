@@ -139,7 +139,7 @@ class ApplicationService {
         
         var actionValue = ""
         switch status {
-        case .underReview: actionValue = "review"
+        case .underReview: actionValue = "escalate"
         case .approved: actionValue = "approve"
         case .rejected: actionValue = "reject"
         case .sentBack: actionValue = "send_back"
@@ -164,16 +164,34 @@ class ApplicationService {
         )
     }
     
-    func addApprovalHistory(applicationId: UUID, action: String, toStatus: String, remarks: String?) async throws {
+    func addApprovalHistory(
+        applicationId: UUID, 
+        action: String, 
+        toStatus: String, 
+        remarks: String?,
+        approvedAmount: Double? = nil,
+        approvedTenure: Int? = nil,
+        approvedRate: Double? = nil
+    ) async throws {
         guard let currentUserId = supabase.currentUserId else { return }
         
-        let payload: [String: AnyEncodable] = [
+        var payload: [String: AnyEncodable] = [
             "application_id": AnyEncodable(applicationId),
             "actor_id": AnyEncodable(currentUserId),
             "action": AnyEncodable(action),
             "to_status": AnyEncodable(toStatus),
             "remarks": AnyEncodable(remarks ?? "")
         ]
+        
+        if let amt = approvedAmount {
+            payload["approved_amount"] = AnyEncodable(amt)
+        }
+        if let tenure = approvedTenure {
+            payload["approved_tenure_months"] = AnyEncodable(tenure)
+        }
+        if let rate = approvedRate {
+            payload["approved_interest_rate"] = AnyEncodable(rate)
+        }
         
         try await supabase.database
             .from("approval_history")

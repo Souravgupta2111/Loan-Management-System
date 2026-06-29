@@ -14,6 +14,7 @@ class DisbursementViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var pendingDisbursements: [ApplicationWithBorrower] = []
+    @Published var approvedRates: [UUID: Double] = [:]
     @Published var verifiedBankDetails: IFSCResponse?
     @Published var isVerifyingIFSC: Bool = false
     @Published var ifscError: String?
@@ -34,6 +35,25 @@ class DisbursementViewModel: ObservableObject {
             let fetched = try await appService.fetchAllApplications()
             // Pending disbursement = status is approved
             self.pendingDisbursements = fetched.filter { $0.application.status == .approved }
+            
+            struct ApprovalHistoryRate: Decodable {
+                let application_id: UUID
+                let approved_interest_rate: Double?
+            }
+            let rateResults: [ApprovalHistoryRate] = try await SupabaseManager.shared.database
+                .from("approval_history")
+                .select("application_id, approved_interest_rate")
+                .eq("action", value: "approve")
+                .execute()
+                .value
+            
+            var newRates: [UUID: Double] = [:]
+            for row in rateResults {
+                if let rate = row.approved_interest_rate {
+                    newRates[row.application_id] = rate
+                }
+            }
+            self.approvedRates = newRates
         } catch {
             self.errorMessage = error.localizedDescription
         }
