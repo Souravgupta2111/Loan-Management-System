@@ -16,7 +16,8 @@ struct LMS_StaffApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
+                .tint(.staffAccent)
                 .environmentObject(authViewModel)
                 .onAppear {
                     // Start global activity monitoring on the window
@@ -33,4 +34,3 @@ struct LMS_StaffApp: App {
         }
     }
 }
-

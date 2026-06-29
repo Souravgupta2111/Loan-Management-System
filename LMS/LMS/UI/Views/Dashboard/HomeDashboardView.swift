@@ -11,6 +11,10 @@ struct HomeDashboardView: View {
     @State private var showChatHint = false
     @State private var showAllTransactions = false
 
+    // UI control flags to hide elements
+    private let showChatButton = false
+    private let showNotificationButton = false
+
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
@@ -93,17 +97,19 @@ struct HomeDashboardView: View {
 
                 HStack(spacing: 10) {
                     // Bell button
-                    Button { } label: {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: "#E8F5EC"))
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "bell")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                    if showNotificationButton {
+                        Button { } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "#E8F5EC"))
+                                    .frame(width: 40, height: 40)
+                                Image(systemName: "bell")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(Color(hex: "#2D8B4E"))
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
 
                     // Profile button
                     Button { showProfile = true } label: {
@@ -322,10 +328,12 @@ struct HomeDashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button { showChatHint = true } label: {
-                    quickActionCard(icon: "bubble.left.and.text.bubble.right", label: "Chat")
+                if showChatButton {
+                    Button { showChatHint = true } label: {
+                        quickActionCard(icon: "bubble.left.and.text.bubble.right", label: "Chat")
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }

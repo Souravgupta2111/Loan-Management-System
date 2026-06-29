@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ApplicationDetailView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
     let appWithBorrower: ApplicationWithBorrower
     let onStatusUpdated: () -> Void
     
@@ -27,7 +29,7 @@ struct ApplicationDetailView: View {
     @State private var selectedDocsToRequest: [String] = []
     @State private var documentNotes: String = ""
     @State private var chatInputText: String = ""
-    @State private var isInternalChat: Bool = false
+    @State private var isInternalChat: Bool = true
     
     @State private var showShareSheet = false
     @State private var pdfShareURL: URL?
@@ -122,17 +124,16 @@ struct ApplicationDetailView: View {
             }
             .background(Color.staffBackground)
             
-            Divider()
-                .background(Color.staffBorder)
-            
-            // Bottom Action Bar (Context-dependent on Application Status)
-            if vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack {
+            if vm.application.status == .approved || vm.application.status == .disbursed || vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
+                Divider()
+                    .background(Color.staffBorder)
                 actionButtonBar
             }
         }
         .task {
             await vm.loadAllDetails()
         }
+        .navigationBarHidden(false)
         // MODALS/SHEETS LIST
         .sheet(isPresented: $showRejectSheet) {
             rejectionRemarksSheet
@@ -326,12 +327,14 @@ struct ApplicationDetailView: View {
                 Spacer()
                 
                 // Toggle between Borrower and Internal chat
-                Picker("Chat Type", selection: $isInternalChat) {
-                    Text("Borrower Chat").tag(false)
-                    Text("Internal Chat").tag(true)
+                if false {
+                    Picker("Chat Type", selection: $isInternalChat) {
+                        Text("Borrower Chat").tag(false)
+                        Text("Internal Chat").tag(true)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 250)
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 250)
             }
             
             // Messages thread view
@@ -429,24 +432,26 @@ struct ApplicationDetailView: View {
                         .foregroundColor(.staffRed)
                     Spacer()
                 } else {
-                    StaffButton(title: "Request Docs", style: .outline, icon: "doc.badge.plus") {
-                        showRequestDocsSheet = true
+                    if authViewModel.currentUser?.role != .admin {
+                        StaffButton(title: "Request Docs", style: .outline, icon: "doc.badge.plus") {
+                            showRequestDocsSheet = true
+                        }
+                        
+                        StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
+                            showSendBackSheet = true
+                        }
+                        
+                        StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                            showRejectSheet = true
+                        }
+                        
+                        Spacer(minLength: 20)
+                        
+                        StaffButton(title: "Recommend to Manager", style: .primary, icon: "hand.thumbsup.fill") {
+                            showRecommendSheet = true
+                        }
+                        .frame(minWidth: 240)
                     }
-                    
-                    StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
-                        showSendBackSheet = true
-                    }
-                    
-                    StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                        showRejectSheet = true
-                    }
-                    
-                    Spacer(minLength: 20)
-                    
-                    StaffButton(title: "Recommend to Manager", style: .primary, icon: "hand.thumbsup.fill") {
-                        showRecommendSheet = true
-                    }
-                    .frame(minWidth: 240)
                 }
             }
             .padding(StaffSpacing.lg)

@@ -104,6 +104,7 @@ struct LoanDetailView: View {
         .task {
             await vm.loadAllDetails()
         }
+        .navigationBarHidden(false)
     }
     
     // MARK: - Subviews

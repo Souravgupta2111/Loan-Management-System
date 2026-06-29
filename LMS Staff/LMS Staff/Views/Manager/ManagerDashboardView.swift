@@ -188,7 +188,9 @@ struct ManagerDashboardView: View {
             reassignOfficerSheet
         }
         .sheet(isPresented: $showMetricDetailSheet) {
-            MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
+            NavigationStack {
+                MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
+            }
         }
     }
     

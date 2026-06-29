@@ -28,7 +28,7 @@ struct ContentView: View {
             }
         }
         .gesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
                 .onChanged { _ in
                     ContentView.notifyInteraction()
                 }

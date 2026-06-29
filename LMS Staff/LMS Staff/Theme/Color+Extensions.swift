@@ -1,50 +1,49 @@
 import SwiftUI
 
 // MARK: - Staff App Color System
-// Professional dark-toned palette for iPad staff portal
-// Distinct from the Borrower app's mint/green consumer theme
+// Soft mint and deep green palette matched to the borrower app reference.
 
 extension Color {
 
     // MARK: - Core Palette
-    static let staffBackground    = Color(hex: "#0F1724")    // Deep navy
-    static let staffSurface       = Color(hex: "#1A2332")    // Card background
-    static let staffSurfaceLight  = Color(hex: "#243044")    // Elevated surface
-    static let staffSurfaceMuted  = Color(hex: "#212F42")    // Input fields
-    static let staffBorder        = Color(hex: "#3A4D64")    // Subtle borders
-    static let staffBorderLight   = Color(hex: "#4A5E74")    // Focus borders
+    static let staffBackground    = Color(hex: "#F1F8F0")    // Soft mint canvas
+    static let staffSurface       = Color(hex: "#FBFEFA")    // Card background
+    static let staffSurfaceLight  = Color(hex: "#EAF4EA")    // Elevated surface
+    static let staffSurfaceMuted  = Color(hex: "#EEF6ED")    // Input fields
+    static let staffBorder        = Color(hex: "#DDEADC")    // Subtle borders
+    static let staffBorderLight   = Color(hex: "#BFE8CF")    // Focus borders
 
     // MARK: - Text Colors
-    static let staffTextPrimary   = Color(hex: "#F0F4F8")    // White-ish
-    static let staffTextSecondary = Color(hex: "#9AACBE")    // Muted labels
-    static let staffTextTertiary  = Color(hex: "#7A8FA3")    // Hints, placeholders
+    static let staffTextPrimary   = Color(hex: "#1A1D1A")    // Deep charcoal
+    static let staffTextSecondary = Color(hex: "#71786F")    // Muted labels
+    static let staffTextTertiary  = Color(hex: "#A0AAA0")    // Hints, placeholders
 
     // MARK: - Accent Colors
-    static let staffAccent        = Color(hex: "#4F8CFF")    // Primary blue
-    static let staffAccentBg      = Color(hex: "#1A3366")    // Blue tinted bg
-    static let staffGreen         = Color(hex: "#34C759")    // Success
-    static let staffGreenBg       = Color(hex: "#1A3326")    // Success bg
-    static let staffRed           = Color(hex: "#FF453A")    // Error/destructive
-    static let staffRedBg         = Color(hex: "#3D1A1A")    // Error bg
-    static let staffAmber         = Color(hex: "#FFD60A")    // Warning
-    static let staffAmberBg       = Color(hex: "#3D3311")    // Warning bg
-    static let staffPurple        = Color(hex: "#BF5AF2")    // Info/special
-    static let staffPurpleBg      = Color(hex: "#2D1A3D")    // Info bg
-    static let staffTeal          = Color(hex: "#30D5C8")    // Secondary accent
-    static let staffTealBg        = Color(hex: "#1A3330")    // Teal bg
-    static let staffOrange        = Color(hex: "#FF9F0A")    // Attention
-    static let staffOrangeBg      = Color(hex: "#3D2A11")    // Orange bg
+    static let staffAccent        = Color(hex: "#2E9658")    // Primary green
+    static let staffAccentBg      = Color(hex: "#DFF3E6")    // Green tinted bg
+    static let staffGreen         = Color(hex: "#2E9658")    // Success
+    static let staffGreenBg       = Color(hex: "#DFF3E6")    // Success bg
+    static let staffRed           = Color(hex: "#D9534F")    // Error/destructive
+    static let staffRedBg         = Color(hex: "#F8E7E5")    // Error bg
+    static let staffAmber         = Color(hex: "#C89A24")    // Warning
+    static let staffAmberBg       = Color(hex: "#F7EED3")    // Warning bg
+    static let staffPurple        = Color(hex: "#3A9A61")    // Info/special
+    static let staffPurpleBg      = Color(hex: "#E4F3EA")    // Info bg
+    static let staffTeal          = Color(hex: "#409F73")    // Secondary accent
+    static let staffTealBg        = Color(hex: "#DDF2E8")    // Teal bg
+    static let staffOrange        = Color(hex: "#B98222")    // Attention
+    static let staffOrangeBg      = Color(hex: "#F6ECD7")    // Orange bg
 
     // MARK: - Gradient Presets
-    static let staffGradientStart  = Color(hex: "#1A2332")
-    static let staffGradientEnd    = Color(hex: "#0F1724")
-    static let staffAccentGradientStart = Color(hex: "#4F8CFF")
-    static let staffAccentGradientEnd   = Color(hex: "#3366CC")
+    static let staffGradientStart  = Color(hex: "#F6FBF4")
+    static let staffGradientEnd    = Color(hex: "#EAF5EA")
+    static let staffAccentGradientStart = Color(hex: "#2E9658")
+    static let staffAccentGradientEnd   = Color(hex: "#248149")
 
     // MARK: - Sidebar
-    static let staffSidebarBg     = Color(hex: "#0D1420")    // Darker than main
-    static let staffSidebarHover  = Color(hex: "#1A2840")    // Hover/active
-    static let staffSidebarActive = Color(hex: "#1F3355")    // Selected
+    static let staffSidebarBg     = Color(hex: "#EAF4EA")    // Soft side rail
+    static let staffSidebarHover  = Color(hex: "#DFF3E6")    // Hover/active
+    static let staffSidebarActive = Color(hex: "#D5ECDC")    // Selected
 
     // MARK: - Role Badge Colors
     static func roleBadgeColor(for role: String) -> Color {

@@ -13,25 +13,29 @@ class PortfolioViewModel: ObservableObject {
     
     // MARK: - Published Properties
     
-    @Published var loans: [LoanWithDetails] = []
+    @Published var loans: [LoanWithDetails] = [] {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
     @Published var filteredLoans: [LoanWithDetails] = []
-    @Published var searchText: String = ""
-    @Published var selectedStatusFilter: String = "All"
+    @Published var searchText: String = "" {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
+    @Published var selectedStatusFilter: String = "All" {
+        didSet {
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+        }
+    }
     
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
     private let portfolioService = LoanPortfolioService.shared
-    private var cancellables = Set<AnyCancellable>()
     
-    init() {
-        Publishers.CombineLatest($searchText, $selectedStatusFilter)
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .sink { [weak self] search, filter in
-                self?.applyFilters(search: search, filter: filter)
-            }
-            .store(in: &cancellables)
-    }
+    init() {}
     
     func loadPortfolio(forOfficerId officerId: UUID? = nil) async {
         isLoading = true

@@ -20,72 +20,64 @@ struct MetricDetailSheet: View {
     @State private var selectedApplication: ApplicationWithBorrower?
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.staffBackground.ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(spacing: StaffSpacing.md) {
-                            switch data {
-                            case .loans(let loans):
-                                if loans.isEmpty {
-                                    EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No loans match this metric.")
-                                        .padding(.top, 40)
-                                } else {
-                                    ForEach(loans) { loan in
-                                        Button(action: {
-                                            selectedLoan = loan
-                                        }) {
-                                            LoanRow(loan: loan)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
+        ZStack {
+            Color.staffBackground.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: StaffSpacing.md) {
+                        switch data {
+                        case .loans(let loans):
+                            if loans.isEmpty {
+                                EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No loans match this metric.")
+                                    .padding(.top, 40)
+                            } else {
+                                ForEach(loans) { loan in
+                                    Button(action: {
+                                        selectedLoan = loan
+                                    }) {
+                                        LoanRow(loan: loan)
                                     }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                            case .applications(let apps):
-                                if apps.isEmpty {
-                                    EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No applications match this metric.")
-                                        .padding(.top, 40)
-                                } else {
-                                    ForEach(apps) { app in
-                                        Button(action: {
-                                            selectedApplication = app
-                                        }) {
-                                            ApplicationRow(app: app)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
+                            }
+                        case .applications(let apps):
+                            if apps.isEmpty {
+                                EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No applications match this metric.")
+                                    .padding(.top, 40)
+                            } else {
+                                ForEach(apps) { app in
+                                    Button(action: {
+                                        selectedApplication = app
+                                    }) {
+                                        ApplicationRow(app: app)
                                     }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                         }
-                        .padding(StaffSpacing.md)
                     }
+                    .padding(StaffSpacing.md)
                 }
             }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .background(
-                NavigationLink(
-                    destination: selectedLoan.map { LoanDetailView(loanWithDetails: $0) },
-                    isActive: Binding(
-                        get: { selectedLoan != nil },
-                        set: { if !$0 { selectedLoan = nil } }
-                    )
-                ) { EmptyView() }
-                .hidden()
-            )
-            .background(
-                NavigationLink(
-                    destination: selectedApplication.map { 
-                        ApplicationDetailView(appWithBorrower: $0, onStatusUpdated: {}) 
-                    },
-                    isActive: Binding(
-                        get: { selectedApplication != nil },
-                        set: { if !$0 { selectedApplication = nil } }
-                    )
-                ) { EmptyView() }
-                .hidden()
-            )
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: Binding(
+            get: { selectedLoan != nil },
+            set: { if !$0 { selectedLoan = nil } }
+        )) {
+            if let loan = selectedLoan {
+                LoanDetailView(loanWithDetails: loan)
+            }
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { selectedApplication != nil },
+            set: { if !$0 { selectedApplication = nil } }
+        )) {
+            if let app = selectedApplication {
+                ApplicationDetailView(appWithBorrower: app, onStatusUpdated: {})
+            }
         }
     }
 }

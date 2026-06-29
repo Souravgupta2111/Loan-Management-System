@@ -80,6 +80,7 @@ struct SelectLoanTypeView: View {
         .navigationTitle(isTabRoot ? "Apply" : "Select Loan Type")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if !isTabRoot {
                 ToolbarItem(placement: .topBarLeading) {
@@ -87,14 +88,6 @@ struct SelectLoanTypeView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.accentGreen)
-                    }
-                    .buttonStyle(.plain)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Text("Cancel")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
