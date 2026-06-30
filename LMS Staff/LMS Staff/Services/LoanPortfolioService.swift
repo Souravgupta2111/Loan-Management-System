@@ -41,6 +41,17 @@ class LoanPortfolioService {
         var populated = try await populateLoans(loans)
         
         if let officerId = officerId {
+            // Resolve staff_profiles.id (profileId)
+            let staffProfile: StaffProfile? = try? await supabase.database
+                .from("staff_profiles")
+                .select()
+                .or("id.eq.\(officerId.uuidString),user_id.eq.\(officerId.uuidString)")
+                .single()
+                .execute()
+                .value
+                
+            let profileId = staffProfile?.id ?? officerId
+            
             struct AppIdResponse: Decodable {
                 let id: UUID
             }
@@ -48,7 +59,7 @@ class LoanPortfolioService {
             let responses: [AppIdResponse] = try await supabase.database
                 .from("loan_applications")
                 .select("id")
-                .eq("assigned_officer_id", value: officerId)
+                .eq("assigned_officer_id", value: profileId)
                 .execute()
                 .value
                 

@@ -97,7 +97,7 @@ struct OfficerMessagesView: View {
         .onAppear {
             Task {
                 if let staff = authViewModel.currentStaff {
-                    await dashboardVm.loadApplications(forOfficerId: staff.userId)
+                    await dashboardVm.loadApplications(forOfficerId: staff.id)
                 }
             }
         }

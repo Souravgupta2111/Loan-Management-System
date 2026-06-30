@@ -124,7 +124,7 @@ struct OfficerDashboardView: View {
                     onStatusUpdated: {
                         Task {
                             if let staff = authViewModel.currentStaff {
-                                await vm.loadApplications(forOfficerId: staff.userId)
+                                await vm.loadApplications(forOfficerId: staff.id)
                             }
                         }
                     }
@@ -153,7 +153,7 @@ struct OfficerDashboardView: View {
             }
             Task {
                 if let staff = authViewModel.currentStaff {
-                    await vm.loadApplications(forOfficerId: staff.userId)
+                    await vm.loadApplications(forOfficerId: staff.id)
                 }
             }
         }

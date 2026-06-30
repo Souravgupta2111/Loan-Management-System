@@ -119,7 +119,7 @@ struct ActivePortfolioView: View {
         .onAppear {
             Task {
                 if let staff = authViewModel.currentStaff {
-                    await vm.loadPortfolio(forOfficerId: staff.userId)
+                    await vm.loadPortfolio(forOfficerId: staff.id)
                 }
             }
         }
@@ -256,7 +256,7 @@ struct ActivePortfolioView: View {
                 Button("Flag NPA") {
                     if let loan = selectedLoan?.loan {
                         Task {
-                            if await vm.flagLoanAsOverdue(loanId: loan.id, reason: flagReason, officerId: authViewModel.currentStaff?.userId) {
+                            if await vm.flagLoanAsOverdue(loanId: loan.id, reason: flagReason, officerId: authViewModel.currentStaff?.id) {
                                 showFlagSheet = false
                                 flagReason = ""
                             }

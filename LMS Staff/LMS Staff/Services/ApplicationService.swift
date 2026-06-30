@@ -38,11 +38,23 @@ class ApplicationService {
     
     /// Fetches applications assigned to a specific loan officer.
     func fetchApplications(forOfficerId officerId: UUID) async throws -> [ApplicationWithBorrower] {
+        // Resolve staff_profiles.id (profileId) and users.id (userId)
+        let staffProfile: StaffProfile? = try? await supabase.database
+            .from("staff_profiles")
+            .select()
+            .or("id.eq.\(officerId.uuidString),user_id.eq.\(officerId.uuidString)")
+            .single()
+            .execute()
+            .value
+            
+        let profileId = staffProfile?.id ?? officerId
+        let userId = staffProfile?.userId ?? officerId
+
         // 1. Fetch applications directly assigned to officer or submitted
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
             .select()
-            .or("assigned_officer_id.eq.\(officerId.uuidString),status.eq.submitted")
+            .or("assigned_officer_id.eq.\(profileId.uuidString),status.eq.submitted")
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -55,7 +67,7 @@ class ApplicationService {
         let historyLogs: [HistoryID] = (try? await supabase.database
             .from("approval_history")
             .select("application_id")
-            .eq("actor_id", value: officerId)
+            .eq("actor_id", value: userId)
             .execute()
             .value) ?? []
         let actionedAppIds = Array(Set(historyLogs.map { $0.application_id }))
