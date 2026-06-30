@@ -577,7 +577,7 @@ struct HomeDashboardView: View {
                     subtitle: "\(disbursedDateStr ?? "Recently") - Loan Disbursed",
                     amount: loan.amount,
                     direction: .credit,
-                    statusIcon: "arrow.down",
+                    statusIcon: "indianrupeesign",
                     statusColor: .white,
                     statusBg: Color(hex: "#1A1A1A")
                 )

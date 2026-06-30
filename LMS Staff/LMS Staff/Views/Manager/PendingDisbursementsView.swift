@@ -23,7 +23,7 @@ struct PendingDisbursementsView: View {
         HStack(spacing: 0) {
             // Left list: Approved applications
             VStack(alignment: .leading, spacing: 0) {
-                Text("Approved Disbursements")
+                Text("Pending Disbursements")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
                     .padding(.horizontal, StaffSpacing.lg)
