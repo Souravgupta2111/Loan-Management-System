@@ -152,6 +152,14 @@ struct ApplicationDetailView: View {
                 ShareSheet(activityItems: [url])
             }
         }
+        .alert("Error", isPresented: Binding(
+            get: { vm.errorMessage != nil },
+            set: { isPresented in if !isPresented { vm.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(vm.errorMessage ?? "An unknown error occurred.")
+        }
     }
     
     // MARK: - Subviews
@@ -194,18 +202,6 @@ struct ApplicationDetailView: View {
                             Text("Bureau: \(vm.borrowerProfile?.creditBureau?.rawValue.uppercased() ?? "EQUIFAX")")
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
-                        }
-                    }
-                    
-                    StaffCard {
-                        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
-                            Text("Loan Application Purpose")
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
-                            Text(vm.application.purpose ?? "Personal expenses and bills repayment")
-                                .font(.staffBody)
-                                .foregroundColor(.staffTextPrimary)
-                                .lineLimit(3)
                         }
                     }
                 }

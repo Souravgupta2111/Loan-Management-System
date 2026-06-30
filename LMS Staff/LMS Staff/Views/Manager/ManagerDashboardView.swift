@@ -228,7 +228,6 @@ struct ManagerDashboardView: View {
                             
                             KYCRow(label: "Requested Amount", value: "INR \(String(format: "%.2f", item.application.requestedAmount))")
                             KYCRow(label: "Requested Tenure", value: "\(item.application.requestedTenureMonths) Months")
-                            KYCRow(label: "Purpose", value: item.application.purpose ?? "N/A")
                             KYCRow(label: "Borrower Monthly Income", value: item.profile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", item.profile!.monthlyIncome!))" : "N/A")
                             KYCRow(label: "Borrower Credit Score", value: item.profile?.creditScore != nil ? "\(item.profile!.creditScore!)" : "N/A")
                         }
