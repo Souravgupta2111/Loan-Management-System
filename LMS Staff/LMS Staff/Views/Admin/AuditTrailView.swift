@@ -38,7 +38,7 @@ struct AuditTrailView: View {
                 .cornerRadius(StaffCorner.md)
                 .foregroundColor(.staffTextPrimary)
                 .padding(StaffSpacing.lg)
-                .onChange(of: searchText) { _ in
+                .onChange(of: searchText) {
                     applyFilters()
                 }
             

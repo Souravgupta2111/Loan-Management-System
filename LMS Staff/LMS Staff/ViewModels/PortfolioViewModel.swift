@@ -64,10 +64,11 @@ class PortfolioViewModel: ObservableObject {
     }
     
     private func applyFilters(search: String, filter: String) {
-        var result = loans
+        // Active portfolios should only display Active, Restructured, and NPA loans
+        var result = loans.filter { $0.loan.status == .active || $0.loan.status == .restructured || $0.loan.status == .npa }
         
         if filter != "All" {
-            result = result.filter { $0.loan.status.displayName == filter }
+            result = result.filter { $0.loan.status.displayName.lowercased() == filter.lowercased() }
         }
         
         if !search.isEmpty {

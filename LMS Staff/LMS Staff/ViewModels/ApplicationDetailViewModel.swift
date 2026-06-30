@@ -202,7 +202,7 @@ class ApplicationDetailViewModel: ObservableObject {
                 
                 // Fetch the staff list to find the manager if needed
                 let allStaff = try? await StaffManagementService.shared.fetchStaff()
-                let currentStaff = allStaff?.first(where: { $0.id == currentUserId })
+                let currentStaff = allStaff?.first(where: { $0.staff.userId == currentUserId })
                 
                 if currentStaff?.user.role == .manager {
                     // Manager sends to Officer
@@ -266,16 +266,20 @@ class ApplicationDetailViewModel: ObservableObject {
     
     // MARK: - Decision Actions
     
-    private func getOfficerIdIfNeeded() -> UUID? {
+    private func getOfficerIdIfNeeded() async -> UUID? {
         if application.assignedOfficerId == nil {
-            return supabase.currentUserId
+            let currentUserId = supabase.currentUserId
+            if let allStaff = try? await StaffManagementService.shared.fetchStaff(),
+               let officer = allStaff.first(where: { $0.staff.userId == currentUserId }) {
+                return officer.staff.id
+            }
         }
         return nil
     }
     
     func recommendToManager() async -> Bool {
         do {
-            let officerId = getOfficerIdIfNeeded()
+            let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .underReview, reason: "Recommended for manager approval by officer.", assignedOfficerId: officerId)
             self.application.status = .underReview
             if let oid = officerId { self.application.assignedOfficerId = oid }
@@ -288,7 +292,7 @@ class ApplicationDetailViewModel: ObservableObject {
     
     func rejectApplication(reason: String) async -> Bool {
         do {
-            let officerId = getOfficerIdIfNeeded()
+            let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .rejected, reason: reason, assignedOfficerId: officerId)
             self.application.status = .rejected
             if let oid = officerId { self.application.assignedOfficerId = oid }
@@ -301,7 +305,7 @@ class ApplicationDetailViewModel: ObservableObject {
     
     func sendBackToBorrower(reason: String) async -> Bool {
         do {
-            let officerId = getOfficerIdIfNeeded()
+            let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .sentBack, reason: reason, assignedOfficerId: officerId)
             self.application.status = .sentBack
             if let oid = officerId { self.application.assignedOfficerId = oid }
