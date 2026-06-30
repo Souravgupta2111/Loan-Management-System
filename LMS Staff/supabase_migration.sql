@@ -427,7 +427,7 @@ END $$;
 -- NOTE: After running this SQL, create the admin user via Supabase Dashboard:
 -- 
 -- Go to Authentication → Users → Create User:
---   Email:    adm-0001@lms.internal
+--   Email:    guptajaihind786@gmail.com
 --   Password: Admin@2026
 --   User Metadata (JSON): 
 --     {"full_name": "System Administrator", "role": "admin", "employee_id": "ADM-0001", "designation": "Chief Administrator", "branch_id": "a1000001-0000-0000-0000-000000000001"}

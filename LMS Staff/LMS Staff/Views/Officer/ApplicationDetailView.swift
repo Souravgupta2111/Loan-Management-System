@@ -198,10 +198,6 @@ struct ApplicationDetailView: View {
                             Divider()
                             
                             CreditScoreGauge(score: vm.borrowerProfile?.creditScore ?? 300)
-                            
-                            Text("Bureau: \(vm.borrowerProfile?.creditBureau?.rawValue.uppercased() ?? "EQUIFAX")")
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
                         }
                     }
                 }

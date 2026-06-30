@@ -129,7 +129,7 @@ struct StaffLoginView: View {
                                 Task {
                                     await authViewModel.resetPassword(employeeId: cleanId)
                                     if authViewModel.errorMessage == nil {
-                                        activeAlert = .adminEmailSent(email: "\(cleanId.lowercased())@lms.internal")
+                                        activeAlert = .adminEmailSent(email: AuthService.shared.resolveEmail(from: cleanId))
                                     }
                                 }
                             } else {

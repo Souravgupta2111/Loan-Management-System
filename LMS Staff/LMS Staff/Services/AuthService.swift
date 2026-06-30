@@ -18,15 +18,24 @@ class AuthService: ObservableObject {
     
     private init() {}
     
+    /// Resolves the email address associated with an employee ID.
+    nonisolated func resolveEmail(from employeeId: String) -> String {
+        let cleanedId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if cleanedId == "ADM-0001" {
+            return "guptajaihind786@gmail.com"
+        }
+        return "\(cleanedId.lowercased())@lms.internal"
+    }
+    
     /// Signs in a staff member using their Employee ID and password.
-    /// Under the hood, this converts the ID to `employee_id@lms.internal` and uses Supabase Auth.
+    /// Under the hood, this resolves the ID to its registered email address and uses Supabase Auth.
     func signIn(employeeId: String, password: String) async throws -> (AppUser, StaffProfile) {
         let cleanedId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard isValidEmployeeId(cleanedId) else {
             throw NSError(domain: "AuthService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid Employee ID format. Must start with ADM-, MGR-, or OFF-."])
         }
         
-        let email = "\(cleanedId.lowercased())@lms.internal"
+        let email = resolveEmail(from: cleanedId)
         
         // Sign in using email auth
         let response = try await supabase.auth.signIn(email: email, password: password)

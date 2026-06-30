@@ -132,7 +132,7 @@ class StaffManagementService {
         
         let employeeId = await generateEmployeeId(for: role)
         let password = generateRandomPassword()
-        let email = "\(employeeId.lowercased())@lms.internal"
+        let email = AuthService.shared.resolveEmail(from: employeeId)
         
         struct CreateParams: Encodable {
             let p_email: String
@@ -201,7 +201,7 @@ class StaffManagementService {
         case .borrower: prefix = "BOR-"
         }
         let newEmployeeId = "\(prefix)\(suffix)"
-        let newEmail = "\(newEmployeeId.lowercased())@lms.internal"
+        let newEmail = AuthService.shared.resolveEmail(from: newEmployeeId)
         
         // Update users table
         try await supabase.database

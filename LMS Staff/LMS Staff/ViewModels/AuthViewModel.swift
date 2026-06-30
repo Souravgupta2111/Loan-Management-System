@@ -107,7 +107,7 @@ class AuthViewModel: ObservableObject {
             return
         }
         
-        let email = "\(cleanedId.lowercased())@lms.internal"
+        let email = authService.resolveEmail(from: cleanedId)
         
         do {
             try await supabase.auth.resetPasswordForEmail(email, redirectTo: URL(string: "lmsstaffapp://reset-password"))

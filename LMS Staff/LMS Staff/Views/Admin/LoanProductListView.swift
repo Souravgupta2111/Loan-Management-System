@@ -415,12 +415,37 @@ struct CreateProductSheet: View {
                         Text("Product Type")
                             .font(.staffLabel)
                             .foregroundColor(.staffTextSecondary)
-                        Picker("Type", selection: $selectedType) {
-                            ForEach(LoanType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: StaffSpacing.sm),
+                            GridItem(.flexible(), spacing: StaffSpacing.sm),
+                            GridItem(.flexible(), spacing: StaffSpacing.sm)
+                        ], spacing: StaffSpacing.sm) {
+                            ForEach(LoanType.allCases) { type in
+                                Button(action: {
+                                    selectedType = type
+                                }) {
+                                    HStack(spacing: StaffSpacing.xs) {
+                                        Image(systemName: type.icon)
+                                            .font(.system(size: 14))
+                                        Text(type.displayName)
+                                            .font(.staffLabel)
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, StaffSpacing.sm)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
+                                    .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
+                                    .cornerRadius(StaffCorner.sm)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: StaffCorner.sm)
+                                            .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
-                        .pickerStyle(SegmentedPickerStyle())
                     }
                     
                     StaffTextEditor(label: "Description", placeholder: "Describe this loan product, its target audience, and key features...", text: $description, minHeight: 80)
@@ -782,12 +807,37 @@ struct EditProductSheet: View {
                         Text("Product Type")
                             .font(.staffLabel)
                             .foregroundColor(.staffTextSecondary)
-                        Picker("Type", selection: $selectedType) {
-                            ForEach(LoanType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: StaffSpacing.sm),
+                            GridItem(.flexible(), spacing: StaffSpacing.sm),
+                            GridItem(.flexible(), spacing: StaffSpacing.sm)
+                        ], spacing: StaffSpacing.sm) {
+                            ForEach(LoanType.allCases) { type in
+                                Button(action: {
+                                    selectedType = type
+                                }) {
+                                    HStack(spacing: StaffSpacing.xs) {
+                                        Image(systemName: type.icon)
+                                            .font(.system(size: 14))
+                                        Text(type.displayName)
+                                            .font(.staffLabel)
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, StaffSpacing.sm)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
+                                    .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
+                                    .cornerRadius(StaffCorner.sm)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: StaffCorner.sm)
+                                            .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
-                        .pickerStyle(SegmentedPickerStyle())
                     }
                     StaffTextEditor(label: "Description", placeholder: "Product description...", text: $description, minHeight: 80)
                     
