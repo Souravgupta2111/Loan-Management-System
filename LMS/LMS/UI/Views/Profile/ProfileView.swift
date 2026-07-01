@@ -237,7 +237,7 @@ struct ProfileView: View {
                         isEditingAddress = true
                     } label: {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(Color(hex: "#89DBA6"))
+                            .foregroundColor(.black)
                             .font(.title3)
                     }
                 }
@@ -411,7 +411,7 @@ struct ProfileView: View {
                 } else {
                     Button(action: onEdit) {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(Color(hex: "#89DBA6"))
+                            .foregroundColor(.black)
                             .font(.title3)
                     }
                 }
