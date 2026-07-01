@@ -39,14 +39,13 @@ struct EMICalculatorView: View {
     @State private var showAmortizationSchedule = false
 
     
-    // Inline editing state
-    @State private var isEditingAmount = false
-    @State private var isEditingTenure = false
-    @State private var isEditingInterest = false
-    @State private var editingText = ""
-    @FocusState private var focusedField: EditableField?
+    // Text field state
+    @State private var amountText: String = "10000"
+    @State private var tenureText: String = "6"
+    @State private var interestRateText: String = "5.00"
+    @FocusState private var activeField: InputField?
     
-    enum EditableField: Hashable {
+    enum InputField: Hashable {
         case amount, tenure, interest
     }
     
@@ -125,6 +124,9 @@ struct EMICalculatorView: View {
             .task {
                 await fetchLoanProducts()
             }
+            .onChange(of: activeField) { _, _ in
+                commitFields()
+            }
         }
     }
 
@@ -132,45 +134,115 @@ struct EMICalculatorView: View {
     private var inputFieldsCard: some View {
         VStack(spacing: Spacing.xl) {
             loanTypeSelector
-            sliderSection(
-                title: "Loan Amount",
-                value: $amount,
-                range: amountRange,
-                step: 50000,
-                field: .amount,
-                isEditing: isEditingAmount,
-                displayText: "₹\(formatIndian(amount))",
-                formatForEdit: { String(Int($0)) },
-                parseFromEdit: { Double($0.filter { $0.isNumber }) },
-                onToggleEdit: { isEditingAmount = $0 }
-            )
-            sliderSection(
-                title: "Tenure",
-                value: $tenureMonths,
-                range: tenureRange,
-                step: 1,
-                field: .tenure,
-                isEditing: isEditingTenure,
-                displayText: "\(Int(tenureMonths)) months (\(Int(tenureMonths / 12)) yrs)",
-                formatForEdit: { String(Int($0)) },
-                parseFromEdit: { Double($0.filter { $0.isNumber }) },
-                onToggleEdit: { isEditingTenure = $0 }
-            )
-            sliderSection(
-                title: "Interest Rate (p.a.)",
-                value: $interestRate,
-                range: interestRateRange,
-                step: 0.01,
-                field: .interest,
-                isEditing: isEditingInterest,
-                displayText: String(format: "%.2f%%", interestRate),
-                formatForEdit: { String(format: "%.2f", $0) },
-                parseFromEdit: { Double($0.filter { $0.isNumber || $0 == "." }) },
-                onToggleEdit: { isEditingInterest = $0 }
-            )
+
+            // Loan Amount — full width
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Loan Amount (₹\(formatIndian(amountRange.lowerBound)) - ₹\(formatIndian(amountRange.upperBound)))")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.textSecondary)
+
+                HStack(spacing: 4) {
+                    Text("₹")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                    TextField("Amount", text: $amountText)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .keyboardType(.numberPad)
+                        .focused($activeField, equals: .amount)
+                        .onChange(of: amountText) { _, newValue in
+                            let digits = newValue.filter { $0.isNumber }
+                            if digits.count > 10 {
+                                amountText = String(digits.prefix(10))
+                            }
+                        }
+                        .onSubmit { commitFields() }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, 14)
+                .background(Color.black.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+            }
+
+            // Tenure & Interest Rate — side by side
+            HStack(alignment: .top, spacing: Spacing.md) {
+                // Tenure (Months)
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Tenure (\(Int(tenureRange.lowerBound)) - \(Int(tenureRange.upperBound)) Months)")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.textSecondary)
+
+                    TextField("Months", text: $tenureText)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .keyboardType(.numberPad)
+                        .focused($activeField, equals: .tenure)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, 14)
+                        .background(Color.black.opacity(0.05))
+                        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                        .onChange(of: tenureText) { _, newValue in
+                            let digits = newValue.filter { $0.isNumber }
+                            if digits.count > 4 {
+                                tenureText = String(digits.prefix(4))
+                            }
+                        }
+                        .onSubmit { commitFields() }
+                }
+
+                // Interest Rate (%)
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Rate (\(String(format: "%.1f", interestRateRange.lowerBound))% - \(String(format: "%.1f", interestRateRange.upperBound))%)")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.textSecondary)
+
+                    HStack(spacing: 4) {
+                        TextField("Rate", text: $interestRateText)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(.textPrimary)
+                            .keyboardType(.decimalPad)
+                            .focused($activeField, equals: .interest)
+                            .onChange(of: interestRateText) { _, newValue in
+                                let filtered = newValue.filter { $0.isNumber || $0 == "." }
+                                if filtered.count > 6 {
+                                    interestRateText = String(filtered.prefix(6))
+                                }
+                            }
+                            .onSubmit { commitFields() }
+                        Text("%")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, 14)
+                    .background(Color.black.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                }
+            }
         }
         .padding(Spacing.xl)
         .liquidGlass()
+    }
+    
+    /// Parses all text fields, clamps to allowed ranges, updates the calculation Doubles, and syncs text back.
+    private func commitFields() {
+        // Amount
+        if let val = Double(amountText.filter { $0.isNumber }) {
+            amount = clamp(val, to: amountRange)
+        }
+        amountText = String(Int(amount))
+        
+        // Tenure
+        if let val = Double(tenureText.filter { $0.isNumber }) {
+            tenureMonths = clamp(val, to: tenureRange)
+        }
+        tenureText = String(Int(tenureMonths))
+        
+        // Interest Rate
+        if let val = Double(interestRateText) {
+            interestRate = clamp(val, to: interestRateRange)
+        }
+        interestRateText = String(format: "%.2f", interestRate)
     }
 
     private var loanTypeSelector: some View {
@@ -320,6 +392,9 @@ struct EMICalculatorView: View {
         tenureMonths = Double(product.minTenureMonths)
         interestRate = product.minInterestRate
         interestType = product.supportedInterestTypes.first?.displayName ?? "Reducing"
+        amountText = String(Int(product.minAmount))
+        tenureText = String(product.minTenureMonths)
+        interestRateText = String(format: "%.2f", product.minInterestRate)
     }
 
     private func useGeneralCalculator() {
@@ -328,103 +403,12 @@ struct EMICalculatorView: View {
         tenureMonths = fallbackTenureRange.lowerBound
         interestRate = fallbackInterestRateRange.lowerBound
         interestType = "Reducing"
+        amountText = String(Int(fallbackAmountRange.lowerBound))
+        tenureText = String(Int(fallbackTenureRange.lowerBound))
+        interestRateText = String(format: "%.2f", fallbackInterestRateRange.lowerBound)
     }
 
-    // MARK: - Slider Section
-    private func sliderSection(
-        title: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        step: Double,
-        field: EditableField,
-        isEditing: Bool,
-        displayText: String,
-        formatForEdit: @escaping (Double) -> String,
-        parseFromEdit: @escaping (String) -> Double?,
-        onToggleEdit: @escaping (Bool) -> Void
-    ) -> some View {
-        let isFixedValue = range.lowerBound == range.upperBound
-        let sliderRange = isFixedValue ? range.lowerBound...(range.lowerBound + step) : range
 
-        let minLabel: String
-        let maxLabel: String
-        if title.contains("Amount") {
-            minLabel = "Min: ₹\(formatIndian(range.lowerBound))"
-            maxLabel = "Max: ₹\(formatIndian(range.upperBound))"
-        } else if title.contains("Tenure") {
-            minLabel = "Min: \(Int(range.lowerBound)) mo"
-            maxLabel = "Max: \(Int(range.upperBound)) mo"
-        } else {
-            minLabel = "Min: \(String(format: "%.2f%%", range.lowerBound))"
-            maxLabel = "Max: \(String(format: "%.2f%%", range.upperBound))"
-        }
-
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                Spacer()
-
-                if isEditing {
-                    TextField("", text: $editingText)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                        .multilineTextAlignment(.trailing)
-                        .keyboardType(field == .interest ? .decimalPad : .numberPad)
-                        .focused($focusedField, equals: field)
-                        .frame(width: 140)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.sm))
-                        .onSubmit {
-                            commitEdit(value: value, range: range, step: step, parseFromEdit: parseFromEdit)
-                            onToggleEdit(false)
-                        }
-                } else {
-                    Text(displayText)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.sm))
-                        .onTapGesture {
-                            editingText = formatForEdit(value.wrappedValue)
-                            onToggleEdit(true)
-                            focusedField = field
-                        }
-                }
-            }
-            Slider(value: value, in: sliderRange, step: step)
-                .tint(.accentGreen)
-                .disabled(isFixedValue)
-            
-            HStack {
-                Text(minLabel)
-                Spacer()
-                Text(maxLabel)
-            }
-            .font(.system(size: 12, weight: .regular))
-            .foregroundColor(.textTertiary)
-        }
-        .onChange(of: focusedField) { _, newFocus in
-            // When focus leaves this field, commit and close editing
-            if newFocus != field && isEditing {
-                commitEdit(value: value, range: range, step: step, parseFromEdit: parseFromEdit)
-                onToggleEdit(false)
-            }
-        }
-    }
-
-    /// Parses the editing text, clamps to range, and writes the value without snapping.
-    private func commitEdit(value: Binding<Double>, range: ClosedRange<Double>, step: Double, parseFromEdit: @escaping (String) -> Double?) {
-        if let parsed = parseFromEdit(editingText) {
-            value.wrappedValue = clamp(parsed, to: range)
-        }
-        editingText = ""
-    }
 
     // MARK: - Breakdown Row
     private func breakdownRow(_ label: String, value: String, color: Color) -> some View {
