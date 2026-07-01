@@ -127,16 +127,6 @@ struct EMICalculatorView: View {
             .onChange(of: activeField) { _, _ in
                 commitFields()
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        commitFields()
-                        activeField = nil
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
         }
     }
 
