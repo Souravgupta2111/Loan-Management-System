@@ -12,7 +12,7 @@ struct HomeDashboardView: View {
     @State private var showAllTransactions = false
 
     // UI control flags to hide elements
-    private let showChatButton = false
+    private let showChatButton = true
     private let showNotificationButton = false
 
     var body: some View {
@@ -577,7 +577,7 @@ struct HomeDashboardView: View {
                     subtitle: "\(disbursedDateStr ?? "Recently") - Loan Disbursed",
                     amount: loan.amount,
                     direction: .credit,
-                    statusIcon: "arrow.down",
+                    statusIcon: "indianrupeesign",
                     statusColor: .white,
                     statusBg: Color(hex: "#1A1A1A")
                 )

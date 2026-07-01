@@ -37,7 +37,7 @@ struct ApplicationDetailView: View {
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
         case documents = "Documents"
-        case chat = "Chat Support"
+        case chat = "Chat History"
         case timeline = "Timeline Log"
     }
     
@@ -312,89 +312,65 @@ struct ApplicationDetailView: View {
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.md) {
             HStack {
-                Text("Messaging Support")
+                Text("Chat History")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
                 
                 Spacer()
                 
-                // Toggle between Borrower and Internal chat
-                if false {
-                    Picker("Chat Type", selection: $isInternalChat) {
-                        Text("Borrower Chat").tag(false)
-                        Text("Internal Chat").tag(true)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: 250)
-                }
+                Text("Borrower & Officer")
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.staffSurface)
+                    .cornerRadius(StaffCorner.sm)
             }
             
-            // Messages thread view
+            // Messages thread view (read-only history)
             ScrollView {
-                VStack(spacing: StaffSpacing.sm) {
-                    let activeMessages = isInternalChat ? vm.internalMessages : vm.borrowerMessages
+                VStack(spacing: StaffSpacing.md) {
+                    let activeMessages = vm.borrowerMessages
                     
                     if activeMessages.isEmpty {
-                        Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
-                            .font(.staffCaption)
-                            .foregroundColor(.staffTextSecondary)
-                            .padding(.top, 40)
+                        EmptyStateView(
+                            icon: "bubble.left.and.bubble.right",
+                            title: "No Chat History",
+                            message: "No messages have been exchanged between the borrower and loan officer."
+                        )
+                        .padding(.top, 20)
                     } else {
                         ForEach(activeMessages) { msg in
-                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                            let isBorrower = msg.senderId == vm.borrower.id
                             HStack {
-                                if isMe { Spacer() }
+                                if !isBorrower { Spacer() }
                                 
-                                VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
+                                VStack(alignment: isBorrower ? .leading : .trailing, spacing: 4) {
+                                    Text(isBorrower ? vm.borrower.fullName : "Loan Officer")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.staffTextSecondary)
+                                    
                                     Text(msg.content)
                                         .font(.staffBody)
                                         .padding(12)
-                                        .background(isMe ? Color.staffAccent : (isInternalChat ? Color.staffAmber.opacity(0.2) : Color.staffSurface))
-                                        .foregroundColor(isMe ? .white : .staffTextPrimary)
+                                        .background(isBorrower ? Color.staffSurface : Color.staffAccent)
+                                        .foregroundColor(isBorrower ? .staffTextPrimary : .white)
                                         .cornerRadius(12)
                                     
-                                    if msg.isRead {
-                                        Text("Read")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.staffTextSecondary)
+                                    if let sentAt = msg.sentAt {
+                                        Text(sentAt.formatted(date: .omitted, time: .shortened))
+                                            .font(.system(size: 9))
+                                            .foregroundColor(.staffTextTertiary)
                                     }
                                 }
                                 
-                                if !isMe { Spacer() }
-                            }
-                            .onAppear {
-                                if !isMe && !msg.isRead {
-                                    Task { await vm.markMessageAsRead(msg.id) }
-                                }
+                                if isBorrower { Spacer() }
                             }
                         }
                     }
                 }
             }
-            .frame(height: 240)
-            
-            // Input bar
-            HStack {
-                TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $chatInputText)
-                    .padding(12)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
-                
-                Button(action: {
-                    Task {
-                        await vm.sendChatMessage(chatInputText, isInternal: isInternalChat)
-                        chatInputText = ""
-                    }
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(.white)
-                        .padding(12)
-                        .background(Color.staffAccent)
-                        .cornerRadius(StaffCorner.md)
-                }
-                .disabled(chatInputText.isEmpty)
-            }
+            .frame(height: 320)
         }
     }
     
