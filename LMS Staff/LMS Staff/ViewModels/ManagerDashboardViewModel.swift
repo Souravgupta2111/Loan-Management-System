@@ -24,6 +24,7 @@ class ManagerDashboardViewModel: ObservableObject {
     @Published var availableOfficers: [StaffWithUser] = []
     
     @Published var isLoading: Bool = false
+    @Published var isActionLoading: Bool = false
     @Published var errorMessage: String?
     
     private let appService = ApplicationService.shared
@@ -63,6 +64,10 @@ class ManagerDashboardViewModel: ObservableObject {
     }
     
     func approveApplication(applicationId: UUID, approvedAmount: Double, tenureMonths: Int, interestRate: Double) async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             // Under the hood, updates the status to approved, changes rates in DB or saves snapshot
             // In the DB flow: Manager approves and sets terms. The terms are saved back to the loan application record.
@@ -98,6 +103,10 @@ class ManagerDashboardViewModel: ObservableObject {
     }
     
     func rejectApplication(applicationId: UUID, reason: String) async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             try await appService.updateStatus(applicationId: applicationId, status: .rejected, reason: reason)
             await loadDashboard()

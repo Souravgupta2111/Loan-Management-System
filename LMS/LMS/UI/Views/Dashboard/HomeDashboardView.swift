@@ -12,7 +12,7 @@ struct HomeDashboardView: View {
     @State private var showAllTransactions = false
 
     // UI control flags to hide elements
-    private let showChatButton = false
+    private let showChatButton = true
     private let showNotificationButton = false
 
     var body: some View {

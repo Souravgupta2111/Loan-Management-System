@@ -12,12 +12,21 @@ struct LoanDetailView: View {
     
     @StateObject private var vm: LoanDetailViewModel
     @State private var activeTab: InspectorTab = .overview
+    @State private var logFilter: LogFilter = .all
     
     enum InspectorTab: String, CaseIterable {
         case overview = "Overview"
         case emi = "Repayments (EMI)"
         case payments = "Payments"
         case logs = "Audit Log"
+    }
+    
+    enum LogFilter: String, CaseIterable, Identifiable {
+        case all = "All Feed"
+        case audits = "Audit Logs"
+        case chats = "Chats"
+        
+        var id: String { rawValue }
     }
     
     init(loanWithDetails: LoanWithDetails) {
@@ -232,45 +241,226 @@ struct LoanDetailView: View {
         }
     }
     
+    struct UnifiedTimelineItem: Identifiable, Hashable {
+        let id: UUID
+        let timestamp: Date
+        let type: ItemType
+        let title: String
+        let description: String
+        let actor: String
+        let role: String
+        let meta: String?
+        
+        enum ItemType: String {
+            case audit = "Audit Log"
+            case borrowerChat = "Borrower Chat"
+            case internalChat = "Internal Chat"
+            case systemChat = "System Event"
+        }
+    }
+    
+    private var timelineItems: [UnifiedTimelineItem] {
+        var items: [UnifiedTimelineItem] = []
+        
+        // Add audit logs
+        for log in vm.auditLogs {
+            let desc = log.changeSummary ?? "Action: \(log.action)"
+            let roleName = log.actorRole?.displayName ?? "System"
+            items.append(UnifiedTimelineItem(
+                id: log.id,
+                timestamp: log.createdAt ?? Date(),
+                type: .audit,
+                title: log.action,
+                description: desc,
+                actor: roleName == "System" ? "System Auto" : "User (\(roleName))",
+                role: roleName,
+                meta: log.ipAddress != nil ? "IP: \(log.ipAddress ?? "")" : nil
+            ))
+        }
+        
+        // Add chats/messages
+        let borrower = loanWithDetails.borrower
+        for msg in vm.messages {
+            let isBorrowerMessage = msg.senderId == borrower.id || msg.receiverId == borrower.id
+            let itemType: UnifiedTimelineItem.ItemType
+            let title: String
+            
+            if msg.messageType == .system {
+                itemType = .systemChat
+                title = "System Chat Notice"
+            } else if isBorrowerMessage {
+                itemType = .borrowerChat
+                title = "Chat with Borrower"
+            } else {
+                itemType = .internalChat
+                title = "Internal Staff Discussion"
+            }
+            
+            // Format sender name
+            let senderName: String
+            let senderRole: String
+            if msg.senderId == borrower.id {
+                senderName = borrower.fullName
+                senderRole = "Borrower"
+            } else {
+                senderName = "Staff Officer"
+                senderRole = itemType == .internalChat ? "Internal Staff" : "Officer"
+            }
+            
+            items.append(UnifiedTimelineItem(
+                id: msg.id,
+                timestamp: msg.sentAt ?? Date(),
+                type: itemType,
+                title: title,
+                description: msg.content,
+                actor: senderName,
+                role: senderRole,
+                meta: nil
+            ))
+        }
+        
+        let sorted = items.sorted(by: { $0.timestamp > $1.timestamp })
+        
+        switch logFilter {
+        case .all:
+            return sorted
+        case .audits:
+            return sorted.filter { $0.type == .audit }
+        case .chats:
+            return sorted.filter { $0.type == .borrowerChat || $0.type == .internalChat || $0.type == .systemChat }
+        }
+    }
+    
     private var logsSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.md) {
-            Text("Audit Trail Logs")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
+            HStack {
+                Text("Chronological Audit & Chat Feed")
+                    .font(.staffTitle)
+                    .foregroundColor(.staffTextPrimary)
+                
+                Spacer()
+            }
             
-            if vm.auditLogs.isEmpty {
-                Text("No audit logs found for this loan.")
-                    .font(.staffBody)
-                    .foregroundColor(.staffTextSecondary)
-            } else {
-                ForEach(vm.auditLogs) { log in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(log.action)
-                                .font(.staffBody)
-                                .fontWeight(.bold)
-                                .foregroundColor(.staffAccent)
-                            Spacer()
-                            Text(log.createdAt?.formatted() ?? "")
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
-                        }
-                        if let summary = log.changeSummary {
-                            Text(summary)
-                                .font(.staffBody)
-                                .foregroundColor(.staffTextPrimary)
-                                .padding(.top, 4)
-                        }
-                        Text("Actor Role: \(log.actorRole?.displayName ?? "Unknown")")
-                            .font(.staffCaption)
-                            .foregroundColor(.staffTextSecondary)
-                            .padding(.top, 2)
-                    }
-                    .padding(StaffSpacing.md)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
+            // Filter Selector
+            Picker("Filter Feed", selection: $logFilter) {
+                ForEach(LogFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
                 }
             }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.bottom, 4)
+            
+            if timelineItems.isEmpty {
+                EmptyStateView(
+                    icon: "clock.arrow.circlepath",
+                    title: "Feed Empty",
+                    message: "No log items found matching the selected filter."
+                )
+                .padding(.vertical, 40)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(timelineItems.enumerated()), id: \.element.id) { index, item in
+                        HStack(alignment: .top, spacing: 12) {
+                            // Left Node Column
+                            VStack(spacing: 0) {
+                                // Icon Node
+                                ZStack {
+                                    Circle()
+                                        .fill(timelineIconBgColor(for: item.type))
+                                        .frame(width: 32, height: 32)
+                                    
+                                    Image(systemName: timelineIconName(for: item.type))
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(timelineAccentColor(for: item.type))
+                                }
+                                
+                                // Line connecting to next
+                                if index < timelineItems.count - 1 {
+                                    Rectangle()
+                                        .fill(Color.staffBorder)
+                                        .frame(width: 2, height: 44)
+                                }
+                            }
+                            
+                            // Text Details Card
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.title)
+                                            .font(.staffBody)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(timelineAccentColor(for: item.type))
+                                        
+                                        Text("By: \(item.actor) (\(item.role))")
+                                            .font(.staffCaption)
+                                            .foregroundColor(.staffTextSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Text(item.timestamp.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                                
+                                Text(item.description)
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(timelineContentBgColor(for: item.type))
+                                    .cornerRadius(StaffCorner.sm)
+                                
+                                if let meta = item.meta {
+                                    Text(meta)
+                                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                            }
+                            .padding(.bottom, index == timelineItems.count - 1 ? 0 : 16)
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+    
+    // MARK: - Timeline Design Helpers
+    
+    private func timelineIconName(for type: UnifiedTimelineItem.ItemType) -> String {
+        switch type {
+        case .audit: return "shield.fill"
+        case .borrowerChat: return "bubble.left.and.bubble.right.fill"
+        case .internalChat: return "lock.bubble.fill"
+        case .systemChat: return "info.circle.fill"
+        }
+    }
+    
+    private func timelineAccentColor(for type: UnifiedTimelineItem.ItemType) -> Color {
+        switch type {
+        case .audit: return .staffAccent
+        case .borrowerChat: return .staffGreen
+        case .internalChat: return .staffAmber
+        case .systemChat: return .secondary
+        }
+    }
+    
+    private func timelineIconBgColor(for type: UnifiedTimelineItem.ItemType) -> Color {
+        switch type {
+        case .audit: return .staffAccent.opacity(0.12)
+        case .borrowerChat: return .staffGreen.opacity(0.12)
+        case .internalChat: return .staffAmber.opacity(0.12)
+        case .systemChat: return Color.gray.opacity(0.12)
+        }
+    }
+    
+    private func timelineContentBgColor(for type: UnifiedTimelineItem.ItemType) -> Color {
+        switch type {
+        case .audit: return Color.staffSurface
+        case .borrowerChat: return Color.staffSurface
+        case .internalChat: return .staffAmber.opacity(0.06)
+        case .systemChat: return Color.staffSurface
         }
     }
 }

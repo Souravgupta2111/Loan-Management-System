@@ -25,6 +25,7 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var timelineItems: [StaffTimelineView.TimelineItem] = []
     
     @Published var isLoading: Bool = false
+    @Published var isActionLoading: Bool = false
     @Published var isSendingMessage: Bool = false
     @Published var errorMessage: String?
     
@@ -75,7 +76,7 @@ class ApplicationDetailViewModel: ObservableObject {
                 }
             }
             
-            self.timelineItems = logs.map { log in
+            let mappedItems = logs.map { log -> StaffTimelineView.TimelineItem in
                 let actorUser = actorsMap[log.actorId]
                 let actorName = actorUser?.fullName ?? "System"
                 let roleName = actorUser?.role.rawValue ?? "system"
@@ -119,6 +120,38 @@ class ApplicationDetailViewModel: ObservableObject {
                 )
             }
             
+            // De-duplicate: Sort ascending, filter out adjacent duplicates within 60s
+            var sortedMapped = mappedItems.sorted(by: { $0.timestamp < $1.timestamp })
+            var filteredItems: [StaffTimelineView.TimelineItem] = []
+            for i in 0..<sortedMapped.count {
+                let current = sortedMapped[i]
+                if i < sortedMapped.count - 1 {
+                    let next = sortedMapped[i + 1]
+                    if current.action == next.action && abs(next.timestamp.timeIntervalSince(current.timestamp)) <= 60 {
+                        continue
+                    }
+                }
+                filteredItems.append(current)
+            }
+            
+            // Synthesize the initial Submission timeline item if not already logged in history
+            if !filteredItems.contains(where: { $0.action.lowercased() == "submitted" || $0.action.lowercased() == "submit" }) {
+                let submitDate = application.submittedAt ?? application.createdAt ?? Date()
+                filteredItems.append(StaffTimelineView.TimelineItem(
+                    id: UUID(),
+                    action: "Submitted",
+                    actor: borrower.fullName,
+                    role: "Borrower",
+                    remarks: "Application successfully submitted for review.",
+                    timestamp: submitDate,
+                    icon: "paperplane.fill",
+                    color: .staffAccent
+                ))
+            }
+            
+            filteredItems.sort(by: { $0.timestamp > $1.timestamp })
+            self.timelineItems = filteredItems
+            
             // Fetch chat history
             let allMessages = try await messageService.fetchMessages(forApplicationId: application.id)
             self.borrowerMessages = allMessages.filter { $0.senderId == borrower.id || $0.receiverId == borrower.id }
@@ -159,6 +192,10 @@ class ApplicationDetailViewModel: ObservableObject {
     }
     
     func requestDocuments(documentTypes: [String], remarks: String) async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             try await appService.requestDocuments(
                 applicationId: application.id,
@@ -278,6 +315,10 @@ class ApplicationDetailViewModel: ObservableObject {
     }
     
     func recommendToManager() async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .underReview, reason: "Recommended for manager approval by officer.", assignedOfficerId: officerId)
@@ -291,6 +332,10 @@ class ApplicationDetailViewModel: ObservableObject {
     }
     
     func rejectApplication(reason: String) async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .rejected, reason: reason, assignedOfficerId: officerId)
@@ -304,6 +349,10 @@ class ApplicationDetailViewModel: ObservableObject {
     }
     
     func sendBackToBorrower(reason: String) async -> Bool {
+        guard !isActionLoading else { return false }
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
         do {
             let officerId = await getOfficerIdIfNeeded()
             try await appService.updateStatus(applicationId: application.id, status: .sentBack, reason: reason, assignedOfficerId: officerId)
