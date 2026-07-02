@@ -27,7 +27,7 @@ struct BorrowerSearchView: View {
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
-                TextField("Search by name, phone, PAN, Aadhaar...", text: $searchText)
+                TextField("Search", text: $searchText)
                     .padding(12)
                     .background(Color.staffSurface)
                     .cornerRadius(StaffCorner.md)
@@ -151,8 +151,8 @@ struct BorrowerSearchView: View {
                             
                             KYCRow(label: "Aadhaar Card Number", value: item.aadhaarNumber ?? "N/A")
                             KYCRow(label: "PAN Card ID", value: item.panNumber ?? "N/A")
-                            KYCRow(label: "Monthly Salary Income", value: item.monthlyIncome != nil ? "INR \(String(format: "%.2f", item.monthlyIncome!))" : "N/A")
-                            KYCRow(label: "Employment Class", value: item.employmentType?.displayName ?? "N/A")
+                            let incomeVal = item.verifiedAnnualIncome != nil ? (item.verifiedAnnualIncome! / 12) : item.monthlyIncome
+                            KYCRow(label: "Monthly Salary Income", value: incomeVal != nil ? "INR \(String(format: "%.2f", incomeVal!))" : "N/A")
                             KYCRow(label: "Residential Address", value: "\(item.addressLine1 ?? ""), \(item.city ?? ""), \(item.state ?? "") - \(item.pincode ?? "")")
                         }
                     }

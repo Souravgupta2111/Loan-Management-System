@@ -17,6 +17,7 @@ enum ApplicationStatus: String, Codable, CaseIterable, Identifiable {
     case rejected
     case sentBack = "sent_back"
     case pendingAcceptance = "pending_acceptance"
+    case pendingDisbursal = "pending_disbursal"
     case disbursed
 
     var id: String { rawValue }
@@ -30,6 +31,7 @@ enum ApplicationStatus: String, Codable, CaseIterable, Identifiable {
         case .rejected:    return "Rejected"
         case .sentBack:    return "Sent Back"
         case .pendingAcceptance: return "Pending Acceptance"
+        case .pendingDisbursal: return "Pending Disbursal"
         case .disbursed:   return "Disbursed"
         }
     }
@@ -43,6 +45,7 @@ enum ApplicationStatus: String, Codable, CaseIterable, Identifiable {
         case .rejected:    return "xmark.circle.fill"
         case .sentBack:    return "arrow.uturn.backward.circle.fill"
         case .pendingAcceptance: return "signature"
+        case .pendingDisbursal: return "banknote"
         case .disbursed:   return "banknote.fill"
         }
     }
@@ -56,6 +59,7 @@ enum ApplicationStatus: String, Codable, CaseIterable, Identifiable {
         case .rejected:    return "red"
         case .sentBack:    return "yellow"
         case .pendingAcceptance: return "purple"
+        case .pendingDisbursal: return "teal"
         case .disbursed:   return "indigo"
         }
     }

@@ -492,10 +492,10 @@ class LoanService {
     }
     
     func acceptDisbursement(applicationId: UUID) async throws {
-        // Update application status to approved
+        // Update application status to pending_disbursal
         try await SupabaseManager.shared.client
             .from("loan_applications")
-            .update(["status": "approved"])
+            .update(["status": "pending_disbursal"])
             .eq("id", value: applicationId)
             .execute()
     }
