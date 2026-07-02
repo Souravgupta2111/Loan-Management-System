@@ -249,7 +249,7 @@ class SetuAAService {
             "fetchType": "PERIODIC",
             "frequency": [
                 "value": 1,
-                "unit": "MONTH"
+                "unit": "HOUR"
             ],
             "dataFilter": [
                 [
