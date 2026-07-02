@@ -183,6 +183,37 @@ class ApplicationService {
             .update(updateDict)
             .eq("id", value: applicationId)
             .execute()
+            
+        // Fetch borrower ID to send notification
+        struct AppRecord: Decodable { let borrower_id: UUID }
+        if let record: AppRecord = try? await supabase.database
+            .from("loan_applications")
+            .select("borrower_id")
+            .eq("id", value: applicationId)
+            .single()
+            .execute()
+            .value {
+            
+            if status == .approved {
+                try? await NotificationService.shared.createNotification(
+                    userId: record.borrower_id,
+                    title: "Loan Approved!",
+                    message: "Congratulations! Your loan application has been approved.",
+                    type: .general,
+                    referenceId: applicationId,
+                    referenceType: "loan_applications"
+                )
+            } else if status == .rejected {
+                try? await NotificationService.shared.createNotification(
+                    userId: record.borrower_id,
+                    title: "Loan Application Update",
+                    message: "Your loan application was rejected. Reason: \(reason ?? "Did not meet criteria")",
+                    type: .loanUpdate,
+                    referenceId: applicationId,
+                    referenceType: "loan_applications"
+                )
+            }
+        }
         
         var actionValue = ""
         switch status {

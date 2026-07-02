@@ -3,13 +3,15 @@ import SwiftUI
 struct MessageView: View {
     let applicationId: UUID
     let receiverId: UUID
+    let officerName: String?
     
     @StateObject private var messageService: MessageService
     @State private var messageText: String = ""
     
-    init(applicationId: UUID, receiverId: UUID) {
+    init(applicationId: UUID, receiverId: UUID, officerName: String? = nil) {
         self.applicationId = applicationId
         self.receiverId = receiverId
+        self.officerName = officerName
         _messageService = StateObject(wrappedValue: MessageService(applicationId: applicationId))
     }
     
@@ -36,6 +38,7 @@ struct MessageView: View {
             
             HStack(spacing: Spacing.sm) {
                 TextField("Type a message...", text: $messageText)
+                    .textInputAutocapitalization(.sentences)
                     .padding(Spacing.md)
                     .background(Color.surfaceMuted)
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
@@ -57,12 +60,21 @@ struct MessageView: View {
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(Spacing.md)
-            .background(Color.surface)
-            .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: -5)
+            .liquidGlass(cornerRadius: 24)
+            .padding(.horizontal, Spacing.md)
+            .padding(.bottom, Spacing.sm)
         }
-        .navigationTitle("Chat with Officer")
+        .navigationTitle(officerName != nil ? "Chat with \(officerName!.split(separator: " ").first ?? "")" : "Chat with Officer")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color.appBackground)
+        .toolbar(.hidden, for: .tabBar)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
         .task {
             await messageService.fetchMessages()
             messageService.subscribeToMessages()

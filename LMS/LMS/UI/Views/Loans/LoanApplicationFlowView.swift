@@ -96,6 +96,9 @@ struct LoanApplicationFlowView: View {
                 }
         }
         .task {
+            // Request location permission early so GPS is ready for branch assignment on submit
+            LocationService.shared.requestPermission()
+            
             await fetchKYCStatus()
             do {
                 let fetched = try await LoanService.shared.fetchActiveProducts(for: initialLoanType)
@@ -104,7 +107,7 @@ struct LoanApplicationFlowView: View {
                 if let first = fetched.first {
                     selectedProduct = first
                     amount = first.minAmount
-                    tenureMonths = max(6, min(120, Double(first.minTenureMonths)))
+                    tenureMonths = Double(first.minTenureMonths)
                 }
             } catch {
                 isLoadingProducts = false
@@ -170,7 +173,7 @@ struct LoanApplicationFlowView: View {
                             onViewDetails: { product in
                                 selectedProduct = product
                                 amount = product.minAmount
-                                tenureMonths = max(6, min(120, Double(product.minTenureMonths)))
+                                tenureMonths = Double(product.minTenureMonths)
                                 withAnimation { showProductDetail = true }
                             }
                         )
@@ -699,9 +702,9 @@ struct AmountTenureStep: View {
                     Text("\(Int(tenureMonths)) Months")
                         .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
                 }
-                Slider(value: $tenureMonths, in: 6...120, step: 1).tint(.accentGreen)
+                Slider(value: $tenureMonths, in: Double(product.minTenureMonths)...Double(product.maxTenureMonths), step: 1).tint(.accentGreen)
                 HStack {
-                    Text("6 Mo"); Spacer(); Text("120 Mo")
+                    Text("\(product.minTenureMonths) Mo"); Spacer(); Text("\(product.maxTenureMonths) Mo")
                 }.font(.caption).foregroundColor(.textTertiary)
             }
 

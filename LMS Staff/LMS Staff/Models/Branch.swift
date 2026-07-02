@@ -17,6 +17,8 @@ struct Branch: Codable, Identifiable, Hashable {
     var pincode: String?
     var ifscPrefix: String?
     var managerId: UUID?
+    var latitude: Double?
+    var longitude: Double?
     var isActive: Bool
     let createdAt: Date?
     var updatedAt: Date?
@@ -31,6 +33,8 @@ struct Branch: Codable, Identifiable, Hashable {
         case pincode
         case ifscPrefix = "ifsc_prefix"
         case managerId = "manager_id"
+        case latitude
+        case longitude
         case isActive = "is_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"

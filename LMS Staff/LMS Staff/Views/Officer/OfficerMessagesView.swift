@@ -107,11 +107,15 @@ struct OfficerMessagesView: View {
 // MARK: - Dedicated ChatSupportConsole Subview
 struct ChatSupportConsole: View {
     let appWithBorrower: ApplicationWithBorrower
+    let forceInternalOnly: Bool
     @StateObject private var detailVm: ApplicationDetailViewModel
     @State private var messageText: String = ""
+    @State private var isInternalChat: Bool
     
-    init(appWithBorrower: ApplicationWithBorrower) {
+    init(appWithBorrower: ApplicationWithBorrower, forceInternalOnly: Bool = false) {
         self.appWithBorrower = appWithBorrower
+        self.forceInternalOnly = forceInternalOnly
+        _isInternalChat = State(initialValue: forceInternalOnly)
         _detailVm = StateObject(wrappedValue: ApplicationDetailViewModel(
             application: appWithBorrower.application,
             borrower: appWithBorrower.borrower,
@@ -125,14 +129,34 @@ struct ChatSupportConsole: View {
             // Room Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(appWithBorrower.borrower.fullName)
+                    Text(forceInternalOnly ? "Officer Review Discussion" : "Messaging Support")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
-                    Text("Related Application: \(appWithBorrower.application.applicationNumber ?? "APP-NEW")")
+                    Text(appWithBorrower.borrower.fullName)
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
                 }
+                
                 Spacer()
+                
+                if !forceInternalOnly {
+                    // Toggle between Borrower and Internal chat
+                    Picker("Chat Type", selection: $isInternalChat) {
+                        Text("Borrower Chat").tag(false)
+                        Text("Internal Chat").tag(true)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 280)
+                } else {
+                    Text("Internal Chat")
+                        .font(.staffBody)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.staffAccent.opacity(0.15))
+                        .foregroundColor(.staffAccent)
+                        .cornerRadius(StaffCorner.md)
+                }
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffSurface)
@@ -141,59 +165,68 @@ struct ChatSupportConsole: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: StaffSpacing.md) {
-                        ForEach(detailVm.borrowerMessages.filter { msg in
-                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
-                            return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
-                        }) { msg in
-                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
-                            HStack {
-                                if isMe { Spacer() }
-                                
-                                VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
-                                    Text(msg.content)
-                                        .font(.staffBody)
-                                        .padding(12)
-                                        .background(isMe ? Color.staffAccent : Color.staffSurface)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(12)
+                        let activeMessages = isInternalChat ? detailVm.internalMessages : detailVm.borrowerMessages
+                        
+                        if activeMessages.isEmpty {
+                            Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
+                                .padding(.top, 40)
+                        } else {
+                            ForEach(activeMessages.filter { msg in
+                                let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                                return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
+                            }) { msg in
+                                let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                                HStack {
+                                    if isMe { Spacer() }
                                     
-                                    HStack(spacing: 4) {
-                                        Text(formatDate(msg.sentAt))
-                                            .font(.system(size: 9))
-                                            .foregroundColor(.staffTextSecondary)
+                                    VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
+                                        Text(msg.content)
+                                            .font(.staffBody)
+                                            .padding(12)
+                                            .background(isMe ? Color.staffAccent : (isInternalChat ? Color.staffAmber.opacity(0.2) : Color.staffSurface))
+                                            .foregroundColor(isMe ? .white : .staffTextPrimary)
+                                            .cornerRadius(12)
                                         
-                                        if isMe {
-                                            Image(systemName: msg.isRead ? "checkmark.circle.fill" : "checkmark.circle")
+                                        HStack(spacing: 4) {
+                                            Text(formatDate(msg.sentAt))
                                                 .font(.system(size: 9))
-                                                .foregroundColor(msg.isRead ? .staffAccent : .staffTextSecondary)
+                                                .foregroundColor(.staffTextSecondary)
+                                            
+                                            if isMe {
+                                                Image(systemName: msg.isRead ? "checkmark.circle.fill" : "checkmark.circle")
+                                                    .font(.system(size: 9))
+                                                    .foregroundColor(msg.isRead ? .staffAccent : .staffTextSecondary)
+                                            }
                                         }
                                     }
-                                }
-                                .id(msg.id)
-                                .onAppear {
-                                    if !isMe && !msg.isRead {
-                                        Task {
-                                            await detailVm.markMessageAsRead(msg.id)
+                                    .id(msg.id)
+                                    .onAppear {
+                                        if !isMe && !msg.isRead {
+                                            Task {
+                                                await detailVm.markMessageAsRead(msg.id)
+                                            }
                                         }
                                     }
-                                }
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        Task {
-                                            await detailVm.deleteMessage(msg.id, isSender: isMe)
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            Task {
+                                                await detailVm.deleteMessage(msg.id, isSender: isMe)
+                                            }
+                                        } label: {
+                                            Label("Delete for me", systemImage: "trash")
                                         }
-                                    } label: {
-                                        Label("Delete for me", systemImage: "trash")
                                     }
+                                    
+                                    if !isMe { Spacer() }
                                 }
-                                
-                                if !isMe { Spacer() }
                             }
                         }
                     }
                     .padding(StaffSpacing.lg)
                 }
-                .onChange(of: detailVm.borrowerMessages) { messages in
+                .onChange(of: isInternalChat ? detailVm.internalMessages : detailVm.borrowerMessages) { messages in
                     if let last = messages.last {
                         withAnimation {
                             proxy.scrollTo(last.id, anchor: .bottom)
@@ -208,7 +241,8 @@ struct ChatSupportConsole: View {
             
             // Text Input Footer
             HStack(spacing: StaffSpacing.md) {
-                TextField("Type your message here...", text: $messageText)
+                TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
+                    .textInputAutocapitalization(.sentences)
                     .padding(14)
                     .background(Color.staffSurface)
                     .cornerRadius(StaffCorner.md)
@@ -216,7 +250,7 @@ struct ChatSupportConsole: View {
                 
                 Button(action: {
                     Task {
-                        await detailVm.sendChatMessage(messageText)
+                        await detailVm.sendChatMessage(messageText, isInternal: isInternalChat)
                         messageText = ""
                     }
                 }) {

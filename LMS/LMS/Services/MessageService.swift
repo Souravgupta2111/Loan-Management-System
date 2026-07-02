@@ -111,10 +111,37 @@ class MessageService: ObservableObject {
             message_type: "text"
         )
         
+        struct NotificationInsert: Encodable {
+            let user_id: UUID
+            let type: String
+            let title: String
+            let body: String
+            let is_read: Bool
+            let push_sent: Bool
+            let reference_id: UUID
+            let reference_type: String
+        }
+        
+        let newNotification = NotificationInsert(
+            user_id: receiverId,
+            type: "general",
+            title: "New Message from Borrower",
+            body: content,
+            is_read: false,
+            push_sent: false,
+            reference_id: applicationId,
+            reference_type: "loan_applications"
+        )
+        
         do {
             try await SupabaseManager.shared.client
                 .from("messages")
                 .insert(newMsg)
+                .execute()
+                
+            try await SupabaseManager.shared.client
+                .from("notifications")
+                .insert(newNotification)
                 .execute()
         } catch {
             print("Failed to send message: \(error)")

@@ -464,18 +464,13 @@ struct ScheduleOverviewView: View {
 
             let today = calendar.startOfDay(for: Date())
             emiEntries = response.flatMap { loan in
-                let paidAmount = loan.total_payable - loan.outstanding_principal
-                let emiAmount = loan.emi_schedule.first?.total_emi ?? 20000
-                let actualPaidCount = emiAmount > 0 ? Int(paidAmount / emiAmount) : 0
-                
                 let sortedEMIs = loan.emi_schedule.sorted { $0.due_date < $1.due_date }
 
                 return sortedEMIs.enumerated().compactMap { index, emi -> CalendarEMIEntry? in
                     guard let dueDate = LoansListView.parseDateString(emi.due_date) else { return nil }
 
                     let dueDay = calendar.startOfDay(for: dueDate)
-                    // Override mock status if it falls within the mathematically paid count
-                    let isPaid = emi.status.lowercased() == "paid" || index < actualPaidCount
+                    let isPaid = emi.status.lowercased() == "paid"
                     return CalendarEMIEntry(
                         id: emi.id,
                         loanName: loan.loan_product.name,

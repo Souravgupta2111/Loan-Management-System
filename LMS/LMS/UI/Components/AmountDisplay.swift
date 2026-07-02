@@ -1,16 +1,14 @@
 import SwiftUI
 
-/// Amount Display (design.md §3 Amount Display Pattern)
-/// Splits integer and decimal parts with superscript styling.
 struct AmountDisplay: View {
     let amount: Double
     let style: AmountStyle
     var color: Color? = nil
 
     enum AmountStyle {
-        case hero    // 48pt
-        case large   // 34pt
-        case card    // 22pt
+        case hero   
+        case large
+        case card
     }
 
     var body: some View {

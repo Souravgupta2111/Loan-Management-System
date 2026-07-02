@@ -271,10 +271,24 @@ struct ManagerDashboardView: View {
                 Spacer()
                 
                 StaffButton(title: "Verify & Approve", style: .success, icon: "checkmark.seal.fill") {
-                    // Prepopulate sliders
-                    approvedAmount = item.application.requestedAmount
-                    approvedTenure = item.application.requestedTenureMonths
-                    approvedRate = item.product.minInterestRate
+                    // Prepopulate sliders with Underwriting Suggestion
+                    let income = item.profile?.verifiedAnnualIncome != nil ? (item.profile!.verifiedAnnualIncome! / 12) : (item.profile?.monthlyIncome ?? 0)
+                    let creditScore = item.profile?.creditScore ?? 0
+                    let empType = item.profile?.employmentType ?? .salaried
+                    
+                    let suggestion = UnderwritingService.shared.calculateSuggestion(
+                        monthlyIncome: income,
+                        creditScore: creditScore,
+                        employmentType: empType,
+                        requestedAmount: item.application.requestedAmount,
+                        product: item.product,
+                        existingEMIs: 0,
+                        isIncomeVerified: item.profile?.incomeVerified ?? false
+                    )
+                    
+                    approvedAmount = suggestion.suggestedAmount
+                    approvedTenure = suggestion.suggestedTenureMonths
+                    approvedRate = suggestion.suggestedInterestRate
                     showApprovalSheet = true
                 }
                 .frame(width: 240)

@@ -29,9 +29,25 @@ final class PaymentService {
     /// Creates an authenticated, server-priced order without exposing the Razorpay secret.
     func createOrder(emiId: UUID, loanId: UUID) async throws -> RazorpayOrder {
         struct Payload: Encodable { let emiId: UUID; let loanId: UUID }
-        return try await SupabaseManager.shared.client.functions.invoke(
-            "create-razorpay-order",
-            options: FunctionInvokeOptions(body: Payload(emiId: emiId, loanId: loanId))
-        )
+        do {
+            return try await SupabaseManager.shared.client.functions.invoke(
+                "create-razorpay-order",
+                options: FunctionInvokeOptions(
+                    body: Payload(emiId: emiId, loanId: loanId)
+                )
+            )
+        } catch {
+            print("PaymentService createOrder failed: \(error)")
+            if let functionError = error as? FunctionsError {
+                switch functionError {
+                case .httpError(let code, let data):
+                    let str = String(data: data, encoding: .utf8) ?? "unknown"
+                    print("FunctionsError HTTP \(code) details: \(str)")
+                default:
+                    print("FunctionsError: \(functionError)")
+                }
+            }
+            throw error
+        }
     }
 }

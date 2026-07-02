@@ -45,11 +45,38 @@ struct LoanDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 100)
             }
+            
+            // Chat FAB
+            if let officerInfo = viewModel.assignedOfficer, let appId = viewModel.detail.applicationId, let currentUserId = authViewModel.currentUser?.id {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        NavigationLink {
+                            MessageView(applicationId: appId, receiverId: officerInfo.officerUserId)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                                Text("Message Officer")
+                            }
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+                            .background(Color(hex: "#2D8B4E"))
+                            .clipShape(Capsule())
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                        }
+                    }
+                    .padding()
+                }
+            }
         }
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { viewModel.animateProgress() }
+        .task { await viewModel.loadOfficerInfo() }
         .sheet(item: $viewModel.previewURLItem) { item in
             DocumentPreview(url: item.url)
         }
@@ -90,6 +117,9 @@ struct LoanDetailView: View {
         case .documents:
             DocumentsList(loan: loan, documents: viewModel.detail.documents, borrowerName: "Borrower") { data, title in
                 guard let userId = authViewModel.currentUser?.id, let appId = loan.applicationId else { return }
+                
+                viewModel.addUploadedDocument(title: title)
+                
                 Task {
                     try? await LoanService.shared.uploadAdditionalDocument(applicationId: appId, userId: userId, data: data, title: title)
                     NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
@@ -98,7 +128,7 @@ struct LoanDetailView: View {
                 viewModel.previewURLItem = PreviewItem(url: url)
             }
         case .schedule:
-            if loan.status.lowercased() == "active" {
+            if ["active", "npa", "restructured"].contains(loan.status.lowercased()) {
                 ScheduleList(schedule: viewModel.detail.schedule, formatCurrency: viewModel.formatCurrency)
             } else {
                 VStack(spacing: 12) {
@@ -131,8 +161,9 @@ private final class LoanDetailViewModel: ObservableObject {
     @Published var selectedTab: LoanDetailTab = .timeline
     @Published var animatedProgress = 0.0
     @Published var previewURLItem: PreviewItem?
+    @Published var assignedOfficer: AssignedOfficerInfo?
 
-    let detail: LoanDetailMock
+    @Published var detail: LoanDetailMock
 
     init(loan: LoanListItem) {
         self.detail = LoanDetailMock.make(from: loan)
@@ -142,6 +173,32 @@ private final class LoanDetailViewModel: ObservableObject {
         animatedProgress = 0
         withAnimation(.spring(response: 0.7, dampingFraction: 0.88).delay(0.12)) {
             animatedProgress = detail.repaymentProgress
+        }
+    }
+    
+    func addUploadedDocument(title: String) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "d MMM yyyy"
+        let dateStr = "Uploaded \(dateFormatter.string(from: Date()))"
+        
+        let newDoc = LoanDocumentItem(
+            title: title.capitalized,
+            uploadDate: dateStr,
+            icon: "doc.text.fill",
+            storagePath: nil
+        )
+        
+        detail.documents.append(newDoc)
+    }
+    
+    @MainActor
+    func loadOfficerInfo() async {
+        guard let appId = detail.applicationId else { return }
+        do {
+            assignedOfficer = try await BranchAssignmentService.shared.fetchAssignedOfficerInfo(applicationId: appId)
+        } catch {
+            print("Failed to load officer info: \(error)")
         }
     }
 
@@ -182,7 +239,7 @@ private struct LoanSummaryCard: View {
             Divider()
                 .background(Color.white.opacity(0.3))
 
-            if detail.loanStatus.lowercased() == "active" {
+            if ["active", "npa", "restructured"].contains(detail.loanStatus.lowercased()) {
                 // Sanctioned / Monthly EMI
                 HStack(alignment: .top) {
                     LoanAmountColumn(
@@ -471,6 +528,7 @@ private struct DocumentsList: View {
     
     @State private var selectedItem: PhotosPickerItem?
     @State private var isProcessing = false
+    @State private var customDocumentName: String = ""
 
     var body: some View {
         VStack(spacing: 20) {
@@ -574,30 +632,43 @@ private struct DocumentsList: View {
                 }
                 
                 if loan.applicationId != nil {
-                    PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Upload Additional Document")
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(hex: "#2D8B4E"))
-                        .liquidGlass(cornerRadius: 18)
-                    }
-                    .buttonStyle(ScaleButtonStyle())
-                    .padding(.top, 8)
-                    .onChange(of: selectedItem) { _, newItem in
-                        guard let item = newItem else { return }
-                        isProcessing = true
-                        Task {
-                            if let data = try? await item.loadTransferable(type: Data.self) {
-                                onUpload(data, "Additional Document")
+                    VStack(spacing: 12) {
+                        TextField("Document Name (e.g. Bank Statement)", text: $customDocumentName)
+                            .padding(14)
+                            .background(Color.white.opacity(0.8))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1))
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                            
+                        PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text(customDocumentName.isEmpty ? "Enter Name to Upload" : "Upload \(customDocumentName)")
                             }
-                            isProcessing = false
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(customDocumentName.isEmpty ? Color(hex: "#9E9E9E") : Color(hex: "#2D8B4E"))
+                            .liquidGlass(cornerRadius: 18)
+                        }
+                        .disabled(customDocumentName.isEmpty || isProcessing)
+                        .buttonStyle(ScaleButtonStyle())
+                        
+                        .onChange(of: selectedItem) { _, newItem in
+                            guard let item = newItem, !customDocumentName.isEmpty else { return }
+                            isProcessing = true
+                            Task {
+                                if let data = try? await item.loadTransferable(type: Data.self) {
+                                    onUpload(data, customDocumentName)
+                                    customDocumentName = ""
+                                }
+                                isProcessing = false
+                                selectedItem = nil
+                            }
                         }
                     }
+                    .padding(.top, 8)
                 }
             }
             
@@ -786,8 +857,9 @@ private struct LoanDetailMock {
     let repaymentProgress: Double
     let progressText: String
     let timeline: [LoanTimelineItem]
-    let documents: [LoanDocumentItem]
+    var documents: [LoanDocumentItem]
     let schedule: [LoanEMIItem]
+    let applicationId: UUID?
 
     static func make(from loan: LoanListItem) -> LoanDetailMock {
         let emiAmount = loan.emiAmount > 0 ? loan.emiAmount : 20_000
@@ -859,7 +931,8 @@ private struct LoanDetailMock {
                 }
             }(),
             documents: loan.documents?.map { LoanDocumentItem(title: $0.title, uploadDate: $0.uploadDate, icon: $0.icon, storagePath: $0.storagePath) } ?? [],
-            schedule: buildSchedule(from: loan)
+            schedule: buildSchedule(from: loan),
+            applicationId: loan.applicationId
         )
     }
 

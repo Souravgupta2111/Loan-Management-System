@@ -21,18 +21,14 @@ struct ApplicationDetailView: View {
     // Bottom Action Sheets
     @State private var showRejectSheet: Bool = false
     @State private var showRecommendSheet: Bool = false
-    @State private var showRequestDocsSheet: Bool = false
     @State private var showSendBackSheet: Bool = false
     
     // Modals data
     @State private var remarks: String = ""
-    @State private var selectedDocsToRequest: [String] = []
-    @State private var documentNotes: String = ""
-    @State private var chatInputText: String = ""
-    @State private var isInternalChat: Bool = true
-    
+
     @State private var showShareSheet = false
-    @State private var pdfShareURL: URL?
+    @State private var pdfShareURL: URL? = nil
+    @State private var showIncomeVerification = false
     
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
@@ -115,7 +111,14 @@ struct ApplicationDetailView: View {
                     case .documents:
                         documentsSection
                     case .chat:
-                        chatSection
+                        ChatSupportConsole(appWithBorrower: appWithBorrower)
+                            .frame(height: 550)
+                            .cornerRadius(StaffCorner.md)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: StaffCorner.md)
+                                    .stroke(Color.staffBorder, lineWidth: 1)
+                            )
+                            .clipped()
                     case .timeline:
                         timelineSection
                     }
@@ -124,7 +127,7 @@ struct ApplicationDetailView: View {
             }
             .background(Color.staffBackground)
             
-            if vm.application.status == .approved || vm.application.status == .disbursed || vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
+            if vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
                 Divider()
                     .background(Color.staffBorder)
                 actionButtonBar
@@ -141,9 +144,6 @@ struct ApplicationDetailView: View {
         .sheet(isPresented: $showRecommendSheet) {
             recommendChecklistSheet
         }
-        .sheet(isPresented: $showRequestDocsSheet) {
-            requestDocsSheet
-        }
         .sheet(isPresented: $showSendBackSheet) {
             sendBackRemarksSheet
         }
@@ -159,6 +159,17 @@ struct ApplicationDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(vm.errorMessage ?? "An unknown error occurred.")
+        }
+        .sheet(isPresented: $showIncomeVerification) {
+            IncomeVerificationView(
+                consentId: vm.borrowerProfile?.aaConsentId,
+                consentStatus: vm.borrowerProfile?.aaConsentStatus,
+                onVerificationComplete: { analyzedData in
+                    Task {
+                        await vm.saveVerifiedIncome(analyzedData)
+                    }
+                }
+            )
         }
     }
     
@@ -203,6 +214,149 @@ struct ApplicationDetailView: View {
                 }
                 .frame(width: 320)
             }
+            
+            // Underwriting Analysis Card
+            if let suggestion = vm.underwritingSuggestion {
+                StaffCard {
+                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                        HStack {
+                            Text("Loan Eligibility Analysis")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            
+                            Spacer()
+                            
+                            if suggestion.incomeVerified {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundColor(.staffGreen)
+                                    Text("Income AA Verified")
+                                        .font(.staffCaption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.staffGreen)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.staffGreen.opacity(0.15))
+                                .cornerRadius(12)
+                            } else {
+                                Button(action: {
+                                    showIncomeVerification = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "banknote.fill")
+                                        Text("Verify via AA")
+                                    }
+                                    .font(.staffCaption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.staffAccent)
+                                    .cornerRadius(12)
+                                }
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        if suggestion.isEligible {
+                            HStack(spacing: StaffSpacing.lg) {
+                                VStack(alignment: .leading) {
+                                    Text("Max Eligible")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text("INR \(String(format: "%.0f", suggestion.maxEligibleAmount))")
+                                        .font(.staffTitle)
+                                        .foregroundColor(.staffTextPrimary)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Suggested Amount")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text("INR \(String(format: "%.0f", suggestion.suggestedAmount))")
+                                        .font(.staffTitle)
+                                        .foregroundColor(.staffGreen)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Rate / Tenure")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text("\(String(format: "%.1f", suggestion.suggestedInterestRate))% / \(suggestion.suggestedTenureMonths)m")
+                                        .font(.staffTitle)
+                                        .foregroundColor(.staffTextPrimary)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("FOIR Ratio")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text("\(String(format: "%.1f", suggestion.foirRatio * 100))%")
+                                        .font(.staffTitle)
+                                        .foregroundColor(suggestion.foirRatio > 0.5 ? .staffAmber : .staffTextPrimary)
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing) {
+                                    Text("Risk Grade")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text(suggestion.riskGrade)
+                                        .font(.system(size: 28, weight: .black))
+                                        .foregroundColor(gradeColor(for: suggestion.riskGrade))
+                                }
+                            }
+                            .padding(.top, 4)
+                        } else {
+                            // Rejected by underwriting
+                            HStack {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.staffRed.opacity(0.85))
+                                            .font(.system(size: 20))
+                                        Text("Not Eligible")
+                                            .font(.staffCardTitle)
+                                            .foregroundColor(.staffRed.opacity(0.85))
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        ForEach(suggestion.rejectionReasons, id: \.self) { reason in
+                                            Text("•  \(reason)")
+                                                .font(.staffBodyRegular)
+                                                .foregroundColor(.staffTextSecondary)
+                                                .lineSpacing(4)
+                                        }
+                                    }
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing) {
+                                    Text("Risk Grade")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text(suggestion.riskGrade)
+                                        .font(.system(size: 28, weight: .black))
+                                        .foregroundColor(.staffRed)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func gradeColor(for grade: String) -> Color {
+        switch grade {
+        case "A": return .staffGreen
+        case "B": return Color(hex: "#8BC34A")
+        case "C": return .staffAmber
+        case "D": return .staffOrange
+        case "E": return .staffRed
+        default: return .staffTextPrimary
         }
     }
     
@@ -267,6 +421,21 @@ struct ApplicationDetailView: View {
                                 .padding(.vertical, 4)
                                 .background(Color.staffGreen.opacity(0.15))
                                 .cornerRadius(StaffCorner.sm)
+                                
+                            Button(action: {
+                                Task {
+                                    await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: nil)
+                                }
+                            }) {
+                                Text("Unverify")
+                                    .font(.staffCaption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.staffAmber)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.staffAmber.opacity(0.15))
+                                    .cornerRadius(StaffCorner.sm)
+                            }
                         } else {
                             Button(action: {
                                 Task {
@@ -306,97 +475,46 @@ struct ApplicationDetailView: View {
                     .cornerRadius(StaffCorner.md)
                 }
             }
+            
+            if vm.application.status == .approved || vm.application.status == .disbursed {
+                Divider()
+                    .background(Color.staffBorder)
+                    .padding(.vertical, StaffSpacing.md)
+                
+                HStack {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundColor(.staffGreen)
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Application Approved")
+                            .font(.staffBody)
+                            .fontWeight(.bold)
+                            .foregroundColor(.staffTextPrimary)
+                        Text("Sanction letter has been automatically generated.")
+                            .font(.staffCaption)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
+                        generateAndShareSanctionLetter()
+                    }
+                    .frame(width: 250)
+                }
+                .padding(StaffSpacing.lg)
+                .background(Color.staffGreen.opacity(0.1))
+                .cornerRadius(StaffCorner.md)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(Color.staffGreen.opacity(0.3), lineWidth: 1)
+                )
+            }
         }
     }
     
-    private var chatSection: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.md) {
-            HStack {
-                Text("Messaging Support")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                
-                Spacer()
-                
-                // Toggle between Borrower and Internal chat
-                if false {
-                    Picker("Chat Type", selection: $isInternalChat) {
-                        Text("Borrower Chat").tag(false)
-                        Text("Internal Chat").tag(true)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: 250)
-                }
-            }
-            
-            // Messages thread view
-            ScrollView {
-                VStack(spacing: StaffSpacing.sm) {
-                    let activeMessages = isInternalChat ? vm.internalMessages : vm.borrowerMessages
-                    
-                    if activeMessages.isEmpty {
-                        Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
-                            .font(.staffCaption)
-                            .foregroundColor(.staffTextSecondary)
-                            .padding(.top, 40)
-                    } else {
-                        ForEach(activeMessages) { msg in
-                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
-                            HStack {
-                                if isMe { Spacer() }
-                                
-                                VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
-                                    Text(msg.content)
-                                        .font(.staffBody)
-                                        .padding(12)
-                                        .background(isMe ? Color.staffAccent : (isInternalChat ? Color.staffAmber.opacity(0.2) : Color.staffSurface))
-                                        .foregroundColor(isMe ? .white : .staffTextPrimary)
-                                        .cornerRadius(12)
-                                    
-                                    if msg.isRead {
-                                        Text("Read")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.staffTextSecondary)
-                                    }
-                                }
-                                
-                                if !isMe { Spacer() }
-                            }
-                            .onAppear {
-                                if !isMe && !msg.isRead {
-                                    Task { await vm.markMessageAsRead(msg.id) }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(height: 240)
-            
-            // Input bar
-            HStack {
-                TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $chatInputText)
-                    .padding(12)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
-                
-                Button(action: {
-                    Task {
-                        await vm.sendChatMessage(chatInputText, isInternal: isInternalChat)
-                        chatInputText = ""
-                    }
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(.white)
-                        .padding(12)
-                        .background(Color.staffAccent)
-                        .cornerRadius(StaffCorner.md)
-                }
-                .disabled(chatInputText.isEmpty)
-            }
-        }
-    }
+
     
     private var timelineSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.md) {
@@ -411,13 +529,7 @@ struct ApplicationDetailView: View {
     private var actionButtonBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: StaffSpacing.md) {
-                if vm.application.status == .approved || vm.application.status == .disbursed {
-                    Spacer()
-                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
-                        generateAndShareSanctionLetter()
-                    }
-                    .frame(width: 300)
-                } else if vm.application.status == .rejected {
+                if vm.application.status == .rejected {
                     Spacer()
                     Text("Application Rejected")
                         .font(.staffTitle)
@@ -425,13 +537,6 @@ struct ApplicationDetailView: View {
                     Spacer()
                 } else {
                     if authViewModel.currentUser?.role != .admin {
-                        StaffButton(title: "Request Docs", style: .outline, icon: "doc.badge.plus") {
-                            showRequestDocsSheet = true
-                        }
-                        
-                        StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
-                            showSendBackSheet = true
-                        }
                         
                         StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
                             showRejectSheet = true
@@ -439,10 +544,17 @@ struct ApplicationDetailView: View {
                         
                         Spacer(minLength: 20)
                         
-                        StaffButton(title: "Recommend to Manager", style: .primary, icon: "hand.thumbsup.fill") {
+                        let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
+                        StaffButton(
+                            title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
+                            style: .primary,
+                            icon: "hand.thumbsup.fill"
+                        ) {
                             showRecommendSheet = true
                         }
                         .frame(minWidth: 240)
+                        .disabled(!allVerified)
+                        .opacity(allVerified ? 1.0 : 0.5)
                     }
                 }
             }
@@ -545,60 +657,7 @@ struct ApplicationDetailView: View {
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
-    private var requestDocsSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Request Additional Documents")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Select the files to request from the borrower:")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            let options = ["Salary Slips (3 months)", "Bank Statement (6 months)", "PAN ID Card scan", "Aadhaar Card copy", "Tax Returns (2 Years)", "Vehicle Registration Quotation"]
-            
-            ForEach(options, id: \.self) { docName in
-                Toggle(docName, isOn: Binding(
-                    get: { selectedDocsToRequest.contains(docName) },
-                    set: { isAdd in
-                        if isAdd {
-                            selectedDocsToRequest.append(docName)
-                        } else {
-                            selectedDocsToRequest.removeAll { $0 == docName }
-                        }
-                    }
-                ))
-                .foregroundColor(.staffTextPrimary)
-            }
-            
-            TextField("Add request instructions...", text: $documentNotes)
-                .padding(12)
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-                .foregroundColor(.staffTextPrimary)
-            
-            HStack {
-                Button("Cancel") { showRequestDocsSheet = false }
-                    .foregroundColor(.staffTextSecondary)
-                Spacer()
-                Button("Send Request") {
-                    Task {
-                        if await vm.requestDocuments(documentTypes: selectedDocsToRequest, remarks: documentNotes) {
-                            showRequestDocsSheet = false
-                            selectedDocsToRequest = []
-                            documentNotes = ""
-                            onStatusUpdated()
-                        }
-                    }
-                }
-                .foregroundColor(.staffAccent)
-                .fontWeight(.bold)
-                .disabled(selectedDocsToRequest.isEmpty || documentNotes.isEmpty)
-            }
-        }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
-    }
+
     
     private var recommendChecklistSheet: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.lg) {

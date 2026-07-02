@@ -86,6 +86,8 @@ struct BorrowerProfile: Codable, Identifiable, Hashable {
     var kycStatus: KYCStatus
     var kycSubmittedAt: Date?
     var kycVerifiedAt: Date?
+    var aaConsentId: String?
+    var aaConsentStatus: String?
     let createdAt: Date?
     var updatedAt: Date?
 
@@ -108,6 +110,8 @@ struct BorrowerProfile: Codable, Identifiable, Hashable {
         case kycStatus = "kyc_status"
         case kycSubmittedAt = "kyc_submitted_at"
         case kycVerifiedAt = "kyc_verified_at"
+        case aaConsentId = "aa_consent_id"
+        case aaConsentStatus = "aa_consent_status"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }

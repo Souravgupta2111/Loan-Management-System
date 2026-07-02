@@ -97,6 +97,9 @@ class LoanService {
             .update(SubmissionUpdate(status: "submitted", submitted_at: Formatter.iso8601.string(from: Date())))
             .eq("id", value: created.id).eq("status", value: "draft").execute()
 
+        // Auto-assign nearest branch and least-loaded officer (best-effort, non-blocking)
+        let _ = await BranchAssignmentService.shared.autoAssign(applicationId: created.id)
+
         NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
         return created.application_number
     }
@@ -362,6 +365,11 @@ class LoanService {
         let rejectionReason: String?
         let sentBackReason: String?
         let officerId: UUID?
+        let branchId: UUID?
+        let branchName: String?
+        let approvedAmount: Double?
+        let approvedTenure: Int?
+        let approvedInterestRate: Double?
     }
     
     func fetchUserApplications(userId: UUID) async throws -> [ApplicationListItem] {
@@ -374,27 +382,46 @@ class LoanService {
             let rejection_reason: String?
             let sent_back_reason: String?
             let assigned_officer_id: UUID?
+            let branch_id: UUID?
             let loan_product: ProductRow
+            let branch: BranchRow?
+            let approval_history: [HistoryRow]?
             
             struct ProductRow: Decodable { let name: String; let type: String }
+            struct BranchRow: Decodable { let name: String }
+            struct HistoryRow: Decodable { 
+                let action: String
+                let actioned_at: String
+                let to_status: String
+                let approved_amount: Double?
+                let approved_tenure_months: Int?
+                let approved_interest_rate: Double?
+            }
         }
         
         let rows: [AppRow] = try await SupabaseManager.shared.client
             .from("loan_applications")
-            .select("id, application_number, requested_amount, status, submitted_at, rejection_reason, sent_back_reason, assigned_officer_id, loan_product:loan_products(name, type)")
+            .select("id, application_number, requested_amount, status, submitted_at, rejection_reason, sent_back_reason, assigned_officer_id, branch_id, loan_product:loan_products(name, type), branch:branches(name), approval_history(action, actioned_at, to_status, approved_amount, approved_tenure_months, approved_interest_rate)")
             .eq("borrower_id", value: userId)
             .order("last_updated_at", ascending: false)
             .execute().value
 
-        return rows.map {
-            ApplicationListItem(
-                id: $0.id, applicationNumber: $0.application_number ?? "Draft",
-                loanType: $0.loan_product.name, amount: $0.requested_amount,
-                status: $0.status,
-                submittedAt: displayDate($0.submitted_at ?? ""),
-                rejectionReason: $0.rejection_reason,
-                sentBackReason: $0.sent_back_reason,
-                officerId: $0.assigned_officer_id
+        return rows.map { row in
+            let approved = row.approval_history?.sorted { $0.actioned_at < $1.actioned_at }.last { $0.to_status == "approved" }
+            
+            return ApplicationListItem(
+                id: row.id, applicationNumber: row.application_number ?? "Draft",
+                loanType: row.loan_product.name, amount: row.requested_amount,
+                status: row.status,
+                submittedAt: displayDate(row.submitted_at ?? ""),
+                rejectionReason: row.rejection_reason,
+                sentBackReason: row.sent_back_reason,
+                officerId: row.assigned_officer_id,
+                branchId: row.branch_id,
+                branchName: row.branch?.name,
+                approvedAmount: approved?.approved_amount,
+                approvedTenure: approved?.approved_tenure_months,
+                approvedInterestRate: approved?.approved_interest_rate
             )
         }
     }
@@ -403,9 +430,7 @@ class LoanService {
         // Upload any new documents provided
         for (docType, data) in newDocuments {
             let filePath = "\(userId.uuidString.lowercased())/\(docType)_\(UUID().uuidString.lowercased()).jpg"
-            try await SupabaseManager.shared.client.storage
-                .from("documents")
-                .upload(path: filePath, file: data, options: FileOptions(contentType: "image/jpeg"))
+            try await uploadDocument(path: filePath, data: data)
             
             struct DocInsert: Encodable {
                 let owner_id: UUID; let owner_type: String; let application_id: UUID
@@ -433,13 +458,56 @@ class LoanService {
             .execute()
     }
     
+    func acceptDisbursement(applicationId: UUID) async throws {
+        // Find the loan associated with this application
+        struct LoanIdResponse: Decodable { let id: UUID }
+        let loanResult: LoanIdResponse = try await SupabaseManager.shared.client
+            .from("loans")
+            .select("id")
+            .eq("application_id", value: applicationId)
+            .single()
+            .execute()
+            .value
+            
+        // Update loan status to active
+        try await SupabaseManager.shared.client
+            .from("loans")
+            .update(["status": "active"])
+            .eq("id", value: loanResult.id)
+            .execute()
+            
+        // Update application status to disbursed
+        try await SupabaseManager.shared.client
+            .from("loan_applications")
+            .update(["status": "disbursed"])
+            .eq("id", value: applicationId)
+            .execute()
+    }
+    
+    func rejectDisbursement(applicationId: UUID) async throws {
+        // Update application status to sent_back
+        try await SupabaseManager.shared.client
+            .from("loan_applications")
+            .update([
+                "status": "sent_back",
+                "sent_back_reason": "Borrower rejected the disbursement terms."
+            ])
+            .eq("id", value: applicationId)
+            .execute()
+            
+        // Delete the pending loan and EMIs
+        try await SupabaseManager.shared.client
+            .from("loans")
+            .delete()
+            .eq("application_id", value: applicationId)
+            .execute()
+    }
+
     func uploadAdditionalDocument(applicationId: UUID, userId: UUID, data: Data, title: String) async throws {
         let safeTitle = title.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
         let filePath = "\(userId.uuidString.lowercased())/applications/\(applicationId.uuidString.lowercased())/\(safeTitle)_\(UUID().uuidString.lowercased()).jpg"
         
-        try await SupabaseManager.shared.client.storage
-            .from("documents")
-            .upload(path: filePath, file: data, options: FileOptions(contentType: "image/jpeg"))
+        try await uploadDocument(path: filePath, data: data)
             
         struct DocInsert: Encodable {
             let owner_id: UUID; let owner_type: String; let application_id: UUID
@@ -455,6 +523,25 @@ class LoanService {
             storage_bucket: "documents", storage_path: filePath,
             file_size_bytes: data.count, mime_type: "image/jpeg"
         )).execute()
+    }
+    
+    struct DocumentRow: Decodable, Identifiable {
+        var id: String { storage_path }
+        let document_type: String
+        let file_name: String
+        let uploaded_at: String
+        let category: String
+        let storage_path: String
+    }
+    
+    func fetchApplicationDocuments(applicationId: UUID) async throws -> [DocumentRow] {
+        return try await SupabaseManager.shared.client
+            .from("documents")
+            .select("document_type, file_name, uploaded_at, category, storage_path")
+            .eq("application_id", value: applicationId)
+            .order("uploaded_at", ascending: false)
+            .execute()
+            .value
     }
     
     private func displayDate(_ value: String) -> String {

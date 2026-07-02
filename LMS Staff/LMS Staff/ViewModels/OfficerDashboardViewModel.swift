@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 import Combine
+import Supabase
+import PostgREST
 
 @MainActor
 class OfficerDashboardViewModel: ObservableObject {
@@ -19,6 +21,7 @@ class OfficerDashboardViewModel: ObservableObject {
             applyFilters(search: searchText, filter: selectedStatusFilter)
         }
     }
+    private var lastMessageTimes: [UUID: Date] = [:]
     @Published var filteredApplications: [ApplicationWithBorrower] = []
     @Published var searchText: String = "" {
         didSet {
@@ -54,6 +57,7 @@ class OfficerDashboardViewModel: ObservableObject {
             self.applications = fetched
             calculateStats()
             applyFilters(search: searchText, filter: selectedStatusFilter)
+            await fetchMessageTimestamps()
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -64,7 +68,7 @@ class OfficerDashboardViewModel: ObservableObject {
     // MARK: - Helper calculations
     
     private func calculateStats() {
-        statsPendingCount = applications.filter { $0.application.status == .submitted }.count
+        statsPendingCount = applications.filter { $0.application.status == .submitted || $0.application.status == .sentBack }.count
         statsUnderReviewCount = applications.filter { $0.application.status == .underReview }.count
         statsApprovedCount = applications.filter { $0.application.status == .approved || $0.application.status == .disbursed }.count
         statsRejectedCount = applications.filter { $0.application.status == .rejected }.count
@@ -88,6 +92,54 @@ class OfficerDashboardViewModel: ObservableObject {
             }
         }
         
+        // Sort by latest message
+        result.sort { app1, app2 in
+            let date1 = lastMessageTimes[app1.application.id] ?? .distantPast
+            let date2 = lastMessageTimes[app2.application.id] ?? .distantPast
+            return date1 > date2
+        }
+        
         self.filteredApplications = result
+    }
+    
+    private func fetchMessageTimestamps() async {
+        let appIds = applications.map { $0.application.id }
+        guard !appIds.isEmpty else { return }
+        
+        struct MessageTimestamp: Decodable {
+            let application_id: UUID
+            let sent_at: String
+        }
+        
+        do {
+            let timestamps: [MessageTimestamp] = try await SupabaseManager.shared.client
+                .from("messages")
+                .select("application_id, sent_at")
+                .in("application_id", values: appIds.map { $0.uuidString })
+                .execute()
+                .value
+                
+            var latestTimes: [UUID: Date] = [:]
+            let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let fallbackFormatter = ISO8601DateFormatter()
+            
+            for ts in timestamps {
+                if let date = isoFormatter.date(from: ts.sent_at) ?? fallbackFormatter.date(from: ts.sent_at) {
+                    if let current = latestTimes[ts.application_id] {
+                        if date > current { latestTimes[ts.application_id] = date }
+                    } else {
+                        latestTimes[ts.application_id] = date
+                    }
+                }
+            }
+            self.lastMessageTimes = latestTimes
+            
+            // Re-apply filters to sort
+            applyFilters(search: searchText, filter: selectedStatusFilter)
+            
+        } catch {
+            print("Failed to fetch message timestamps: \\(error)")
+        }
     }
 }

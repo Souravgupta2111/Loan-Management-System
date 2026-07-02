@@ -238,30 +238,30 @@ struct LoanDetailView: View {
                 .font(.staffTitle)
                 .foregroundColor(.staffTextPrimary)
             
-            if vm.auditLogs.isEmpty {
+            if vm.timelineItems.isEmpty {
                 Text("No audit logs found for this loan.")
                     .font(.staffBody)
                     .foregroundColor(.staffTextSecondary)
             } else {
-                ForEach(vm.auditLogs) { log in
+                ForEach(vm.timelineItems) { log in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text(log.action)
                                 .font(.staffBody)
                                 .fontWeight(.bold)
-                                .foregroundColor(.staffAccent)
+                                .foregroundColor(log.color)
                             Spacer()
-                            Text(log.createdAt?.formatted() ?? "")
+                            Text(log.timestamp.formatted())
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
                         }
-                        if let summary = log.changeSummary {
-                            Text(summary)
+                        if let remarks = log.remarks, !remarks.isEmpty {
+                            Text(remarks)
                                 .font(.staffBody)
                                 .foregroundColor(.staffTextPrimary)
-                                .padding(.top, 4)
+                                .padding(.top, 2)
                         }
-                        Text("Actor Role: \(log.actorRole?.displayName ?? "Unknown")")
+                        Text("Actor Role: \(log.role)")
                             .font(.staffCaption)
                             .foregroundColor(.staffTextSecondary)
                             .padding(.top, 2)

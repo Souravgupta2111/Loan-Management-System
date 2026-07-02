@@ -1,11 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.6";
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
 Deno.serve(async (request) => {
   try {
     const authorization = request.headers.get("Authorization");
-    if (!authorization) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: jsonHeaders });
+    if (!authorization) {
+      return new Response(JSON.stringify({ error: "Unauthorized", details: "Missing Authorization header" }), { status: 401, headers: jsonHeaders });
+    }
 
     const url = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -14,8 +16,16 @@ Deno.serve(async (request) => {
     if (!keyId || !keySecret) throw new Error("Razorpay secrets are not configured");
 
     const supabase = createClient(url, anonKey, { global: { headers: { Authorization: authorization } } });
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: jsonHeaders });
+    const token = authorization.replace(/^Bearer\s+/i, "");
+    
+    if (!token || token.trim() === "") {
+        return new Response(JSON.stringify({ error: "Unauthorized", details: `Token is empty. Raw auth header: '${authorization}'` }), { status: 401, headers: jsonHeaders });
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized", details: userError?.message || "User not found", rawHeader: authorization }), { status: 401, headers: jsonHeaders });
+    }
 
     const { emiId, loanId } = await request.json();
     const { data: emi, error: emiError } = await supabase.from("emi_schedule")

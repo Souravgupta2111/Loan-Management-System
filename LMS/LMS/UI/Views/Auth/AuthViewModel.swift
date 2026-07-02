@@ -28,9 +28,10 @@ class AuthViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         signUpSucceeded = false
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         do {
             let response = try await supabase.auth.signUp(
-                email: email,
+                email: cleanEmail,
                 password: password,
                 data: [
                     "full_name": .string(fullName),
@@ -58,8 +59,9 @@ class AuthViewModel: ObservableObject {
     func signIn(email: String, password: String) async {
         isLoading = true
         errorMessage = nil
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         do {
-            try await supabase.auth.signIn(email: email, password: password)
+            try await supabase.auth.signIn(email: cleanEmail, password: password)
             isLoading = false
         } catch {
             isLoading = false

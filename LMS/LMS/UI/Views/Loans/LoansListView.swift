@@ -524,6 +524,27 @@ struct LoansListView: View {
                     Color(hex: "#FDE8E8")
                 )
 
+            case "npa":
+                return (
+                    "NPA",
+                    Color(hex: "#D94040"),
+                    Color(hex: "#FDE8E8")
+                )
+
+            case "restructured":
+                return (
+                    "Restructured",
+                    Color(hex: "#E8A830"),
+                    Color(hex: "#FFF3D6")
+                )
+
+            case "written_off":
+                return (
+                    "Written Off",
+                    Color(hex: "#6B6B6B"),
+                    Color(hex: "#F5F5F0")
+                )
+
             default:
 
                 return (

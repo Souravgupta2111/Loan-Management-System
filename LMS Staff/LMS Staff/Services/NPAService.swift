@@ -28,7 +28,6 @@ class NPAService {
         }
         
         let restructureId = UUID()
-        let nowString = ISO8601DateFormatter().string(from: Date())
         
         // 1. Log restructure application
         let restructurePayload: [String: AnyEncodable] = [
@@ -206,5 +205,61 @@ class NPAService {
             recordId: loan.id,
             summary: "Escalated loan \(loan.id) to Admin dashboard. Reason: \(reason)"
         )
+    }
+    
+    /// Triggers the automated NPA background sync (simulating a cron job)
+    func triggerNPASync() async throws {
+        struct EmptyParams: Encodable {}
+        try await supabase.database.rpc("update_npa_status", params: EmptyParams()).execute()
+        
+        // After syncing NPA, also send due date reminders for EMIs
+        try await sendDueDateReminders()
+    }
+    
+    private func sendDueDateReminders() async throws {
+        struct EMIReminder: Decodable {
+            let due_date: String
+            let total_emi: Double
+            let loan_id: UUID
+        }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+        
+        // Find dates
+        let today = Date()
+        guard let in3Days = Calendar.current.date(byAdding: .day, value: 3, to: today) else { return }
+        
+        let targetDate = formatter.string(from: in3Days)
+        
+        let upcoming: [EMIReminder] = try await supabase.database
+            .from("emi_schedule")
+            .select("due_date, total_emi, loan_id")
+            .eq("status", value: EMIStatus.upcoming.rawValue)
+            .like("due_date", pattern: "\(targetDate)%")
+            .execute()
+            .value
+            
+        for emi in upcoming {
+            // Get borrower ID
+            struct LoanData: Decodable { let borrower_id: UUID; let loan_number: String? }
+            if let loanData: LoanData = try? await supabase.database
+                .from("loans")
+                .select("borrower_id, loan_number")
+                .eq("id", value: emi.loan_id)
+                .single()
+                .execute()
+                .value {
+                
+                try? await NotificationService.shared.createNotification(
+                    userId: loanData.borrower_id,
+                    title: "EMI Due Reminder",
+                    message: "Your EMI of INR \(emi.total_emi) for loan \(loanData.loan_number ?? "") is due on \(emi.due_date.prefix(10)). Please ensure sufficient balance.",
+                    type: .paymentReminder,
+                    referenceId: emi.loan_id,
+                    referenceType: "loans"
+                )
+            }
+        }
     }
 }

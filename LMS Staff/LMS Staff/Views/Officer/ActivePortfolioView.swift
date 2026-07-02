@@ -12,13 +12,9 @@ struct ActivePortfolioView: View {
     @StateObject private var vm = PortfolioViewModel()
     @State private var selectedLoan: LoanWithDetails?
     
-    // Flag Overdue Sheet state
-    @State private var showFlagSheet: Bool = false
-    @State private var flagReason: String = ""
-    
-    // Amortization sheet state
-    @State private var showAmortizationSheet: Bool = false
+    @State private var selectedTab: Int = 0
     @State private var amortizationSchedule: [EMIScheduleItem] = []
+    @State private var isLoadingAmortization: Bool = false
     
     var body: some View {
         HStack(spacing: 0) {
@@ -123,12 +119,7 @@ struct ActivePortfolioView: View {
                 }
             }
         }
-        .sheet(isPresented: $showFlagSheet) {
-            flagNpaSheet
-        }
-        .sheet(isPresented: $showAmortizationSheet) {
-            amortizationScheduleSheet
-        }
+
     }
     
     // MARK: - Inspector Helper Views
@@ -153,190 +144,134 @@ struct ActivePortfolioView: View {
                         .foregroundColor(.staffTextSecondary)
                 }
                 
-                Spacer()
-                
-                if item.loan.status != .npa {
-                    StaffButton(title: "Flag NPA Delinquency", style: .destructive, icon: "exclamationmark.triangle") {
-                        showFlagSheet = true
-                    }
-                    .frame(width: 220)
-                }
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffSurface)
             
-            // Detailed info tiles
+            Picker("Tabs", selection: $selectedTab) {
+                Text("Overview").tag(0)
+                Text("Amortization Schedule").tag(1)
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.top, StaffSpacing.lg)
+            
             ScrollView {
-                VStack(spacing: StaffSpacing.lg) {
-                    HStack(spacing: StaffSpacing.lg) {
-                        StaffCard {
-                            VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                                Text("Outstanding Summary")
-                                    .font(.staffTitle)
-                                    .foregroundColor(.staffTextPrimary)
-                                
-                                Divider()
-                                
-                                InfoRow(label: "Principal Disbursed", value: "INR \(String(format: "%.2f", item.loan.principalAmount))")
-                                InfoRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", item.loan.outstandingPrincipal))")
-                                InfoRow(label: "Outstanding Interest", value: "INR \(String(format: "%.2f", item.loan.outstandingInterest))")
-                                InfoRow(label: "Interest Rate Config", value: "\(String(format: "%.2f", item.loan.interestRate))% (\(item.loan.interestType.displayName))")
+                if selectedTab == 0 {
+                    VStack(spacing: StaffSpacing.lg) {
+                        HStack(spacing: StaffSpacing.lg) {
+                            StaffCard {
+                                VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                                    Text("Outstanding Summary")
+                                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                                        .foregroundColor(.staffTextPrimary)
+                                    
+                                    Divider()
+                                        .padding(.bottom, 4)
+                                    
+                                    InfoRow(label: "Principal Disbursed", value: "₹\(String(format: "%.2f", item.loan.principalAmount))")
+                                    InfoRow(label: "Outstanding Principal", value: "₹\(String(format: "%.2f", item.loan.outstandingPrincipal))")
+                                    InfoRow(label: "Outstanding Interest", value: "₹\(String(format: "%.2f", item.loan.outstandingInterest))")
+                                    InfoRow(label: "Interest Rate Config", value: "\(String(format: "%.2f", item.loan.interestRate))% (\(item.loan.interestType.displayName))")
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            }
+                            
+                            StaffCard {
+                                VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                                    Text("Repayment Tracking")
+                                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                                        .foregroundColor(.staffTextPrimary)
+                                    
+                                    Divider()
+                                        .padding(.bottom, 4)
+                                    
+                                    InfoRow(label: "Overdue Days", value: "\(item.loan.overdueDays) Days", isUrgent: item.loan.overdueDays > 0)
+                                    InfoRow(label: "Total Overdue Amount", value: "₹\(String(format: "%.2f", item.loan.totalOverdue))", isUrgent: item.loan.totalOverdue > 0)
+                                    InfoRow(label: "Disbursement Ref", value: item.loan.disbursementReference ?? "N/A")
+                                    InfoRow(label: "ECS Repayment", value: item.loan.repaymentMode.displayName)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             }
                         }
-                        
-                        StaffCard {
-                            VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                                Text("Repayment Tracking")
-                                    .font(.staffTitle)
-                                    .foregroundColor(.staffTextPrimary)
-                                
-                                Divider()
-                                
-                                InfoRow(label: "Overdue Days", value: "\(item.loan.overdueDays) Days", isUrgent: item.loan.overdueDays > 0)
-                                InfoRow(label: "Total Overdue Amount", value: "INR \(String(format: "%.2f", item.loan.totalOverdue))", isUrgent: item.loan.totalOverdue > 0)
-                                InfoRow(label: "Disbursement Reference", value: item.loan.disbursementReference ?? "N/A")
-                                InfoRow(label: "ECS Repayment Mode", value: item.loan.repaymentMode.displayName)
-                            }
-                        }
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
-                    
-                    // Amortization trigger button
-                    Button(action: {
-                        Task {
-                            if let fetched = try? await LoanPortfolioService.shared.fetchEMISchedule(forLoanId: item.loan.id) {
-                                self.amortizationSchedule = fetched
-                                self.showAmortizationSheet = true
+                } else {
+                    if isLoadingAmortization {
+                        ProgressView().padding(.top, 50)
+                    } else if amortizationSchedule.isEmpty {
+                        EmptyStateView(icon: "tablecells", title: "No Schedule", message: "Amortization schedule not found.")
+                            .padding(.top, 50)
+                    } else {
+                        VStack(spacing: 0) {
+                            HStack {
+                                Text("No.")
+                                    .frame(width: 40, alignment: .leading)
+                                Text("Due Date")
+                                    .frame(width: 120, alignment: .leading)
+                                Text("EMI Amt")
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                Text("Principal")
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                Text("Interest")
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                Text("Status")
+                                    .frame(width: 100, alignment: .trailing)
                             }
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: "tablecells.fill")
-                            Text("View Full Amortization Schedule")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .font(.staffBody)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(StaffSpacing.lg)
-                        .background(Color.staffAccent)
-                        .cornerRadius(StaffCorner.md)
-                    }
-                    .padding(.horizontal, StaffSpacing.lg)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Sheets
-    
-    private var flagNpaSheet: some View {
-        VStack(spacing: StaffSpacing.lg) {
-            Text("Flag Loan as NPA")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("This will mark the loan account as Non-Performing Asset and trigger recovery monitoring alerts.")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            TextEditor(text: $flagReason)
-                .frame(height: 120)
-                .padding(8)
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-                .foregroundColor(.staffTextPrimary)
-            
-            HStack {
-                Button("Cancel") { showFlagSheet = false }
-                    .foregroundColor(.staffTextSecondary)
-                Spacer()
-                Button("Flag NPA") {
-                    if let loan = selectedLoan?.loan {
-                        Task {
-                            if await vm.flagLoanAsOverdue(loanId: loan.id, reason: flagReason, officerId: authViewModel.currentStaff?.id) {
-                                showFlagSheet = false
-                                flagReason = ""
-                            }
-                        }
-                    }
-                }
-                .foregroundColor(.staffRed)
-                .fontWeight(.bold)
-                .disabled(flagReason.isEmpty)
-            }
-        }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
-    }
-    
-    private var amortizationScheduleSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            HStack {
-                Text("Amortization Schedule")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                Spacer()
-                Button("Close") { showAmortizationSheet = false }
-                    .foregroundColor(.staffAccent)
-            }
-            
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Header row
-                    HStack {
-                        Text("No.")
-                            .frame(width: 40, alignment: .leading)
-                        Text("Due Date")
-                            .frame(width: 120, alignment: .leading)
-                        Text("EMI Amt")
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                        Text("Principal")
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                        Text("Interest")
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                        Text("Status")
-                            .frame(width: 100, alignment: .trailing)
-                    }
-                    .font(.staffCaption)
-                    .foregroundColor(.staffTextSecondary)
-                    .padding(.vertical, 8)
-                    
-                    Divider()
-                    
-                    ForEach(amortizationSchedule) { item in
-                        HStack {
-                            Text("\(item.installmentNumber)")
-                                .frame(width: 40, alignment: .leading)
-                            Text(item.dueDate)
-                                .frame(width: 120, alignment: .leading)
-                            Text(String(format: "%.2f", item.totalEmi))
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(format: "%.2f", item.principalComponent))
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(format: "%.2f", item.interestComponent))
-                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            .font(.staffCaption)
+                            .foregroundColor(.staffTextSecondary)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, StaffSpacing.lg)
                             
-                            // Simple label status display
-                            Text(item.status.displayName)
-                                .frame(width: 100, alignment: .trailing)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(emiStatusColor(item.status))
+                            Divider()
+                            
+                            ForEach(amortizationSchedule) { emi in
+                                HStack {
+                                    Text("\(emi.installmentNumber)")
+                                        .frame(width: 40, alignment: .leading)
+                                    Text(emi.dueDate)
+                                        .frame(width: 120, alignment: .leading)
+                                    Text(String(format: "%.2f", emi.totalEmi))
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                    Text(String(format: "%.2f", emi.principalComponent))
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                    Text(String(format: "%.2f", emi.interestComponent))
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                    
+                                    Text(emi.status.displayName)
+                                        .frame(width: 100, alignment: .trailing)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(emiStatusColor(emi.status))
+                                }
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextPrimary)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, StaffSpacing.lg)
+                                
+                                Divider()
+                            }
                         }
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextPrimary)
-                        .padding(.vertical, 10)
-                        
-                        Divider()
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .padding(StaffSpacing.lg)
                     }
                 }
             }
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        .task(id: item.loan.id) {
+            isLoadingAmortization = true
+            if let fetched = try? await LoanPortfolioService.shared.fetchEMISchedule(forLoanId: item.loan.id) {
+                self.amortizationSchedule = fetched
+            } else {
+                self.amortizationSchedule = []
+            }
+            isLoadingAmortization = false
+        }
     }
+    
+
     
     private func emiStatusColor(_ status: EMIStatus) -> Color {
         switch status {
@@ -355,15 +290,17 @@ struct InfoRow: View {
     var isUrgent: Bool = false
     
     var body: some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.staffBody)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundColor(.staffTextSecondary)
-            Spacer()
+            Spacer(minLength: 8)
             Text(value)
-                .font(.staffBody)
-                .fontWeight(.bold)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundColor(isUrgent ? .staffRed : .staffTextPrimary)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, 2)
     }
 }

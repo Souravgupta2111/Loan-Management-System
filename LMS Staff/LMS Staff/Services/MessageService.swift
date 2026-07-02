@@ -60,6 +60,15 @@ class MessageService {
             .execute()
             .value
             
+        try? await NotificationService.shared.createNotification(
+            userId: receiverId,
+            title: "New Message",
+            message: content,
+            type: .general,
+            referenceId: applicationId,
+            referenceType: "loan_applications"
+        )
+            
         return sentMessage
     }
     

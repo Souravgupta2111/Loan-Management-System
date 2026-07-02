@@ -11,6 +11,7 @@ struct StaffFormField: View {
     var autocapitalization: TextInputAutocapitalization = .never
     var icon: String? = nil
 
+    @State private var isPasswordVisible: Bool = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -27,8 +28,8 @@ struct StaffFormField: View {
                         .frame(width: 20)
                 }
 
-                 Group {
-                    if isSecure {
+                Group {
+                    if isSecure && !isPasswordVisible {
                         SecureField(placeholder, text: $text)
                     } else {
                         TextField(placeholder, text: $text)
@@ -40,6 +41,15 @@ struct StaffFormField: View {
                 .tint(.staffAccent)
                 .textInputAutocapitalization(autocapitalization)
                 .autocorrectionDisabled()
+                
+                if isSecure {
+                    Button(action: {
+                        isPasswordVisible.toggle()
+                    }) {
+                        Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)

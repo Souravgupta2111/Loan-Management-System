@@ -8,32 +8,12 @@
 import SwiftUI
 import Charts
 
-struct CollectionTrendItem: Identifiable {
-    let id = UUID()
-    let month: String
-    let efficiency: Double
-}
-
 struct PortfolioDashboardView: View {
     @StateObject private var vm = PortfolioViewModel()
     @State private var selectedProductFilter: String = "All Products"
     @State private var selectedBranchFilter: String = "All Branches"
     
-    // Seed collection efficiency trend data
-    let trendData: [CollectionTrendItem] = [
-        CollectionTrendItem(month: "Jul 25", efficiency: 98.2),
-        CollectionTrendItem(month: "Aug 25", efficiency: 97.9),
-        CollectionTrendItem(month: "Sep 25", efficiency: 97.4),
-        CollectionTrendItem(month: "Oct 25", efficiency: 96.8),
-        CollectionTrendItem(month: "Nov 25", efficiency: 97.0),
-        CollectionTrendItem(month: "Dec 25", efficiency: 95.8),
-        CollectionTrendItem(month: "Jan 26", efficiency: 96.1),
-        CollectionTrendItem(month: "Feb 26", efficiency: 94.2),
-        CollectionTrendItem(month: "Mar 26", efficiency: 94.8),
-        CollectionTrendItem(month: "Apr 26", efficiency: 92.5), // declining trend highlighted
-        CollectionTrendItem(month: "May 26", efficiency: 93.1),
-        CollectionTrendItem(month: "Jun 26", efficiency: 91.8)  // critical attention area
-    ]
+
     
     var body: some View {
         ScrollView {
@@ -125,35 +105,42 @@ struct PortfolioDashboardView: View {
                         }
                         
                         // SwiftUI Line Chart
-                        Chart(trendData) { item in
-                            LineMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(Color.staffAccent)
-                            .interpolationMethod(.catmullRom)
-                            .lineStyle(StrokeStyle(lineWidth: 3))
-                            
-                            PointMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(item.efficiency < 93.0 ? Color.staffRed : Color.staffAccent)
-                        }
-                        .frame(height: 220)
-                        .chartYScale(domain: 85...100)
-                        .chartXAxis {
-                            AxisMarks(values: .automatic) { _ in
-                                AxisValueLabel()
-                                    .foregroundStyle(Color.staffTextSecondary)
+                        if vm.collectionTrends.isEmpty {
+                            Text("Not enough historical data to generate trend.")
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(height: 220)
+                        } else {
+                            Chart(vm.collectionTrends) { item in
+                                LineMark(
+                                    x: .value("Month", item.month),
+                                    y: .value("Efficiency", item.efficiency)
+                                )
+                                .foregroundStyle(Color.staffAccent)
+                                .interpolationMethod(.catmullRom)
+                                .lineStyle(StrokeStyle(lineWidth: 3))
+                                
+                                PointMark(
+                                    x: .value("Month", item.month),
+                                    y: .value("Efficiency", item.efficiency)
+                                )
+                                .foregroundStyle(item.efficiency < 93.0 ? Color.staffRed : Color.staffAccent)
                             }
-                        }
-                        .chartYAxis {
-                            AxisMarks(values: .automatic) { _ in
-                                AxisGridLine()
-                                    .foregroundStyle(Color.staffBorder)
-                                AxisValueLabel()
-                                    .foregroundStyle(Color.staffTextSecondary)
+                            .frame(height: 220)
+                            .chartYScale(domain: 0...100)
+                            .chartXAxis {
+                                AxisMarks(values: .automatic) { _ in
+                                    AxisValueLabel()
+                                        .foregroundStyle(Color.staffTextSecondary)
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(values: .automatic) { _ in
+                                    AxisGridLine()
+                                        .foregroundStyle(Color.staffBorder)
+                                    AxisValueLabel()
+                                        .foregroundStyle(Color.staffTextSecondary)
+                                }
                             }
                         }
                     }
@@ -205,26 +192,33 @@ struct PortfolioDashboardView: View {
                                     let matchesProduct = selectedProductFilter == "All Products" || loanWithDetails.product.name == selectedProductFilter
                                     
                                     if matchesProduct {
-                                        HStack {
-                                            Text(loanWithDetails.loan.loanNumber ?? "LMS-XXXX")
-                                                .font(.staffBody)
-                                                .frame(width: 140, alignment: .leading)
-                                                .foregroundColor(.staffTextPrimary)
-                                            
-                                            Text(loanWithDetails.borrower.fullName)
-                                                .font(.staffBody)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .foregroundColor(.staffTextPrimary)
-                                            
-                                            Text(String(format: "%.2f", loanWithDetails.loan.principalAmount))
-                                                .font(.staffBody)
-                                                .frame(width: 120, alignment: .trailing)
-                                                .foregroundColor(.staffTextPrimary)
-                                            
-                                            StaffStatusBadge(status: loanWithDetails.loan.status.displayName)
-                                                .frame(width: 100, alignment: .trailing)
+                                        NavigationLink(destination: LoanInspectorView(loanWithDetails: loanWithDetails) {
+                                            Task {
+                                                await vm.loadPortfolio()
+                                            }
+                                        }) {
+                                            HStack {
+                                                Text(loanWithDetails.loan.loanNumber ?? "LMS-XXXX")
+                                                    .font(.staffBody)
+                                                    .frame(width: 140, alignment: .leading)
+                                                    .foregroundColor(.staffTextPrimary)
+                                                
+                                                Text(loanWithDetails.borrower.fullName)
+                                                    .font(.staffBody)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .foregroundColor(.staffTextPrimary)
+                                                
+                                                Text(String(format: "%.2f", loanWithDetails.loan.principalAmount))
+                                                    .font(.staffBody)
+                                                    .frame(width: 120, alignment: .trailing)
+                                                    .foregroundColor(.staffTextPrimary)
+                                                
+                                                StaffStatusBadge(status: loanWithDetails.loan.status.displayName)
+                                                    .frame(width: 100, alignment: .trailing)
+                                            }
+                                            .padding(.vertical, 12)
                                         }
-                                        .padding(.vertical, 12)
+                                        .buttonStyle(.plain)
                                         
                                         Divider()
                                     }

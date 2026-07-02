@@ -69,7 +69,8 @@ struct EMIScheduleView: View {
                                         .foregroundColor(.textSecondary)
                                 } else {
                                     ForEach($emiList) { $emi in
-                                        EMIRow(emi: emi, isProcessing: $isProcessingPayment) {
+                                        let shouldShowPayNow = emi.status == .overdue || emi.status == .due
+                                        EMIRow(emi: emi, isProcessing: $isProcessingPayment, showPayNow: shouldShowPayNow) {
                                             Task {
                                                 await startPaymentFlow(for: emi)
                                             }
@@ -189,7 +190,7 @@ struct EMIScheduleView: View {
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
             
-            emiList = schedule.map { s in
+            var mappedList = schedule.map { s in
                 let dateStr: String
                 if let d = formatter.date(from: String(s.due_date.prefix(10))) {
                     dateStr = displayFormatter.string(from: d)
@@ -202,6 +203,8 @@ struct EMIScheduleView: View {
                     emiStatus = .paid
                 } else if s.status == "overdue" {
                     emiStatus = .overdue
+                } else if s.status == "due" {
+                    emiStatus = .due
                 } else {
                     emiStatus = .upcoming
                 }
@@ -212,6 +215,28 @@ struct EMIScheduleView: View {
                     penalty: s.penalty_amount, status: emiStatus
                 )
             }
+            
+            if let firstUpcomingIdx = mappedList.firstIndex(where: { $0.status == .upcoming }) {
+                var shouldUnlock = false
+                if firstUpcomingIdx == 0 {
+                    shouldUnlock = true
+                } else {
+                    if let prevDate = formatter.date(from: String(schedule[firstUpcomingIdx - 1].due_date.prefix(10))) {
+                        let today = Calendar.current.startOfDay(for: Date())
+                        let prevEmiDay = Calendar.current.startOfDay(for: prevDate)
+                        if today > prevEmiDay {
+                            shouldUnlock = true
+                        }
+                    } else {
+                        shouldUnlock = true
+                    }
+                }
+                
+                if shouldUnlock {
+                    mappedList[firstUpcomingIdx].status = .due
+                }
+            }
+            emiList = mappedList
             isLoading = false
         } catch {
             print("Failed to fetch EMIs: \(error)")
@@ -310,6 +335,27 @@ struct EMIScheduleView: View {
                 ))
             }
         }
+        if let firstUpcomingIdx = list.firstIndex(where: { $0.status == .upcoming }) {
+            var shouldUnlock = false
+            if firstUpcomingIdx == 0 {
+                shouldUnlock = true
+            } else {
+                if let prevDate = formatter.date(from: list[firstUpcomingIdx - 1].date) {
+                    let today = Calendar.current.startOfDay(for: now)
+                    let prevEmiDay = Calendar.current.startOfDay(for: prevDate)
+                    if today > prevEmiDay {
+                        shouldUnlock = true
+                    }
+                } else {
+                    shouldUnlock = true
+                }
+            }
+            
+            if shouldUnlock {
+                list[firstUpcomingIdx].status = .due
+            }
+        }
+        
         return list
     }
 }
@@ -325,6 +371,7 @@ struct EMIDetail: Identifiable {
     
     enum EMIStatus {
         case paid
+        case due
         case upcoming
         case overdue
     }
@@ -333,6 +380,7 @@ struct EMIDetail: Identifiable {
 struct EMIRow: View {
     let emi: EMIDetail
     @Binding var isProcessing: Bool
+    let showPayNow: Bool
     let onPay: () -> Void
     
     var body: some View {
@@ -342,9 +390,19 @@ struct EMIRow: View {
                     .font(.bodyRegular)
                     .foregroundColor(.textSecondary)
                 
-                Text(statusText)
-                    .font(.caption)
-                    .foregroundColor(statusColor)
+                if emi.status == .overdue {
+                    Text(statusText)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentRed)
+                        .clipShape(Capsule())
+                } else {
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundColor(statusColor)
+                }
 
                 Text("Principal ₹\(Int(emi.principal)) • Interest ₹\(Int(emi.interest))")
                     .font(.caption2)
@@ -367,7 +425,7 @@ struct EMIRow: View {
                     if isProcessing {
                         ProgressView()
                             .tint(.accentGreen)
-                    } else {
+                    } else if showPayNow {
                         Button("PAY NOW") {
                             onPay()
                         }
@@ -382,14 +440,20 @@ struct EMIRow: View {
             }
         }
         .padding(Spacing.lg)
+        .background(emi.status == .overdue ? Color.accentRed.opacity(0.05) : Color.clear)
         .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(emi.status == .overdue ? Color.accentRed.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
         .opacity(emi.status == .paid ? 0.6 : 1.0)
     }
     
     private var statusText: String {
         switch emi.status {
         case .paid: return "PAID"
+        case .due: return "DUE NOW"
         case .upcoming: return "UPCOMING"
         case .overdue: return "OVERDUE"
         }
@@ -398,6 +462,7 @@ struct EMIRow: View {
     private var statusColor: Color {
         switch emi.status {
         case .paid: return .accentGreen
+        case .due: return Color(hex: "#D97706") // amber
         case .upcoming: return .textSecondary
         case .overdue: return .accentRed
         }

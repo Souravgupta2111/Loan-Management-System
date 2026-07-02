@@ -38,7 +38,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerDashboard: return "Dashboard"
         case .officerApplications: return "My Applications"
         case .officerPortfolio: return "Active Loans"
-        case .officerMessages: return "Borrower Chats"
+        case .officerMessages: return "Chats"
         case .officerNotifications: return "Alert Notifications"
         
         case .managerDashboard: return "Overview Dashboard"
@@ -47,7 +47,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .managerPortfolio: return "Portfolio Analytics"
         case .managerNpa: return "NPA & Recoveries"
         case .managerReports: return "Export Reports"
-        case .managerMessages: return "Officer Chats"
+        case .managerMessages: return "Chats"
         
         case .adminDashboard: return "System Overview"
         case .adminStaff: return "Staff Accounts"
@@ -129,6 +129,15 @@ struct StaffTabRouter: View {
             }
         }
         .accentColor(.staffAccent)
+        .onAppear {
+            Task {
+                try? await NotificationService.shared.requestPermission()
+            }
+            NotificationService.shared.subscribeToNotifications()
+        }
+        .onDisappear {
+            NotificationService.shared.unsubscribe()
+        }
     }
     
     @ViewBuilder

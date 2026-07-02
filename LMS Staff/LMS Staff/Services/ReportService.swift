@@ -17,6 +17,12 @@ struct PortfolioReport: Hashable {
     let totalDue: Double
 }
 
+struct CollectionTrendItem: Identifiable {
+    let id = UUID()
+    let month: String
+    let efficiency: Double
+}
+
 class ReportService {
     
     static let shared = ReportService()
@@ -87,5 +93,60 @@ class ReportService {
         }
         
         return csvString
+    }
+    
+    /// Compiles live historical collection efficiency trends (by month) for graphs
+    func fetchCollectionTrends() async throws -> [CollectionTrendItem] {
+        let emiItems: [EMIScheduleItem] = try await supabase.database
+            .from("emi_schedule")
+            .select()
+            .execute()
+            .value
+            
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayStr = formatter.string(from: Date())
+        let historicalEMIs = emiItems.filter { $0.dueDate <= todayStr }
+        
+        // Group by YYYY-MM
+        var monthlyTotals: [String: (due: Double, collected: Double)] = [:]
+        
+        for emi in historicalEMIs {
+            let prefix = String(emi.dueDate.prefix(7)) // "2026-06"
+            var current = monthlyTotals[prefix] ?? (due: 0.0, collected: 0.0)
+            current.due += emi.totalEmi
+            if emi.status == .paid {
+                current.collected += emi.totalEmi
+            }
+            monthlyTotals[prefix] = current
+        }
+        
+        var trends: [CollectionTrendItem] = []
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "yyyy-MM"
+        
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "MMM yy"
+        
+        let sortedKeys = monthlyTotals.keys.sorted()
+        
+        for key in sortedKeys {
+            if let totals = monthlyTotals[key] {
+                let efficiency = totals.due > 0 ? (totals.collected / totals.due) * 100.0 : 100.0
+                
+                if let date = monthFormatter.date(from: key) {
+                    let displayMonth = displayFormatter.string(from: date)
+                    trends.append(CollectionTrendItem(month: displayMonth, efficiency: efficiency))
+                } else {
+                    trends.append(CollectionTrendItem(month: key, efficiency: efficiency))
+                }
+            }
+        }
+        
+        // Return last 12 months if there are many
+        if trends.count > 12 {
+            return Array(trends.suffix(12))
+        }
+        return trends
     }
 }

@@ -12,7 +12,7 @@ struct HomeDashboardView: View {
     @State private var showAllTransactions = false
 
     // UI control flags to hide elements
-    private let showChatButton = false
+    private let showChatButton = true
     private let showNotificationButton = false
 
     var body: some View {
@@ -55,11 +55,6 @@ struct HomeDashboardView: View {
             .sheet(isPresented: $showProfile) {
                 ProfileView()
                     .environmentObject(authViewModel)
-            }
-            .alert("Chat", isPresented: $showChatHint) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Open chat from a loan or application detail for a specific conversation.")
             }
             .task { await loadData() }
             .refreshable { await loadData() }
@@ -329,7 +324,9 @@ struct HomeDashboardView: View {
                 .buttonStyle(.plain)
 
                 if showChatButton {
-                    Button { showChatHint = true } label: {
+                    NavigationLink {
+                        ChatSelectionView()
+                    } label: {
                         quickActionCard(icon: "bubble.left.and.text.bubble.right", label: "Chat")
                     }
                     .buttonStyle(.plain)

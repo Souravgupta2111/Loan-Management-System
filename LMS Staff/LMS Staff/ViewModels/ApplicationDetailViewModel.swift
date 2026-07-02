@@ -23,6 +23,7 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var borrowerMessages: [Message] = []
     @Published var internalMessages: [Message] = []
     @Published var timelineItems: [StaffTimelineView.TimelineItem] = []
+    @Published var underwritingSuggestion: UnderwritingSuggestion?
     
     @Published var isLoading: Bool = false
     @Published var isSendingMessage: Bool = false
@@ -49,6 +50,18 @@ class ApplicationDetailViewModel: ObservableObject {
         errorMessage = nil
         
         do {
+            // Fetch latest borrower profile to ensure we have the newest aa_consent_id
+            let profiles: [BorrowerProfile] = try await supabase.database
+                .from("borrower_profiles")
+                .select()
+                .eq("user_id", value: borrower.id)
+                .execute()
+                .value
+            
+            if let latestProfile = profiles.first {
+                self.borrowerProfile = latestProfile
+            }
+            
             // Fetch uploaded documents
             self.documents = try await documentService.fetchDocuments(forApplicationId: application.id)
             
@@ -126,6 +139,28 @@ class ApplicationDetailViewModel: ObservableObject {
             
             // Subscribe to real-time chat
             subscribeToChat()
+            
+            // Calculate initial underwriting suggestion
+            calculateSuggestion()
+            
+            // Automatically pull a mock credit score if it hasn't been fetched yet
+            if let profile = self.borrowerProfile, (profile.creditScore == nil || profile.creditScore == 0) {
+                Task {
+                    do {
+                        let score = try await MockCreditBureauService.shared.fetchAndSaveCreditScore(
+                            userId: self.borrower.id,
+                            panNumber: profile.panNumber
+                        )
+                        await MainActor.run {
+                            self.borrowerProfile?.creditScore = score
+                            self.calculateSuggestion()
+                        }
+                    } catch {
+                        print("Failed to pull mock credit score: \(error)")
+                    }
+                }
+            }
+            
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -322,6 +357,51 @@ class ApplicationDetailViewModel: ObservableObject {
             Task.detached {
                 await service.unsubscribe(channel)
             }
+        }
+    }
+    
+    // MARK: - Underwriting & Verification
+    
+    private func calculateSuggestion() {
+        guard let profile = borrowerProfile else { return }
+        let existingEMIs: Double = 0 // In future, use real data
+        
+        self.underwritingSuggestion = UnderwritingService.shared.calculateSuggestion(
+            monthlyIncome: profile.verifiedAnnualIncome != nil ? (profile.verifiedAnnualIncome! / 12) : (profile.monthlyIncome ?? 0),
+            creditScore: profile.creditScore ?? 0,
+            employmentType: profile.employmentType ?? .salaried,
+            requestedAmount: application.requestedAmount,
+            product: product,
+            existingEMIs: existingEMIs,
+            isIncomeVerified: profile.incomeVerified ?? false
+        )
+    }
+    
+    func saveVerifiedIncome(_ analyzedData: AnalyzedIncome) async {
+        guard let profileId = borrowerProfile?.id else { return }
+        
+        do {
+            let updates: [String: AnyJSON] = [
+                "income_verified": true,
+                "verified_annual_income": .double(analyzedData.monthlySalary * 12),
+                "itr_assessment_year": "AA_VERIFIED"
+            ]
+            
+            try await supabase.database
+                .from("borrower_profiles")
+                .update(updates)
+                .eq("id", value: profileId)
+                .execute()
+            
+            // Refresh borrower profile
+            self.borrowerProfile?.incomeVerified = true
+            self.borrowerProfile?.verifiedAnnualIncome = analyzedData.monthlySalary * 12
+            self.borrowerProfile?.itrAssessmentYear = "AA_VERIFIED"
+            
+            calculateSuggestion()
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
         }
     }
 }

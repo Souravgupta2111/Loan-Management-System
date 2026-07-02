@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import Supabase
+import PostgREST
 
 @MainActor
 class ManagerDashboardViewModel: ObservableObject {
@@ -51,6 +52,7 @@ class ManagerDashboardViewModel: ObservableObject {
             // 2. Fetch applications that are recommended (under_review status)
             let allApplications = try await appService.fetchAllApplications()
             self.recommendedApplications = allApplications.filter { $0.application.status == .underReview }
+            await fetchMessageTimestamps()
             
             // 3. Fetch officers
             let allStaff = try await StaffManagementService.shared.fetchStaff()
@@ -60,6 +62,50 @@ class ManagerDashboardViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    private func fetchMessageTimestamps() async {
+        let appIds = recommendedApplications.map { $0.application.id }
+        guard !appIds.isEmpty else { return }
+        
+        struct MessageTimestamp: Decodable {
+            let application_id: UUID
+            let sent_at: String
+        }
+        
+        do {
+            let timestamps: [MessageTimestamp] = try await SupabaseManager.shared.client
+                .from("messages")
+                .select("application_id, sent_at")
+                .in("application_id", values: appIds.map { $0.uuidString })
+                .execute()
+                .value
+                
+            var latestTimes: [UUID: Date] = [:]
+            let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let fallbackFormatter = ISO8601DateFormatter()
+            
+            for ts in timestamps {
+                if let date = isoFormatter.date(from: ts.sent_at) ?? fallbackFormatter.date(from: ts.sent_at) {
+                    if let current = latestTimes[ts.application_id] {
+                        if date > current { latestTimes[ts.application_id] = date }
+                    } else {
+                        latestTimes[ts.application_id] = date
+                    }
+                }
+            }
+            
+            // Sort by latest message
+            self.recommendedApplications.sort { app1, app2 in
+                let date1 = latestTimes[app1.application.id] ?? .distantPast
+                let date2 = latestTimes[app2.application.id] ?? .distantPast
+                return date1 > date2
+            }
+            
+        } catch {
+            print("Failed to fetch message timestamps: \\(error)")
+        }
     }
     
     func approveApplication(applicationId: UUID, approvedAmount: Double, tenureMonths: Int, interestRate: Double) async -> Bool {

@@ -16,6 +16,7 @@ enum LoanStatus: String, Codable, CaseIterable, Identifiable {
     case npa
     case restructured
     case writtenOff = "written_off"
+    case pendingAcceptance = "pending_acceptance"
 
     var id: String { rawValue }
 
@@ -26,6 +27,7 @@ enum LoanStatus: String, Codable, CaseIterable, Identifiable {
         case .npa:          return "NPA"
         case .restructured: return "Restructured"
         case .writtenOff:   return "Written Off"
+        case .pendingAcceptance: return "Pending Acceptance"
         }
     }
 
@@ -36,6 +38,7 @@ enum LoanStatus: String, Codable, CaseIterable, Identifiable {
         case .npa:          return "exclamationmark.triangle.fill"
         case .restructured: return "arrow.triangle.2.circlepath"
         case .writtenOff:   return "xmark.bin.fill"
+        case .pendingAcceptance: return "hourglass"
         }
     }
 }

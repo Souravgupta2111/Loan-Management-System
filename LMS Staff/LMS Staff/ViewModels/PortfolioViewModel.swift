@@ -18,6 +18,7 @@ class PortfolioViewModel: ObservableObject {
             applyFilters(search: searchText, filter: selectedStatusFilter)
         }
     }
+    @Published var collectionTrends: [CollectionTrendItem] = []
     @Published var filteredLoans: [LoanWithDetails] = []
     @Published var searchText: String = "" {
         didSet {
@@ -42,8 +43,13 @@ class PortfolioViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let fetched = try await portfolioService.fetchLoans(officerId: officerId)
+            async let fetchedLoansTask = portfolioService.fetchLoans(officerId: officerId)
+            async let fetchedTrendsTask = ReportService.shared.fetchCollectionTrends()
+            
+            let (fetched, trends) = try await (fetchedLoansTask, fetchedTrendsTask)
+            
             self.loans = fetched
+            self.collectionTrends = trends
             applyFilters(search: searchText, filter: selectedStatusFilter)
         } catch {
             self.errorMessage = error.localizedDescription

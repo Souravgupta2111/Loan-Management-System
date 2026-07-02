@@ -19,6 +19,8 @@ class NPAViewModel: ObservableObject {
     @Published var tier60To89: [LoanWithDetails] = []
     @Published var tier90PlusNPA: [LoanWithDetails] = []
     
+    @Published var collectionTrends: [CollectionTrendItem] = []
+    
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
@@ -33,7 +35,11 @@ class NPAViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let fetched = try await portfolioService.fetchLoans()
+            async let fetchedLoansTask = portfolioService.fetchLoans()
+            async let fetchedTrendsTask = ReportService.shared.fetchCollectionTrends()
+            
+            let (fetched, trends) = try await (fetchedLoansTask, fetchedTrendsTask)
+            
             // We want loans that are active or restructured or npa AND have overdue days > 0
             // Or if status is npa
             let delinquent = fetched.filter {
@@ -41,6 +47,7 @@ class NPAViewModel: ObservableObject {
             }
             
             self.overdueLoans = delinquent
+            self.collectionTrends = trends
             
             // Bucket them
             self.tier30To59 = delinquent.filter { $0.loan.overdueDays >= 30 && $0.loan.overdueDays < 60 }

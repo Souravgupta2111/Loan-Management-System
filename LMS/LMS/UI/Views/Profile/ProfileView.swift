@@ -18,6 +18,7 @@ struct ProfileView: View {
     @State private var userName = ""
     @State private var userEmail = ""
     @State private var kycStatus = "pending"
+    @State private var aaConsentStatus = "pending"
     @State private var phone = ""
     @State private var pan = ""
     @State private var address = ""
@@ -39,6 +40,8 @@ struct ProfileView: View {
     @State private var isSaving = false
     @State private var saveError: String? = nil
     @State private var saveSuccess = false
+
+    @State private var showIncomeVerification = false
 
     var body: some View {
         NavigationStack {
@@ -200,8 +203,41 @@ struct ProfileView: View {
                 StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
             }
             .padding(Spacing.lg)
+
+            divider
+
+            // Income Verification Row
+            Button {
+                showIncomeVerification = true
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
+                        Image(systemName: "banknote.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Income Verification").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                        Text((aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") ? "Verified via AA" : "Pending").font(.bodyLarge).foregroundColor(.textPrimary)
+                    }
+                    Spacer()
+                    if (aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") {
+                        StatusBadge(status: "verified")
+                    } else {
+                        Image(systemName: "chevron.right").foregroundColor(.textTertiary)
+                    }
+                }
+                .padding(Spacing.lg)
+            }
+            .buttonStyle(.plain)
         }
         .liquidGlass(cornerRadius: 22)
+        .sheet(isPresented: $showIncomeVerification) {
+            IncomeVerificationView(mobileNumber: phone) {
+                Task {
+                    await loadProfile() // Refresh after verification
+                }
+            }
+        }
     }
 
     private var addressRow: some View {
@@ -527,12 +563,13 @@ struct ProfileView: View {
 
             let profiles: [BorrowerRow] = try await SupabaseManager.shared.client
                 .from("borrower_profiles")
-                .select("kyc_status, pan_number, address_line1")
+                .select("kyc_status, pan_number, address_line1, aa_consent_status")
                 .eq("user_id", value: userId.uuidString)
                 .execute()
                 .value
             if let profile = profiles.first {
                 kycStatus = profile.kycStatus
+                aaConsentStatus = profile.aaConsentStatus ?? "pending"
                 pan = profile.panNumber ?? ""
                 address = profile.address ?? ""
             }
@@ -633,9 +670,11 @@ private struct BorrowerRow: Decodable {
     let kycStatus: String
     let panNumber: String?
     let address: String?
+    let aaConsentStatus: String?
     enum CodingKeys: String, CodingKey {
         case kycStatus = "kyc_status"
         case panNumber = "pan_number"
         case address = "address_line1"
+        case aaConsentStatus = "aa_consent_status"
     }
 }

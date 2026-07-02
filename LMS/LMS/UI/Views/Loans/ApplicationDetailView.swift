@@ -16,6 +16,16 @@ struct ApplicationDetailView: View {
     @State private var showShareSheet = false
     @State private var pdfShareURL: URL?
     
+    // Assigned officer info
+    @State private var officerInfo: AssignedOfficerInfo?
+    @State private var isLoadingOfficer = false
+    
+    // Documents
+    @State private var uploadedDocuments: [LoanService.DocumentRow] = []
+    @State private var isLoadingDocuments = false
+    @State private var customDocumentName: String = ""
+    @State private var isUploadingCustomDoc = false
+    
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: Spacing.xxl) {
@@ -24,6 +34,14 @@ struct ApplicationDetailView: View {
                 
                 // MARK: - Details
                 detailsCard
+                
+                // MARK: - Documents
+                documentsCard
+                
+                // MARK: - Assigned Officer & Branch Card
+                if application.officerId != nil || application.branchName != nil {
+                    assignedOfficerCard
+                }
                 
                 // MARK: - Rejection Reason (US-10)
                 if application.status == "rejected", let reason = application.rejectionReason {
@@ -66,15 +84,7 @@ struct ApplicationDetailView: View {
                             .overlay(RoundedRectangle(cornerRadius: Corner.md).stroke(Color.border, lineWidth: 1))
                             .foregroundColor(.textPrimary)
                             
-                        Text("Upload Additional Documents")
-                            .font(.label)
-                            .foregroundColor(.textSecondary)
-                        
-                        // User can upload a new generic document based on remarks
-                        DocumentUploadView(title: "Additional Document", subtitle: "Requested file", documentData: Binding(
-                            get: { newDocuments["additional_document"] },
-                            set: { if let d = $0 { newDocuments["additional_document"] = d } }
-                        ))
+                        // Document upload moved to Documents Card
                         
                         if let err = errorMessage {
                             Text(err).font(.caption2).foregroundColor(.accentRed)
@@ -86,7 +96,7 @@ struct ApplicationDetailView: View {
                         PillButton(title: isSubmitting ? "Submitting..." : "Submit Response", style: .primary) {
                             Task { await submitResponse() }
                         }
-                        .disabled(newDocuments.isEmpty || isSubmitting)
+                        .disabled(remarksText.isEmpty || isSubmitting)
                         .padding(.top, Spacing.sm)
                     }
                     .padding(Spacing.lg)
@@ -111,6 +121,81 @@ struct ApplicationDetailView: View {
                     }
                     .padding(Spacing.lg)
                     .background(Color.accentGreen.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                }
+                
+                // MARK: - Pending Acceptance
+                if application.status == "pending_acceptance" {
+                    let approvedAmount = application.approvedAmount ?? application.amount
+                    let tenure = application.approvedTenure ?? 12
+                    let rate = application.approvedInterestRate ?? 12.0 // Annual rate
+                    let monthlyRate = (rate / 100.0) / 12.0
+                    let x = pow(1.0 + monthlyRate, Double(tenure))
+                    let emiAmount = (monthlyRate > 0) ? (approvedAmount * (monthlyRate * x) / (x - 1.0)) : (approvedAmount / Double(tenure))
+                    
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        HStack {
+                            Image(systemName: "signature").foregroundColor(.accentBlue)
+                            Text("Disbursement Terms Ready").font(.cardTitle).foregroundColor(.accentBlue)
+                        }
+                        Text("Your loan has been approved and is ready for disbursement. Please review and accept the final terms below.")
+                            .font(.bodyRegular)
+                            .foregroundColor(.textPrimary)
+                        
+                        Divider().padding(.vertical, Spacing.sm)
+                        
+                        // Show terms
+                        VStack(spacing: Spacing.sm) {
+                            HStack {
+                                Text("Approved Amount")
+                                    .font(.bodyRegular)
+                                    .foregroundColor(.textSecondary)
+                                Spacer()
+                                Text("₹\(formatIndian(approvedAmount))")
+                                    .font(.bodyLarge)
+                                    .foregroundColor(.textPrimary)
+                            }
+                            HStack {
+                                Text("Tenure")
+                                    .font(.bodyRegular)
+                                    .foregroundColor(.textSecondary)
+                                Spacer()
+                                Text("\(tenure) Months")
+                                    .font(.bodyLarge)
+                                    .foregroundColor(.textPrimary)
+                            }
+                            HStack {
+                                Text("Monthly EMI")
+                                    .font(.bodyRegular)
+                                    .foregroundColor(.textSecondary)
+                                Spacer()
+                                Text("₹\(formatIndian(emiAmount))")
+                                    .font(.bodyLarge)
+                                    .foregroundColor(.textPrimary)
+                            }
+                        }
+                        
+                        if let err = errorMessage {
+                            Text(err).font(.caption2).foregroundColor(.accentRed)
+                        }
+                        if let suc = successMessage {
+                            Text(suc).font(.caption2).foregroundColor(.accentGreen)
+                        }
+                        
+                        HStack(spacing: Spacing.md) {
+                            PillButton(title: isSubmitting ? "Processing..." : "Accept Terms", style: .primary) {
+                                Task { await acceptTerms() }
+                            }
+                            .disabled(isSubmitting)
+                            
+                            PillButton(title: "Reject", style: .outline) {
+                                Task { await rejectTerms() }
+                            }
+                            .disabled(isSubmitting)
+                        }
+                    }
+                    .padding(Spacing.lg)
+                    .background(Color.accentBlue.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 }
                 
@@ -152,6 +237,192 @@ struct ApplicationDetailView: View {
                 ShareSheet(items: [url])
             }
         }
+        .task {
+            await loadOfficerInfo()
+            await loadDocuments()
+        }
+    }
+    
+    // MARK: - Assigned Officer Card
+    
+    private var assignedOfficerCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "person.badge.shield.checkmark.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.accentGreen)
+                Text("Your Loan Officer")
+                    .font(.cardTitle)
+                    .foregroundColor(.textPrimary)
+            }
+            
+            if isLoadingOfficer {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading officer details...")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                }
+            } else if let info = officerInfo {
+                // Officer Name
+                HStack(spacing: Spacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentGreen.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Text(String(info.officerName.prefix(1)).uppercased())
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.accentGreen)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(info.officerName)
+                            .font(.bodyLarge)
+                            .foregroundColor(.textPrimary)
+                        Text("Loan Officer")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                }
+                
+                Divider()
+                
+                // Branch Info
+                HStack {
+                    Image(systemName: "building.2.fill")
+                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 14))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(info.branchName)
+                            .font(.bodyRegular)
+                            .foregroundColor(.textPrimary)
+                        if let city = info.branchCity {
+                            Text(city)
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                }
+            } else if let branchName = application.branchName {
+                // Fallback: show just branch name if officer info couldn't be loaded
+                HStack {
+                    Image(systemName: "building.2.fill")
+                        .foregroundColor(.textSecondary)
+                    Text(branchName)
+                        .font(.bodyRegular)
+                        .foregroundColor(.textPrimary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.lg)
+        .background(Color.accentGreen.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Corner.md)
+                .stroke(Color.accentGreen.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    private func loadOfficerInfo() async {
+        guard application.officerId != nil else { return }
+        isLoadingOfficer = true
+        officerInfo = await BranchAssignmentService.shared.fetchAssignedOfficerInfo(applicationId: application.id)
+        isLoadingOfficer = false
+    }
+    
+    private func loadDocuments() async {
+        isLoadingDocuments = true
+        do {
+            uploadedDocuments = try await LoanService.shared.fetchApplicationDocuments(applicationId: application.id)
+        } catch {
+            print("Failed to load documents: \(error)")
+        }
+        isLoadingDocuments = false
+    }
+    
+    private var documentsCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Documents").font(.cardTitle).foregroundColor(.textPrimary)
+            
+            if isLoadingDocuments {
+                ProgressView()
+            } else if uploadedDocuments.isEmpty {
+                Text("No documents uploaded yet.")
+                    .font(.bodyRegular)
+                    .foregroundColor(.textSecondary)
+            } else {
+                ForEach(uploadedDocuments) { doc in
+                    HStack {
+                        Image(systemName: "doc.text.fill").foregroundColor(.accentGreen)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(doc.document_type.capitalized.replacingOccurrences(of: "_", with: " "))
+                                .font(.bodyLarge)
+                                .foregroundColor(.textPrimary)
+                            if let date = Formatter.iso8601.date(from: doc.uploaded_at) {
+                                Text("Uploaded \(date.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption)
+                                    .foregroundColor(.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            
+            Divider().padding(.vertical, 8)
+            
+            Text("Upload Additional Document")
+                .font(.label)
+                .foregroundColor(.textSecondary)
+            
+            TextField("Document Name (e.g. Bank Statement)", text: $customDocumentName)
+                .padding(12)
+                .background(Color.surfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                .overlay(RoundedRectangle(cornerRadius: Corner.md).stroke(Color.border, lineWidth: 1))
+                .foregroundColor(.textPrimary)
+            
+            DocumentUploadView(
+                title: customDocumentName.isEmpty ? "New Document" : customDocumentName,
+                subtitle: "Select File",
+                documentData: Binding(
+                    get: { newDocuments["custom_doc"] },
+                    set: { if let d = $0 { newDocuments["custom_doc"] = d } }
+                )
+            )
+            
+            if newDocuments["custom_doc"] != nil {
+                PillButton(title: isUploadingCustomDoc ? "Uploading..." : "Upload Document", style: .primary) {
+                    Task { await uploadCustomDocument() }
+                }
+                .disabled(isUploadingCustomDoc || customDocumentName.isEmpty)
+                .padding(.top, 4)
+            }
+        }
+        .padding(Spacing.lg)
+        .liquidGlass(cornerRadius: 16)
+        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+    }
+    
+    private func uploadCustomDocument() async {
+        guard let data = newDocuments["custom_doc"], !customDocumentName.isEmpty, let userId = authViewModel.currentUser?.id else { return }
+        isUploadingCustomDoc = true
+        do {
+            try await LoanService.shared.uploadAdditionalDocument(
+                applicationId: application.id,
+                userId: userId,
+                data: data,
+                title: customDocumentName
+            )
+            newDocuments["custom_doc"] = nil
+            customDocumentName = ""
+            await loadDocuments() // Refresh the list
+        } catch {
+            print("Failed to upload custom document: \(error)")
+        }
+        isUploadingCustomDoc = false
     }
     
     private var detailsCard: some View {
@@ -207,7 +478,7 @@ struct ApplicationDetailView: View {
             // Note: Ideally remarksText would be sent to the backend too, but keeping signature the same for now
             try await LoanService.shared.resubmitApplication(
                 applicationId: application.id,
-                newDocuments: newDocuments,
+                newDocuments: [:], // Document upload is now handled separately
                 userId: userId
             )
             successMessage = "Application successfully resubmitted."
@@ -227,7 +498,7 @@ struct ApplicationDetailView: View {
             interestRate: 12.5, // Mocked for UI
             tenureMonths: 24, // Mocked for UI
             emiAmount: (application.amount / 24) * 1.05, // Mocked for UI
-            branchName: "Main Branch" // Mocked for UI
+            branchName: application.branchName ?? "Main Branch"
         )
         
         let tempDir = FileManager.default.temporaryDirectory
@@ -242,4 +513,33 @@ struct ApplicationDetailView: View {
             print("Failed to save PDF: \(error)")
         }
     }
+    
+    private func acceptTerms() async {
+        isSubmitting = true
+        errorMessage = nil
+        do {
+            try await LoanService.shared.acceptDisbursement(applicationId: application.id)
+            successMessage = "Disbursement accepted successfully!"
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            dismiss()
+        } catch {
+            errorMessage = "Failed to accept disbursement. Please try again."
+        }
+        isSubmitting = false
+    }
+    
+    private func rejectTerms() async {
+        isSubmitting = true
+        errorMessage = nil
+        do {
+            try await LoanService.shared.rejectDisbursement(applicationId: application.id)
+            successMessage = "Disbursement rejected."
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            dismiss()
+        } catch {
+            errorMessage = "Failed to reject disbursement. Please try again."
+        }
+        isSubmitting = false
+    }
 }
+
