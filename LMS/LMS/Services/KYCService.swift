@@ -201,6 +201,7 @@ class KYCService {
         fullName: String?
     ) async throws {
         struct FullKYCUpdate: Encodable {
+            let user_id: UUID
             let aadhaar_number: String
             let pan_number: String
             let date_of_birth: String?
@@ -219,7 +220,8 @@ class KYCService {
         
         try await SupabaseManager.shared.client
             .from("borrower_profiles")
-            .update(FullKYCUpdate(
+            .upsert(FullKYCUpdate(
+                user_id: userId,
                 aadhaar_number: aadhaar,
                 pan_number: pan,
                 date_of_birth: formatDOBForDB(dob),
@@ -233,7 +235,6 @@ class KYCService {
                 kyc_submitted_at: now,
                 kyc_verified_at: now
             ))
-            .eq("user_id", value: userId)
             .execute()
     }
 
