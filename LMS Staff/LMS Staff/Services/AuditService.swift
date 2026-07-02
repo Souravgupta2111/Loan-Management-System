@@ -113,7 +113,7 @@ class AuditService {
                     "actor_role": AnyEncodable(UserRole.officer.rawValue),
                     "table_name": AnyEncodable("documents"),
                     "record_id": AnyEncodable(UUID().uuidString),
-                    "action": AnyEncodable("DOC_VERIFIED"),
+                    "action": AnyEncodable("UPDATE"),
                     "change_summary": AnyEncodable("Officer verified KYC documents (Aadhaar, PAN)."),
                     "ip_address": AnyEncodable("192.168.1.110"),
                     "user_agent": AnyEncodable("iOS/iPadOS Staff App")
@@ -123,7 +123,7 @@ class AuditService {
                     "actor_role": AnyEncodable(UserRole.admin.rawValue),
                     "table_name": AnyEncodable("payments"),
                     "record_id": AnyEncodable(UUID().uuidString),
-                    "action": AnyEncodable("PAYMENT_RECEIVED"),
+                    "action": AnyEncodable("INSERT"),
                     "change_summary": AnyEncodable("Automated Razorpay webhook triggered for successful EMI repayment."),
                     "ip_address": AnyEncodable("10.0.0.5"),
                     "user_agent": AnyEncodable("Razorpay Webhook")
@@ -133,7 +133,7 @@ class AuditService {
                     "actor_role": AnyEncodable(UserRole.admin.rawValue),
                     "table_name": AnyEncodable("settings"),
                     "record_id": AnyEncodable(UUID().uuidString),
-                    "action": AnyEncodable("POLICY_UPDATE"),
+                    "action": AnyEncodable("UPDATE"),
                     "change_summary": AnyEncodable("Admin updated global interest rate policy from 12% to 11.5%."),
                     "ip_address": AnyEncodable("192.168.1.50"),
                     "user_agent": AnyEncodable("Web/Dashboard")

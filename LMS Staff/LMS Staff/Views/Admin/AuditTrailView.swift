@@ -131,7 +131,7 @@ struct AuditTrailView: View {
         hasMoreLogs = true
         do {
             if searchText.isEmpty {
-                await AuditService.shared.seedAuditLogsIfEmpty()
+                // No mock data seeding
             }
             let fetched = try await AuditService.shared.fetchAuditLogs(offset: offset, limit: pageSize, searchQuery: searchText)
             self.logs = fetched

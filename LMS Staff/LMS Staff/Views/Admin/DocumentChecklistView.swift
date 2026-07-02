@@ -163,7 +163,7 @@ struct DocumentChecklistView: View {
                                     .font(.staffCaption)
                                     .foregroundColor(.staffTextSecondary)
                             } else {
-                                ForEach($checklistItems, id: \.id) { $doc in
+                                ForEach(checklistItems, id: \.id) { doc in
                                     HStack {
                                         Image(systemName: "circle.fill")
                                             .resizable()
@@ -176,9 +176,16 @@ struct DocumentChecklistView: View {
                                         
                                         Spacer()
                                         
-                                        Toggle("Mandatory", isOn: $doc.isMandatory)
-                                            .labelsHidden()
-                                            .tint(.staffRed)
+                                        Toggle("Mandatory", isOn: Binding(
+                                            get: { doc.isMandatory },
+                                            set: { newValue in
+                                                if let idx = checklistItems.firstIndex(where: { $0.id == doc.id }) {
+                                                    checklistItems[idx].isMandatory = newValue
+                                                }
+                                            }
+                                        ))
+                                        .labelsHidden()
+                                        .tint(.staffRed)
                                         
                                         Text(doc.isMandatory ? "Required" : "Optional")
                                             .font(.staffCaption)

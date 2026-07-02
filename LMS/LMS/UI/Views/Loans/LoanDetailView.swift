@@ -916,7 +916,7 @@ private struct DocumentsList: View {
         VStack(spacing: 20) {
             
             // Official Documents (Sanction Letter, etc)
-            if loan.status.lowercased() == "active" || loan.status.lowercased() == "approved" || loan.status.lowercased() == "disbursed" {
+            if loan.status.lowercased() == "active" || loan.status.lowercased() == "disbursed" {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Official Documents")
                         .font(.system(size: 13, weight: .semibold))

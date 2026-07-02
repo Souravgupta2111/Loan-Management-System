@@ -141,24 +141,26 @@ struct ChatSupportConsole: View {
                 
                 Spacer()
                 
-                Button(action: { showDetailsSheet = true }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                        Text("View Info")
+                if authViewModel.currentUser?.role != .admin {
+                    Button(action: { showDetailsSheet = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                            Text("View Info")
+                        }
+                        .font(.staffCaption)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.staffBackground)
+                        .foregroundColor(.staffAccent)
+                        .cornerRadius(StaffCorner.md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StaffCorner.md)
+                                .stroke(Color.staffBorder, lineWidth: 1)
+                        )
                     }
-                    .font(.staffCaption)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.staffBackground)
-                    .foregroundColor(.staffAccent)
-                    .cornerRadius(StaffCorner.md)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StaffCorner.md)
-                            .stroke(Color.staffBorder, lineWidth: 1)
-                    )
+                    .padding(.trailing, 8)
                 }
-                .padding(.trailing, 8)
                 
                 if !forceInternalOnly {
                     // Toggle between Borrower and Internal chat

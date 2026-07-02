@@ -534,7 +534,7 @@ struct ApplicationDetailView: View {
                 }
             }
             
-            if vm.application.status == .approved || vm.application.status == .disbursed {
+            if vm.application.status == .disbursed {
                 Divider()
                     .background(Color.staffBorder)
                     .padding(.vertical, StaffSpacing.md)
@@ -556,10 +556,12 @@ struct ApplicationDetailView: View {
                     
                     Spacer()
                     
-                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
-                        generateAndShareSanctionLetter()
+                    if authViewModel.currentUser?.role != .admin {
+                        StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
+                            generateAndShareSanctionLetter()
+                        }
+                        .frame(width: 250)
                     }
-                    .frame(width: 250)
                 }
                 .padding(StaffSpacing.lg)
                 .background(Color.staffGreen.opacity(0.1))
@@ -588,17 +590,13 @@ struct ApplicationDetailView: View {
         HStack(spacing: StaffSpacing.md) {
             if vm.application.status == .approved || vm.application.status == .disbursed {
                 Spacer()
-                StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
-                        generateAndShareSanctionLetter()
-                    }
-                    .frame(width: 300)
-                } else if vm.application.status == .rejected {
-                    Spacer()
-                    Text("Application Rejected")
-                        .font(.staffTitle)
-                        .foregroundColor(.staffRed)
-                    Spacer()
-                } else {
+            } else if vm.application.status == .rejected {
+                Spacer()
+                Text("Application Rejected")
+                    .font(.staffTitle)
+                    .foregroundColor(.staffRed)
+                Spacer()
+            } else {
                     if authViewModel.currentUser?.role == .officer {
                         if vm.application.status == .submitted || vm.application.status == .sentBack {
                             StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {

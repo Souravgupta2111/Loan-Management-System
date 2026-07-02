@@ -133,7 +133,6 @@ struct AdminDashboardView: View {
         }
         .onAppear {
             Task {
-                await AuditService.shared.seedAuditLogsIfEmpty()
                 await vm.loadDashboard()
             }
         }

@@ -104,26 +104,7 @@ struct ApplicationDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 }
                 
-                // MARK: - Sanction Letter (US-16)
-                if application.status == "approved" || application.status == "disbursed" {
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        HStack {
-                            Image(systemName: "doc.text.fill").foregroundColor(.accentGreen)
-                            Text("Sanction Letter Ready").font(.cardTitle).foregroundColor(.accentGreen)
-                        }
-                        Text("Your loan has been approved. You can download the official sanction letter for your records.")
-                            .font(.bodyRegular)
-                            .foregroundColor(.textPrimary)
-                        
-                        PillButton(title: "Download Sanction Letter", style: .outline) {
-                            generateAndShareSanctionLetter()
-                        }
-                    }
-                    .padding(Spacing.lg)
-                    .background(Color.accentGreen.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-                }
-                
+
                 // MARK: - Pending Acceptance
                 if application.status == "pending_acceptance" {
                     let approvedAmount = application.approvedAmount ?? application.amount
@@ -369,6 +350,36 @@ struct ApplicationDetailView: View {
                     }
                     .padding(.vertical, 4)
                 }
+            }
+            
+            if application.status == "disbursed" {
+                Divider().padding(.vertical, 8)
+                
+                HStack {
+                    Image(systemName: "doc.text.fill").foregroundColor(.accentGreen)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sanction Letter")
+                            .font(.bodyLarge)
+                            .foregroundColor(.textPrimary)
+                        Text("Official approved terms")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    Spacer()
+                    Button(action: {
+                        generateAndShareSanctionLetter()
+                    }) {
+                        Text("Download")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accentGreen)
+                            .cornerRadius(Corner.sm)
+                    }
+                }
+                .padding(.vertical, 4)
             }
             
             Divider().padding(.vertical, 8)

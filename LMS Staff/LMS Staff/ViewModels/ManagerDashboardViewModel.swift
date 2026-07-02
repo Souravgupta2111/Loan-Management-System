@@ -135,7 +135,7 @@ class ManagerDashboardViewModel: ObservableObject {
             try await appService.addApprovalHistory(
                 applicationId: applicationId,
                 action: "approve",
-                toStatus: "approved",
+                toStatus: ApplicationStatus.pendingAcceptance.rawValue,
                 remarks: "Approved terms: INR \(approvedAmount), Rate: \(interestRate)%, Tenure: \(tenureMonths) months.",
                 approvedAmount: approvedAmount,
                 approvedTenure: tenureMonths,

@@ -286,9 +286,13 @@ struct ManagerDashboardView: View {
                         isIncomeVerified: item.profile?.incomeVerified ?? false
                     )
                     
-                    approvedAmount = suggestion.suggestedAmount
-                    approvedTenure = suggestion.suggestedTenureMonths
-                    approvedRate = suggestion.suggestedInterestRate
+                    let suggestionAmount = suggestion.suggestedAmount > 0 ? suggestion.suggestedAmount : item.application.requestedAmount
+                    let suggestionTenure = suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : (item.application.requestedTenureMonths ?? item.product.minTenureMonths)
+                    let suggestionRate = suggestion.suggestedInterestRate > 0 ? suggestion.suggestedInterestRate : item.product.minInterestRate
+                    
+                    approvedAmount = max(item.product.minAmount, min(suggestionAmount, item.product.maxAmount))
+                    approvedTenure = max(item.product.minTenureMonths, min(suggestionTenure, item.product.maxTenureMonths))
+                    approvedRate = max(item.product.minInterestRate, min(suggestionRate, item.product.maxInterestRate))
                     showApprovalSheet = true
                 }
                 .frame(width: 240)
@@ -375,6 +379,12 @@ struct ManagerDashboardView: View {
                             }
                         }
                     }
+                }
+                
+                if let error = vm.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
                 }
             }
         }
