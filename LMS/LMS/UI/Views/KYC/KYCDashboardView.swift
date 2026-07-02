@@ -369,3 +369,50 @@ struct KYCDashboardView: View {
         }
     }
 }
+
+// MARK: - MaskedTextField Component
+struct MaskedTextField: View {
+    var placeholder: String
+    @Binding var text: String
+    var maskCharacter: Character = "X"
+    var visibleSuffix: Int = 4
+    var keyboardType: UIKeyboardType = .default
+    
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            // Invisible actual text field to handle focus, typing, and cursor
+            TextField(placeholder, text: $text)
+                .keyboardType(keyboardType)
+                .autocapitalization(.allCharacters)
+                .foregroundColor(.clear)
+                .tint(.accentBlue) // cursor color
+                .focused($isFocused)
+            
+            // Visible masked text (ignoring touches so they pass through to TextField)
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundColor(Color.textSecondary)
+                    .allowsHitTesting(false)
+            } else {
+                Text(maskedText)
+                    .foregroundColor(.textPrimary)
+                    .allowsHitTesting(false)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.surfaceMuted)
+        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+    }
+    
+    private var maskedText: String {
+        if text.count <= visibleSuffix {
+            return text
+        }
+        let maskedCount = text.count - visibleSuffix
+        let maskedPrefix = String(repeating: maskCharacter, count: maskedCount)
+        let suffix = text.suffix(visibleSuffix)
+        return maskedPrefix + suffix
+    }
+}
