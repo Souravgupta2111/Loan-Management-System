@@ -177,7 +177,7 @@ struct ApplicationDetailView: View {
     
     private var kycAndCreditSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            HStack(alignment: .top, spacing: StaffSpacing.lg) {
+            HStack(spacing: StaffSpacing.lg) {
                 // Personal KYC info
                 StaffCard {
                     VStack(alignment: .leading, spacing: StaffSpacing.md) {
@@ -192,28 +192,38 @@ struct ApplicationDetailView: View {
                         KYCRow(label: "Phone", value: vm.borrower.phone ?? "N/A")
                         KYCRow(label: "PAN ID", value: vm.borrowerProfile?.panNumber ?? "N/A")
                         KYCRow(label: "Aadhaar Card", value: vm.borrowerProfile?.aadhaarNumber ?? "N/A")
-                        KYCRow(label: "Employment Type", value: vm.borrowerProfile?.employmentType?.displayName ?? "N/A")
-                        KYCRow(label: "Monthly Income", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
+                        
+                        if let verifiedAnnual = vm.borrowerProfile?.verifiedAnnualIncome {
+                            KYCRow(label: "Verified Monthly", value: "INR \(String(format: "%.2f", verifiedAnnual / 12))")
+                        } else {
+                            KYCRow(label: "Declared Monthly", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
+                        }
+                        
+                        Spacer(minLength: 0)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 // Credit Bureau Score Gauge
-                VStack(spacing: StaffSpacing.md) {
-                    StaffCard {
-                        VStack(spacing: StaffSpacing.md) {
-                            Text("Credit Bureau Rating")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            Divider()
-                            
-                            CreditScoreGauge(score: vm.borrowerProfile?.creditScore ?? 300)
-                        }
+                StaffCard {
+                    VStack(spacing: StaffSpacing.md) {
+                        Text("Credit Bureau Rating")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Divider()
+                        
+                        Spacer(minLength: 0)
+                        
+                        CreditScoreGauge(score: vm.borrowerProfile?.creditScore ?? 300)
+                        
+                        Spacer(minLength: 0)
                     }
                 }
                 .frame(width: 320)
+                .frame(maxHeight: .infinity)
             }
+            .fixedSize(horizontal: false, vertical: true)
             
             // Underwriting Analysis Card
             if let suggestion = vm.underwritingSuggestion {
@@ -260,92 +270,127 @@ struct ApplicationDetailView: View {
                         
                         Divider()
                         
-                        if suggestion.isEligible {
-                            HStack(spacing: StaffSpacing.lg) {
-                                VStack(alignment: .leading) {
+                        if authViewModel.currentUser?.role == .manager || authViewModel.currentUser?.role == .admin {
+                            // Manager View: Detailed Numbers
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text("Max Eligible")
-                                        .font(.staffCaption)
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.maxEligibleAmount))")
-                                        .font(.staffTitle)
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffTextPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                                 
-                                VStack(alignment: .leading) {
-                                    Text("Suggested Amount")
-                                        .font(.staffCaption)
+                                Spacer(minLength: 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Suggested")
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.suggestedAmount))")
-                                        .font(.staffTitle)
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffGreen)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                                 
-                                VStack(alignment: .leading) {
+                                Spacer(minLength: 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text("Rate / Tenure")
-                                        .font(.staffCaption)
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.suggestedInterestRate))% / \(suggestion.suggestedTenureMonths)m")
-                                        .font(.staffTitle)
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffTextPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                                 
-                                VStack(alignment: .leading) {
+                                Spacer(minLength: 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text("FOIR Ratio")
-                                        .font(.staffCaption)
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.foirRatio * 100))%")
-                                        .font(.staffTitle)
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(suggestion.foirRatio > 0.5 ? .staffAmber : .staffTextPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                                 
-                                Spacer()
+                                Spacer(minLength: 8)
                                 
-                                VStack(alignment: .trailing) {
+                                VStack(alignment: .trailing, spacing: 4) {
                                     Text("Risk Grade")
-                                        .font(.staffCaption)
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text(suggestion.riskGrade)
-                                        .font(.system(size: 28, weight: .black))
+                                        .font(.system(size: 20, weight: .heavy))
                                         .foregroundColor(gradeColor(for: suggestion.riskGrade))
                                 }
                             }
+                            .padding(.vertical, 8)
                             .padding(.top, 4)
                         } else {
-                            // Rejected by underwriting
-                            HStack {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.staffRed.opacity(0.85))
-                                            .font(.system(size: 20))
-                                        Text("Not Eligible")
-                                            .font(.staffCardTitle)
-                                            .foregroundColor(.staffRed.opacity(0.85))
+                            // Officer View: Checklist only
+                            VStack(spacing: 16) {
+                                eligibilityCheckRow(title: "Account Aggregator Income Verification", isPassed: suggestion.incomeVerified)
+                                eligibilityCheckRow(title: "Credit Bureau Minimum Score Requirement", isPassed: (vm.borrowerProfile?.creditScore ?? 0) >= 600)
+                                eligibilityCheckRow(title: "FOIR (Debt-to-Income) Capacity Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("FOIR") }))
+                                eligibilityCheckRow(title: "Product Minimum Limit Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("product minimum") }))
+                                
+                                Divider()
+                                    .padding(.vertical, 4)
+                                
+                                HStack {
+                                    Text("Overall System Decision")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.staffTextPrimary)
+                                    Spacer()
+                                    HStack(spacing: 6) {
+                                        Image(systemName: suggestion.isEligible ? "checkmark.seal.fill" : "xmark.seal.fill")
+                                        Text(suggestion.isEligible ? "ELIGIBLE" : "NOT ELIGIBLE")
                                     }
-                                    
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        ForEach(suggestion.rejectionReasons, id: \.self) { reason in
-                                            Text("•  \(reason)")
-                                                .font(.staffBodyRegular)
-                                                .foregroundColor(.staffTextSecondary)
-                                                .lineSpacing(4)
-                                        }
-                                    }
-                                }
-                                Spacer()
-                                VStack(alignment: .trailing) {
-                                    Text("Risk Grade")
-                                        .font(.staffCaption)
-                                        .foregroundColor(.staffTextSecondary)
-                                    Text(suggestion.riskGrade)
-                                        .font(.system(size: 28, weight: .black))
-                                        .foregroundColor(.staffRed)
+                                    .font(.system(size: 14, weight: .heavy))
+                                    .foregroundColor(suggestion.isEligible ? .staffGreen : .staffRed)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(suggestion.isEligible ? Color.staffGreen.opacity(0.15) : Color.staffRed.opacity(0.15))
+                                    .cornerRadius(8)
                                 }
                             }
+                            .padding(.vertical, 8)
                         }
                     }
                 }
             }
+        }
+    }
+    
+    private func eligibilityCheckRow(title: String, isPassed: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: isPassed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(isPassed ? .staffGreen : .staffRed)
+                .font(.system(size: 18))
+            
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.staffTextPrimary)
+            
+            Spacer()
+            
+            Text(isPassed ? "Passed" : "Failed")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(isPassed ? .staffGreen : .staffRed)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(isPassed ? Color.staffGreen.opacity(0.1) : Color.staffRed.opacity(0.1))
+                .cornerRadius(6)
         }
     }
     
@@ -527,11 +572,10 @@ struct ApplicationDetailView: View {
     }
     
     private var actionButtonBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: StaffSpacing.md) {
-                if vm.application.status == .approved || vm.application.status == .disbursed {
-                    Spacer()
-                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
+        HStack(spacing: StaffSpacing.md) {
+            if vm.application.status == .approved || vm.application.status == .disbursed {
+                Spacer()
+                StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
                         generateAndShareSanctionLetter()
                     }
                     .frame(width: 300)
@@ -564,8 +608,7 @@ struct ApplicationDetailView: View {
                     }
                 }
             }
-            .padding(StaffSpacing.lg)
-        }
+        .padding(StaffSpacing.lg)
         .background(Color.staffSurface)
     }
     
