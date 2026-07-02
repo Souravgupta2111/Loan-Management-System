@@ -260,6 +260,10 @@ class SetuAAService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("🚀 [Setu API] Create Session Response:\n\(jsonString)\n")
+        }
+        
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
@@ -284,6 +288,10 @@ class SetuAAService {
         request.setValue("48a7626f-69dc-47c4-a393-1a297660ac60", forHTTPHeaderField: "x-product-instance-id")
         
         let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("🚀 [Setu API] FI Data Response for Session \(sessionId):\n\(jsonString)\n")
+        }
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
