@@ -234,7 +234,7 @@ class KYCService {
                 kyc_status: "verified",
                 kyc_submitted_at: now,
                 kyc_verified_at: now
-            ))
+            ), onConflict: "user_id")
             .execute()
     }
 
