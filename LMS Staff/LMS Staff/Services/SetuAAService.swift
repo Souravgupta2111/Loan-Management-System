@@ -29,11 +29,18 @@ struct SetuConsentResponse: Decodable {
 struct SetuConsentStatusResponse: Decodable {
     let id: String
     let status: String
-    let detail: ConsentDetail?
+    let Detail: ConsentDetail?
     
     struct ConsentDetail: Decodable {
         let consentStart: String?
         let consentExpiry: String?
+        let FIDataRange: FIDataRange?
+        let dataRange: FIDataRange? // Sometimes named this way depending on API version
+    }
+    
+    struct FIDataRange: Decodable {
+        let from: String?
+        let to: String?
     }
 }
 
@@ -235,7 +242,7 @@ class SetuAAService {
     
     // MARK: - Step 4: Create Data Session (after consent approved)
     
-    func createDataSession(consentId: String, fromDate: String, toDate: String) async throws -> SetuSessionResponse {
+    func createDataSession(consentId: String, dataRange: SetuConsentStatusResponse.FIDataRange? = nil) async throws -> SetuSessionResponse {
         let token = try await getAccessToken()
         
         let url = URL(string: "\(aaBaseURL)/v2/sessions")!
@@ -247,11 +254,19 @@ class SetuAAService {
         request.setValue(clientSecret, forHTTPHeaderField: "x-client-secret")
         request.setValue("48a7626f-69dc-47c4-a393-1a297660ac60", forHTTPHeaderField: "x-product-instance-id")
         
+        let now = Date()
+        let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: now)!
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        
+        // Fallback to -1 day for 'to' date to ensure it doesn't exceed the consent's generation time
+        let fallbackToDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+        
         let sessionBody: [String: Any] = [
             "consentId": consentId,
             "dataRange": [
-                "from": fromDate,
-                "to": toDate
+                "from": dataRange?.from ?? isoFormatter.string(from: oneYearAgo),
+                "to": dataRange?.to ?? isoFormatter.string(from: fallbackToDate)
             ],
             "format": "json"
         ]
@@ -442,35 +457,10 @@ class SetuAAService {
             throw SetuError.consentNotApproved("Consent status: \(status.status). User must approve first.")
         }
         
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        var toDate = Date()
-        if let startString = status.detail?.consentStart {
-            if let parsed = isoFormatter.date(from: startString) {
-                toDate = parsed
-            } else {
-                let formatterWithoutFractional = ISO8601DateFormatter()
-                formatterWithoutFractional.formatOptions = [.withInternetDateTime]
-                if let parsed = formatterWithoutFractional.date(from: startString) {
-                    toDate = parsed
-                }
-            }
-        }
-        
-        // Safe to use 1 day before consentStart to ensure it's strictly within the consent's dataRange!
-        let safeToDate = Calendar.current.date(byAdding: .day, value: -1, to: toDate)!
-        // Safe to use 11 months before safeToDate to ensure it's after the consent's 1-year start bound
-        let safeFromDate = Calendar.current.date(byAdding: .month, value: -11, to: safeToDate)!
-        
-        let formatterForSession = ISO8601DateFormatter()
-        formatterForSession.formatOptions = [.withInternetDateTime]
-        
-        let fromDateStr = formatterForSession.string(from: safeFromDate)
-        let toDateStr = formatterForSession.string(from: safeToDate)
+        let dataRange = status.Detail?.FIDataRange ?? status.Detail?.dataRange
         
         // Create data session
-        let session = try await createDataSession(consentId: consentId, fromDate: fromDateStr, toDate: toDateStr)
+        let session = try await createDataSession(consentId: consentId, dataRange: dataRange)
         
         // Wait a moment for data to be ready, then fetch
         try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds

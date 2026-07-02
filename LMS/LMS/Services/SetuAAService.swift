@@ -34,6 +34,13 @@ struct SetuConsentStatusResponse: Decodable {
     struct ConsentDetail: Decodable {
         let consentStart: String?
         let consentExpiry: String?
+        let FIDataRange: FIDataRange?
+        let dataRange: FIDataRange? // Sometimes named this way depending on API version
+    }
+    
+    struct FIDataRange: Decodable {
+        let from: String?
+        let to: String?
     }
 }
 
@@ -314,7 +321,7 @@ class SetuAAService {
     
     // MARK: - Step 4: Create Data Session (after consent approved)
     
-    func createDataSession(consentId: String) async throws -> SetuSessionResponse {
+    func createDataSession(consentId: String, dataRange: SetuConsentStatusResponse.FIDataRange? = nil) async throws -> SetuSessionResponse {
         let token = try await getAccessToken()
         
         let url = URL(string: "\(aaBaseURL)/v2/sessions")!
@@ -331,11 +338,14 @@ class SetuAAService {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime]
         
+        // Fallback to -1 day for 'to' date to ensure it doesn't exceed the consent's generation time
+        let fallbackToDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+        
         let sessionBody: [String: Any] = [
             "consentId": consentId,
             "dataRange": [
-                "from": isoFormatter.string(from: oneYearAgo),
-                "to": isoFormatter.string(from: now)
+                "from": dataRange?.from ?? isoFormatter.string(from: oneYearAgo),
+                "to": dataRange?.to ?? isoFormatter.string(from: fallbackToDate)
             ],
             "format": "json"
         ]
@@ -523,11 +533,13 @@ class SetuAAService {
         // Check consent status
         let status = try await getConsentStatus(consentId: consentId)
         guard status.status.uppercased() == "APPROVED" || status.status.uppercased() == "ACTIVE" else {
-            throw SetuError.consentNotApproved("Consent status: \\(status.status). User must approve first.")
+            throw SetuError.consentNotApproved("Consent status: \(status.status). User must approve first.")
         }
         
+        let dataRange = status.Detail?.FIDataRange ?? status.Detail?.dataRange
+        
         // Create data session
-        let session = try await createDataSession(consentId: consentId)
+        let session = try await createDataSession(consentId: consentId, dataRange: dataRange)
         
         // Wait a moment for data to be ready, then fetch
         try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
