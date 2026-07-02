@@ -133,11 +133,11 @@ struct KYCDashboardView: View {
                                 .foregroundColor(.textSecondary)
                             
                             VStack(spacing: Spacing.md) {
-                                TextField("PAN Number", text: $viewModel.panNumber)
-                                    .autocapitalization(.allCharacters)
-                                    .padding(Spacing.md)
-                                    .background(Color.surfaceMuted)
-                                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                                MaskedTextField(
+                                    placeholder: "PAN Number",
+                                    text: $viewModel.panNumber,
+                                    keyboardType: .default
+                                )
                                 
                                 TextField("Full Name", text: $viewModel.fullName)
                                     .padding(Spacing.md)
@@ -195,11 +195,11 @@ struct KYCDashboardView: View {
                                 
                                 if !viewModel.isOTPSent {
                                     // Step 1: Enter Aadhaar and send OTP
-                                    TextField("Aadhaar Number (12 digits)", text: $viewModel.aadhaarNumber)
-                                        .keyboardType(.numberPad)
-                                        .padding(Spacing.md)
-                                        .background(Color.surfaceMuted)
-                                        .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                                    MaskedTextField(
+                                        placeholder: "Aadhaar Number (12 digits)",
+                                        text: $viewModel.aadhaarNumber,
+                                        keyboardType: .numberPad
+                                    )
                                 } else if !viewModel.isAadhaarVerified {
                                     // Step 2: Enter OTP
                                     Text("Enter the OTP sent to your Aadhaar-linked mobile")
