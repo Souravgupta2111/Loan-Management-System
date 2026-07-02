@@ -761,6 +761,8 @@ struct LoanListItem: Identifiable {
     let emiSchedule: [LoanListItemEMI]?
     let timeline: [LoanTimelineEvent]?
     let documents: [LoanDocumentEvent]?
+    let sentBackReason: String?
+    let rejectionReason: String?
 
     var icon: String {
 

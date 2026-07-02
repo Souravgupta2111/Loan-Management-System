@@ -176,12 +176,30 @@ class LoanService {
             let id: UUID
             let requested_tenure_months: Int?
             let submitted_at: String?
+            let sent_back_reason: String?
+            let rejection_reason: String?
             let approval_history: [HistoryRow]
             let documents: [DocumentRow]
         }
         
         let mapTimeline: ([HistoryRow], String?) -> [LoanTimelineEvent] = { history, submittedAt in
-            var events = history.sorted { $0.actioned_at < $1.actioned_at }.map { h in
+            let sortedHistory = history.sorted { $0.actioned_at < $1.actioned_at }
+            
+            var filteredHistory: [HistoryRow] = []
+            for i in 0..<sortedHistory.count {
+                let current = sortedHistory[i]
+                if i < sortedHistory.count - 1 {
+                    let next = sortedHistory[i + 1]
+                    let currentDate = Formatter.iso8601.date(from: current.actioned_at) ?? Date()
+                    let nextDate = Formatter.iso8601.date(from: next.actioned_at) ?? Date()
+                    if current.action == next.action && abs(nextDate.timeIntervalSince(currentDate)) <= 60 {
+                        continue
+                    }
+                }
+                filteredHistory.append(current)
+            }
+            
+            var events = filteredHistory.map { h in
                 let date = self.displayDate(h.actioned_at)
                 let title: String
                 switch h.action.lowercased() {
@@ -254,6 +272,8 @@ class LoanService {
             let requested_tenure_months: Int
             let status: String
             let submitted_at: String?
+            let sent_back_reason: String?
+            let rejection_reason: String?
             let loan_product: ProductSummary
             let approval_history: [HistoryRow]
             let documents: [DocumentRow]
@@ -268,7 +288,7 @@ class LoanService {
 
         let response: [SupabaseDetailedLoanResponse] = try await SupabaseManager.shared.client
             .from("loans")
-            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, tenure_months, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
+            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, tenure_months, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, sent_back_reason, rejection_reason, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
@@ -308,13 +328,15 @@ class LoanService {
                 requestedTenure: loan.tenure_months,
                 emiSchedule: emiSchedule,
                 timeline: timeline,
-                documents: documents
+                documents: documents,
+                sentBackReason: loan.loan_applications?.sent_back_reason,
+                rejectionReason: loan.loan_applications?.rejection_reason
             )
         }
 
         let applications: [ApplicationRow] = try await SupabaseManager.shared.client
             .from("loan_applications")
-            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
+            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, sent_back_reason, rejection_reason, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
             .in("status", values: ["draft", "submitted", "under_review", "sent_back", "approved"])
             .order("last_updated_at", ascending: false)
@@ -346,7 +368,9 @@ class LoanService {
                     requestedTenure: approvedTenure ?? app.requested_tenure_months,
                     emiSchedule: nil,
                     timeline: mapTimeline(app.approval_history, app.submitted_at),
-                    documents: mapDocuments(app.documents)
+                    documents: mapDocuments(app.documents),
+                    sentBackReason: app.sent_back_reason,
+                    rejectionReason: app.rejection_reason
                 )
             }
 

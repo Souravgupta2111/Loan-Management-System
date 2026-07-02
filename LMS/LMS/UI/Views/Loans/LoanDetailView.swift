@@ -113,7 +113,7 @@ struct LoanDetailView: View {
     private var tabContent: some View {
         switch viewModel.selectedTab {
         case .timeline:
-            TimelineCard(items: viewModel.detail.timeline)
+            TimelineCard(loan: loan)
         case .documents:
             DocumentsList(loan: loan, documents: viewModel.detail.documents, borrowerName: "Borrower") { data, title in
                 guard let userId = authViewModel.currentUser?.id, let appId = loan.applicationId else { return }
@@ -455,65 +455,369 @@ private struct CustomLoanSegmentedControl: View {
 // MARK: - Timeline
 
 private struct TimelineCard: View {
-    let items: [LoanTimelineItem]
-
+    let loan: LoanListItem
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
+    @State private var animatedProgress: Double = 0.0
+    
+    // Upload states
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var isUploading = false
+    @State private var uploadError: String? = nil
+    @State private var uploadSuccess: String? = nil
+    
+    struct StandardStep: Identifiable {
+        let id = UUID()
+        let title: String
+        let date: String
+        let remarks: String?
+        let status: StepStatus
+    }
+    
+    enum StepStatus {
+        case completed
+        case active
+        case pending
+    }
+    
+    var targetProgress: Double {
+        switch loan.status.lowercased() {
+        case "draft": return 0.0
+        case "submitted": return 1.0
+        case "under_review": return 1.0
+        case "sent_back": return 1.0
+        case "approved": return 2.0
+        case "disbursed", "active", "closed", "overdue": return 3.0
+        default: return 0.0
+        }
+    }
+    
+    private func getEventDate(for keywords: [String]) -> String? {
+        guard let timeline = loan.timeline else { return nil }
+        for event in timeline {
+            for keyword in keywords {
+                if event.title.lowercased().contains(keyword.lowercased()) {
+                    return event.date
+                }
+            }
+        }
+        return nil
+    }
+    
+    private var steps: [StandardStep] {
+        let isSentBack = loan.status.lowercased() == "sent_back"
+        let isRejected = loan.status.lowercased() == "rejected"
+        
+        // Level 3: Disbursed
+        let disbursedDate = getEventDate(for: ["Disbursed"]) ?? 
+            (["disbursed", "active", "closed", "overdue"].contains(loan.status.lowercased()) ? loan.disbursedDate : "")
+        let stepDisbursed = StandardStep(
+            title: "Disbursed",
+            date: disbursedDate,
+            remarks: ["disbursed", "active", "closed", "overdue"].contains(loan.status.lowercased()) ? "Loan funds disbursed to your account." : "",
+            status: targetProgress >= 3.0 ? .completed : .pending
+        )
+        
+        // Level 2: Approved
+        let approvedDate = getEventDate(for: ["Approved"]) ?? ""
+        let stepApproved = StandardStep(
+            title: "Approved",
+            date: approvedDate,
+            remarks: targetProgress >= 2.0 ? "Application approved. Awaiting disbursement." : "",
+            status: targetProgress > 2.0 ? .completed : (targetProgress == 2.0 ? .active : .pending)
+        )
+        
+        // Level 1: Under Review / Document Requested / Rejected
+        let reviewTitle: String
+        let reviewDate: String
+        let reviewRemarks: String?
+        if isSentBack {
+            reviewTitle = "Document Requested"
+            reviewDate = getEventDate(for: ["Sent Back"]) ?? ""
+            reviewRemarks = loan.sentBackReason ?? "Loan officer has requested additional documents."
+        } else if isRejected {
+            reviewTitle = "Application Rejected"
+            reviewDate = getEventDate(for: ["Rejected"]) ?? ""
+            reviewRemarks = loan.rejectionReason ?? "Application did not meet credit criteria."
+        } else {
+            reviewTitle = "Under Review"
+            reviewDate = getEventDate(for: ["Under Review"]) ?? ""
+            reviewRemarks = targetProgress >= 1.0 ? "Your application is currently under verification." : ""
+        }
+        let stepReview = StandardStep(
+            title: reviewTitle,
+            date: reviewDate,
+            remarks: reviewRemarks,
+            status: targetProgress > 1.0 ? .completed : (targetProgress == 1.0 ? .active : .pending)
+        )
+        
+        // Level 0: Applied
+        let appliedDate = getEventDate(for: ["Applied", "Submitted"]) ?? loan.disbursedDate
+        let stepApplied = StandardStep(
+            title: "Applied",
+            date: appliedDate,
+            remarks: "Application successfully submitted.",
+            status: targetProgress > 0.0 ? .completed : .active
+        )
+        
+        return [stepDisbursed, stepApproved, stepReview, stepApplied]
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                TimelineItemView(item: item, isLast: index == items.count - 1)
+            ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
+                TimelineItemRow(
+                    step: step,
+                    isLast: index == steps.count - 1,
+                    fillFraction: index < steps.count - 1 ? max(0.0, min(1.0, animatedProgress - Double(steps.count - 2 - index))) : 0.0,
+                    loan: loan,
+                    isUploading: $isUploading,
+                    uploadError: $uploadError,
+                    uploadSuccess: $uploadSuccess,
+                    selectedItem: $selectedItem
+                )
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .liquidGlass(cornerRadius: 22)
+        .onAppear {
+            animatedProgress = 0.0
+            withAnimation(.spring(response: 0.84, dampingFraction: 0.85).delay(0.12)) {
+                animatedProgress = targetProgress
+            }
+        }
+        .onChange(of: selectedItem) { _, newItem in
+            guard let item = newItem else { return }
+            isUploading = true
+            uploadError = nil
+            uploadSuccess = nil
+            
+            Task {
+                do {
+                    guard let data = try? await item.loadTransferable(type: Data.self) else {
+                        throw NSError(domain: "ImageLoadError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to read image data"])
+                    }
+                    
+                    guard let appId = loan.applicationId else {
+                        throw NSError(domain: "AppIdError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Application ID not found"])
+                    }
+                    
+                    guard let userId = authViewModel.currentUser?.id else {
+                        throw NSError(domain: "UserIdError", code: 0, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])
+                    }
+                    
+                    try await LoanService.shared.resubmitApplication(
+                        applicationId: appId,
+                        newDocuments: ["additional_document": data],
+                        userId: userId
+                    )
+                    
+                    await MainActor.run {
+                        uploadSuccess = "Document uploaded successfully!"
+                        isUploading = false
+                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+                    }
+                } catch {
+                    await MainActor.run {
+                        uploadError = error.localizedDescription
+                        isUploading = false
+                    }
+                }
+            }
+        }
     }
 }
 
-private struct TimelineItemView: View {
-    let item: LoanTimelineItem
+private struct TimelineItemRow: View {
+    let step: TimelineCard.StandardStep
     let isLast: Bool
-
+    let fillFraction: Double
+    let loan: LoanListItem
+    
+    @Binding var isUploading: Bool
+    @Binding var uploadError: String?
+    @Binding var uploadSuccess: String?
+    @Binding var selectedItem: PhotosPickerItem?
+    
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(spacing: 0) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "#2D8B4E"))
-                        .frame(width: 28, height: 28)
-
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                }
-
+                // Circle Node
+                nodeView
+                
+                // Segment Line
                 if !isLast {
-                    Rectangle()
-                        .fill(Color(hex: "#2D8B4E").opacity(0.4))
-                        .frame(width: 2, height: 32)
+                    ZStack(alignment: .bottom) {
+                        Rectangle()
+                            .fill(Color(hex: "#E0E0E0"))
+                            .frame(width: 2)
+                        
+                        Rectangle()
+                            .fill(Color(hex: "#2D8B4E"))
+                            .frame(width: 2)
+                            .scaleEffect(y: fillFraction, anchor: .bottom)
+                    }
+                    .frame(width: 28) // Center align with circle
+                    .frame(maxHeight: .infinity)
+                    .minFrameHeight()
                 }
             }
-
+            
+            // Text Content Column
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
+                Text(step.title)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(hex: "#1A1A1A"))
-
-                Text(item.date)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(hex: "#9E9E9E"))
-                    
-                if let remarks = item.remarks, !remarks.isEmpty {
+                    .foregroundColor(textColor)
+                
+                if !step.date.isEmpty {
+                    Text(step.date)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(Color(hex: "#9E9E9E"))
+                }
+                
+                if let remarks = step.remarks, !remarks.isEmpty {
                     Text(remarks)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(remarksColor)
                         .padding(.top, 2)
+                }
+                
+                // If it is Document Requested, show inline PhotosPicker
+                if step.title == "Document Requested" && step.status == .active {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if isUploading {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Uploading...")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color(hex: "#2D8B4E"))
+                            }
+                            .padding(.top, 4)
+                        } else {
+                            PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.up.doc.fill")
+                                        .font(.system(size: 12))
+                                    Text("Upload Document")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .underline()
+                                }
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 4)
+                        }
+                        
+                        if let err = uploadError {
+                            Text(err)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.red)
+                        }
+                        if let success = uploadSuccess {
+                            Text(success)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                        }
+                    }
                 }
             }
             .padding(.top, 3)
-
+            .padding(.bottom, isLast ? 0 : 20) // Spacing below content to align with line stretch
+            
             Spacer(minLength: 0)
         }
+    }
+    
+    @ViewBuilder
+    private var nodeView: some View {
+        ZStack {
+            switch step.status {
+            case .completed:
+                Circle()
+                    .fill(Color(hex: "#2D8B4E"))
+                    .frame(width: 28, height: 28)
+                
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                
+            case .active:
+                if step.title == "Document Requested" {
+                    Circle()
+                        .stroke(Color(hex: "#E65100"), lineWidth: 2)
+                        .background(Circle().fill(Color(hex: "#FFF3E0")))
+                        .frame(width: 28, height: 28)
+                    
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Color(hex: "#E65100"))
+                } else if step.title == "Application Rejected" {
+                    Circle()
+                        .stroke(Color(hex: "#D32F2F"), lineWidth: 2)
+                        .background(Circle().fill(Color(hex: "#FFEBEE")))
+                        .frame(width: 28, height: 28)
+                    
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Color(hex: "#D32F2F"))
+                } else {
+                    Circle()
+                        .stroke(Color(hex: "#2D8B4E"), lineWidth: 2)
+                        .background(Circle().fill(Color.white))
+                        .frame(width: 28, height: 28)
+                    
+                    Circle()
+                        .fill(Color(hex: "#2D8B4E"))
+                        .frame(width: 12, height: 12)
+                }
+                
+            case .pending:
+                Circle()
+                    .stroke(Color(hex: "#D3D3D3"), lineWidth: 2)
+                    .background(Circle().fill(Color.white))
+                    .frame(width: 28, height: 28)
+                
+                Circle()
+                    .fill(Color(hex: "#D3D3D3"))
+                    .frame(width: 8, height: 8)
+            }
+        }
+    }
+    
+    private var textColor: Color {
+        switch step.status {
+        case .completed, .active:
+            return Color(hex: "#1A1A1A")
+        case .pending:
+            return Color(hex: "#9E9E9E")
+        }
+    }
+    
+    private var remarksColor: Color {
+        if step.title == "Document Requested" && step.status == .active {
+            return Color(hex: "#E65100")
+        } else if step.title == "Application Rejected" && step.status == .active {
+            return Color(hex: "#D32F2F")
+        } else {
+            return Color(hex: "#2D8B4E")
+        }
+    }
+}
+
+// Helper modifier to handle minimum line heights between nodes
+private struct MinFrameHeightModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .frame(minHeight: 38)
+    }
+}
+
+extension View {
+    fileprivate func minFrameHeight() -> some View {
+        modifier(MinFrameHeightModifier())
     }
 }
 

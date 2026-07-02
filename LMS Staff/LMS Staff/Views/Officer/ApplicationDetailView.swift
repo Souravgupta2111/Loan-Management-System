@@ -33,7 +33,7 @@ struct ApplicationDetailView: View {
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
         case documents = "Documents"
-        case chat = "Chat Support"
+        case chat = "Chat History"
         case timeline = "Timeline Log"
     }
     
