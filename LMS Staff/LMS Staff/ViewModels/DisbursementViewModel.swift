@@ -34,8 +34,8 @@ class DisbursementViewModel: ObservableObject {
         
         do {
             let fetched = try await appService.fetchAllApplications()
-            // Pending disbursement = status is approved
-            self.pendingDisbursements = fetched.filter { $0.application.status == .approved }
+            // Pending disbursement = status is pending_disbursal (after borrower accepts)
+            self.pendingDisbursements = fetched.filter { $0.application.status == .pendingDisbursal }
             
             struct ApprovalHistoryRate: Decodable {
                 let application_id: UUID
