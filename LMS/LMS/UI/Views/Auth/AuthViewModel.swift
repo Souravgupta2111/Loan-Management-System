@@ -24,7 +24,7 @@ class AuthViewModel: ObservableObject {
     }
 
     // MARK: - Sign Up (email + password)
-    func signUp(fullName: String, email: String, password: String) async {
+    func signUp(fullName: String, email: String, mobileNumber: String, password: String) async {
         isLoading = true
         errorMessage = nil
         signUpSucceeded = false
@@ -35,6 +35,7 @@ class AuthViewModel: ObservableObject {
                 password: password,
                 data: [
                     "full_name": .string(fullName),
+                    "phone": .string(mobileNumber),
                     "role": .string("borrower")
                 ]
             )
