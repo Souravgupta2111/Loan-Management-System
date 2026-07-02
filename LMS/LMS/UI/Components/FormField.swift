@@ -23,6 +23,7 @@ struct FormField: View {
                 } else {
                     TextField(placeholder, text: $text)
                         .keyboardType(keyboardType)
+                        .textInputAutocapitalization(.never)
                 }
             }
             .font(.bodyLarge)
@@ -37,7 +38,6 @@ struct FormField: View {
             )
             .focused($isFocused)
             .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
 
             if let error = error, !error.isEmpty {
                 Text(error)

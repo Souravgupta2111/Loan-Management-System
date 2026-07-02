@@ -54,12 +54,12 @@ struct LoginView: View {
                                 Group {
                                     if showPassword {
                                         TextField("Enter password", text: $password)
+                                            .textInputAutocapitalization(.never)
                                     } else {
                                         SecureField("Enter password", text: $password)
                                     }
                                 }
                                 .font(.bodyLarge)
-                                .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
 
                                 Button { showPassword.toggle() } label: {

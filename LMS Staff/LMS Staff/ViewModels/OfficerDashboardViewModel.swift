@@ -70,7 +70,7 @@ class OfficerDashboardViewModel: ObservableObject {
     private func calculateStats() {
         statsPendingCount = applications.filter { $0.application.status == .submitted || $0.application.status == .sentBack }.count
         statsUnderReviewCount = applications.filter { $0.application.status == .underReview }.count
-        statsApprovedCount = applications.filter { $0.application.status == .approved || $0.application.status == .disbursed }.count
+        statsApprovedCount = applications.filter { $0.application.status == .approved || $0.application.status == .pendingAcceptance || $0.application.status == .pendingDisbursal || $0.application.status == .disbursed }.count
         statsRejectedCount = applications.filter { $0.application.status == .rejected }.count
     }
     

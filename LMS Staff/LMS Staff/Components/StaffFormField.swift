@@ -34,12 +34,12 @@ struct StaffFormField: View {
                     } else {
                         TextField(placeholder, text: $text)
                             .keyboardType(keyboardType)
+                            .textInputAutocapitalization(autocapitalization)
                     }
                 }
                 .font(.staffBody)
                 .foregroundColor(.staffTextPrimary)
                 .tint(.staffAccent)
-                .textInputAutocapitalization(autocapitalization)
                 .autocorrectionDisabled()
                 
                 if isSecure {

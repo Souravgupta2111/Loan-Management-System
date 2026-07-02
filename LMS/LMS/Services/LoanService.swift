@@ -347,7 +347,7 @@ class LoanService {
             .from("loan_applications")
             .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, sent_back_reason, rejection_reason, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
-            .in("status", values: ["submitted", "under_review", "sent_back", "approved"])
+            .in("status", values: ["submitted", "under_review", "sent_back", "approved", "pending_acceptance", "pending_disbursal"])
             .order("last_updated_at", ascending: false)
             .execute()
             .value
