@@ -55,7 +55,10 @@ class DisbursementViewModel: ObservableObject {
                 }
             }
             self.approvedRates = newRates
+            print("DisbursementViewModel: Fetched \(fetched.count) apps, \(self.pendingDisbursements.count) are pending disbursal")
         } catch {
+            print("DisbursementViewModel Error: \(error.localizedDescription)")
+            print("DisbursementViewModel Detailed Error: \(error)")
             self.errorMessage = error.localizedDescription
         }
         

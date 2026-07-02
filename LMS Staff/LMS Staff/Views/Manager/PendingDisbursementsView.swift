@@ -38,6 +38,14 @@ struct PendingDisbursementsView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                     Spacer()
+                } else if let error = vm.errorMessage {
+                    Spacer()
+                    EmptyStateView(
+                        icon: "exclamationmark.triangle.fill",
+                        title: "Error Loading Data",
+                        message: error
+                    )
+                    Spacer()
                 } else if vm.pendingDisbursements.isEmpty {
                     Spacer()
                     EmptyStateView(
