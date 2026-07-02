@@ -132,24 +132,42 @@ struct IncomeVerificationView: View {
                 }
                 
                 if finalStatus == "ACTIVE" || finalStatus == "APPROVED" {
-                    // Save to Supabase
-                    let user = try await SupabaseManager.shared.client.auth.session.user
-                    
-                    // Update only the relevant fields
-                    let updateData: [String: String] = [
-                        "aa_consent_id": consentId,
-                        "aa_consent_status": finalStatus
-                    ]
-                    
-                    try await SupabaseManager.shared.client.database
-                        .from("borrower_profiles")
-                        .update(updateData)
-                        .eq("user_id", value: user.id)
-                        .execute()
-                    
-                    isSaving = false
-                    onVerificationComplete()
-                    dismiss()
+                    // Start full AA extraction
+                    do {
+                        let analyzedData = try await SetuAAService.shared.completeVerification(consentId: consentId)
+                        
+                        let user = try await SupabaseManager.shared.client.auth.session.user
+                        
+                        // Update borrower profile
+                        struct AAUpdate: Codable {
+                            var aa_consent_id: String
+                            var aa_consent_status: String
+                            var income_verified: Bool
+                            var verified_annual_income: Double
+                            var itr_assessment_year: String
+                        }
+                        
+                        let updateData = AAUpdate(
+                            aa_consent_id: consentId,
+                            aa_consent_status: finalStatus,
+                            income_verified: true,
+                            verified_annual_income: analyzedData.monthlySalary * 12,
+                            itr_assessment_year: "AA_VERIFIED"
+                        )
+                        
+                        try await SupabaseManager.shared.client.database
+                            .from("borrower_profiles")
+                            .update(updateData)
+                            .eq("user_id", value: user.id)
+                            .execute()
+                        
+                        isSaving = false
+                        onVerificationComplete()
+                        dismiss()
+                    } catch {
+                        self.errorMessage = "Failed to fetch FI data: \\(error.localizedDescription)"
+                        self.isSaving = false
+                    }
                 } else {
                     self.errorMessage = "Consent not approved (Status: \(finalStatus))"
                     self.isSaving = false

@@ -517,6 +517,30 @@ class SetuAAService {
         )
     }
     
+    // MARK: - Full Verification Flow (Convenience)
+    
+    func completeVerification(consentId: String) async throws -> AnalyzedIncome {
+        // Check consent status
+        let status = try await getConsentStatus(consentId: consentId)
+        guard status.status.uppercased() == "APPROVED" || status.status.uppercased() == "ACTIVE" else {
+            throw SetuError.consentNotApproved("Consent status: \\(status.status). User must approve first.")
+        }
+        
+        // Create data session
+        let session = try await createDataSession(consentId: consentId)
+        
+        // Wait a moment for data to be ready, then fetch
+        try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        
+        let fiData = try await fetchFIData(sessionId: session.id)
+        
+        guard fiData.status.uppercased() == "COMPLETED" || fiData.status.uppercased() == "PARTIAL" else {
+            throw SetuError.dataNotReady("Data session status: \\(fiData.status). Try again shortly.")
+        }
+        
+        return analyzeTransactions(fiData)
+    }
+
     func startVerification(mobileNumber: String) async throws -> (consentId: String, url: String) {
         let consent = try await createConsent(mobileNumber: mobileNumber)
         return (consentId: consent.id, url: consent.url)
