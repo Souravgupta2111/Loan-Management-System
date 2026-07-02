@@ -50,26 +50,26 @@ struct SetuSessionResponse: Decodable {
     let format: String?
 }
 
-struct SetuFIDataResponse: Codable {
-    let id: String
+struct SetuFIDataResponse: Decodable {
+    let id: String?
     let status: String
-    let Payload: [FIPayload]?
+    let fips: [FIPayload]?
     
-    struct FIPayload: Codable {
-        let data: [FIData]?
+    struct FIPayload: Decodable {
+        let accounts: [AccountWrapper]?
         let fipID: String?
-        let status: String?
     }
     
-    struct FIData: Codable {
-        let decryptedFI: DecryptedFI?
+    struct AccountWrapper: Decodable {
+        let data: FIData?
+        let FIstatus: String?
     }
     
-    struct DecryptedFI: Codable {
+    struct FIData: Decodable {
         let account: AccountInfo?
     }
     
-    struct AccountInfo: Codable {
+    struct AccountInfo: Decodable {
         let linkedAccRef: String?
         let maskedAccNumber: String?
         let type: String?
@@ -78,7 +78,7 @@ struct SetuFIDataResponse: Codable {
         let profile: AccountProfile?
     }
     
-    struct AccountSummary: Codable {
+    struct AccountSummary: Decodable {
         let currentBalance: String?
         let currency: String?
         let branch: String?
@@ -90,21 +90,21 @@ struct SetuFIDataResponse: Codable {
         let type: String?
     }
     
-    struct PendingAmount: Codable {
+    struct PendingAmount: Decodable {
         let amount: String?
         let transactionType: String?
     }
     
-    struct AccountProfile: Codable {
+    struct AccountProfile: Decodable {
         let holders: HoldersInfo?
     }
     
-    struct HoldersInfo: Codable {
+    struct HoldersInfo: Decodable {
         let holder: [HolderDetail]?
         let type: String?
     }
     
-    struct HolderDetail: Codable {
+    struct HolderDetail: Decodable {
         let name: String?
         let dob: String?
         let mobile: String?
@@ -116,13 +116,13 @@ struct SetuFIDataResponse: Codable {
         let ckycCompliance: String?
     }
     
-    struct TransactionsWrapper: Codable {
+    struct TransactionsWrapper: Decodable {
         let transaction: [TransactionEntry]?
         let startDate: String?
         let endDate: String?
     }
     
-    struct TransactionEntry: Codable {
+    struct TransactionEntry: Decodable {
         let txnId: String?
         let type: String?         // "CREDIT" or "DEBIT"
         let mode: String?         // "UPI", "NEFT", "SALARY", etc.
@@ -214,7 +214,86 @@ class SetuAAService {
         return tokenResponse.access_token
     }
     
-
+    // MARK: - Step 2: Create Consent Request
+    
+    func createConsent(mobileNumber: String) async throws -> SetuConsentResponse {
+        let token = try await getAccessToken()
+        
+        let url = URL(string: "\(aaBaseURL)/v2/consents")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(clientID, forHTTPHeaderField: "x-client-id")
+        request.setValue(clientSecret, forHTTPHeaderField: "x-client-secret")
+        request.setValue("48a7626f-69dc-47c4-a393-1a297660ac60", forHTTPHeaderField: "x-product-instance-id")
+        
+        let now = Date()
+        let calendar = Calendar.current
+        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: now)!
+        
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        
+        let consentBody: [String: Any] = [
+            "consentDuration": [
+                "unit": "MONTH",
+                "value": 12
+            ],
+            "vua": "\(mobileNumber)@onemoney",
+            "dataRange": [
+                "from": isoFormatter.string(from: oneYearAgo),
+                "to": isoFormatter.string(from: now)
+            ],
+            "context": [
+                [
+                    "key": "accounttype",
+                    "value": "SAVINGS"
+                ]
+            ],
+            "fiTypes": ["DEPOSIT"],
+            "consentMode": "STORE",
+            "fetchType": "PERIODIC",
+            "frequency": [
+                "value": 1,
+                "unit": "HOUR"
+            ],
+            "dataFilter": [
+                [
+                    "type": "TRANSACTIONAMOUNT",
+                    "operator": ">=",
+                    "value": "1"
+                ]
+            ],
+            "dataLife": [
+                "value": 1,
+                "unit": "MONTH"
+            ],
+            "purpose": [
+                "category": [
+                    "type": "string"
+                ],
+                "code": "103",
+                "refUri": "https://api.rebit.org.in/aa/purpose/103.xml",
+                "text": "Bank statement verification or loan underwriting"
+            ],
+            "redirectUrl": "https://lms-app.local/callback"
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: consentBody)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let body = String(data: data, encoding: .utf8) ?? "No response"
+            throw SetuError.consentFailed("Consent creation failed (\(statusCode)): \(body)")
+        }
+        
+        return try JSONDecoder().decode(SetuConsentResponse.self, from: data)
+    }
+    
     // MARK: - Step 3: Check Consent Status
     
     func getConsentStatus(consentId: String) async throws -> SetuConsentStatusResponse {
@@ -326,9 +405,9 @@ class SetuAAService {
         var panNumber: String?
         
         // Extract transactions from all accounts
-        for payload in fiData.Payload ?? [] {
-            for dataItem in payload.data ?? [] {
-                if let account = dataItem.decryptedFI?.account {
+        for fip in fiData.fips ?? [] {
+            for accountWrapper in fip.accounts ?? [] {
+                if let account = accountWrapper.data?.account {
                     if let txns = account.transactions?.transaction {
                         allTransactions.append(contentsOf: txns)
                     }
@@ -403,8 +482,8 @@ class SetuAAService {
         } else {
             let mid = sortedSalaries.count / 2
             medianSalary = sortedSalaries.count % 2 == 0
-                ? (sortedSalaries[mid - 1] + sortedSalaries[mid]) / 2
-                : sortedSalaries[mid]
+            ? (sortedSalaries[mid - 1] + sortedSalaries[mid]) / 2
+            : sortedSalaries[mid]
         }
         
         // Average monthly balance (from credits - debits per month)
@@ -468,20 +547,17 @@ class SetuAAService {
         let fiData = try await fetchFIData(sessionId: session.id)
         
         guard fiData.status.uppercased() == "COMPLETED" || fiData.status.uppercased() == "PARTIAL" else {
-            throw SetuError.dataNotReady("Data session status: \(fiData.status). Try again shortly.")
-        }
-        
-        // Dump FI Data for debugging
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        if let data = try? encoder.encode(fiData) {
-            try? data.write(to: URL(fileURLWithPath: "/Users/apple/Desktop/setu_fi_data.json"))
+            throw SetuError.dataNotReady("Data session status: \\(fiData.status). Try again shortly.")
         }
         
         return analyzeTransactions(fiData)
     }
-}
 
+    func startVerification(mobileNumber: String) async throws -> (consentId: String, url: String) {
+        let consent = try await createConsent(mobileNumber: mobileNumber)
+        return (consentId: consent.id, url: consent.url)
+    }
+}
 // MARK: - Errors
 
 enum SetuError: LocalizedError {

@@ -51,21 +51,21 @@ struct SetuSessionResponse: Decodable {
 }
 
 struct SetuFIDataResponse: Decodable {
-    let id: String
+    let id: String?
     let status: String
-    let Payload: [FIPayload]?
+    let fips: [FIPayload]?
     
     struct FIPayload: Decodable {
-        let data: [FIData]?
+        let accounts: [AccountWrapper]?
         let fipID: String?
-        let status: String?
+    }
+    
+    struct AccountWrapper: Decodable {
+        let data: FIData?
+        let FIstatus: String?
     }
     
     struct FIData: Decodable {
-        let decryptedFI: DecryptedFI?
-    }
-    
-    struct DecryptedFI: Decodable {
         let account: AccountInfo?
     }
     
@@ -405,9 +405,9 @@ class SetuAAService {
         var panNumber: String?
         
         // Extract transactions from all accounts
-        for payload in fiData.Payload ?? [] {
-            for dataItem in payload.data ?? [] {
-                if let account = dataItem.decryptedFI?.account {
+        for fip in fiData.fips ?? [] {
+            for accountWrapper in fip.accounts ?? [] {
+                if let account = accountWrapper.data?.account {
                     if let txns = account.transactions?.transaction {
                         allTransactions.append(contentsOf: txns)
                     }
