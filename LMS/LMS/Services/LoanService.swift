@@ -69,39 +69,48 @@ class LoanService {
             .execute()
             .value
 
-        for (documentType, data) in documents {
-            let safeType = documentType.lowercased().replacingOccurrences(
-                of: "[^a-z0-9]+", with: "_", options: .regularExpression
-            )
-            let path = "\(userId.uuidString.lowercased())/applications/\(created.id.uuidString.lowercased())/\(safeType)_\(UUID().uuidString.lowercased()).jpg"
-            try await SupabaseManager.shared.client.storage.from("documents").upload(
-                path: path, file: data, options: FileOptions(contentType: "image/jpeg")
-            )
-            struct DocumentInsert: Encodable {
-                let owner_id: UUID; let owner_type: String; let application_id: UUID
-                let document_type: String; let category: String; let file_name: String
-                let storage_bucket: String; let storage_path: String
-                let file_size_bytes: Int; let mime_type: String
+        do {
+            for (documentType, data) in documents {
+                let safeType = documentType.lowercased().replacingOccurrences(
+                    of: "[^a-z0-9]+", with: "_", options: .regularExpression
+                )
+                let path = "\(userId.uuidString.lowercased())/applications/\(created.id.uuidString.lowercased())/\(safeType)_\(UUID().uuidString.lowercased()).jpg"
+                try await SupabaseManager.shared.client.storage.from("documents").upload(
+                    path: path, file: data, options: FileOptions(contentType: "image/jpeg")
+                )
+                struct DocumentInsert: Encodable {
+                    let owner_id: UUID; let owner_type: String; let application_id: UUID
+                    let document_type: String; let category: String; let file_name: String
+                    let storage_bucket: String; let storage_path: String
+                    let file_size_bytes: Int; let mime_type: String
+                }
+                try await SupabaseManager.shared.client.from("documents").insert(DocumentInsert(
+                    owner_id: userId, owner_type: "application", application_id: created.id,
+                    document_type: documentType, category: "loan",
+                    file_name: path.split(separator: "/").last.map(String.init) ?? safeType,
+                    storage_bucket: "documents", storage_path: path,
+                    file_size_bytes: data.count, mime_type: "image/jpeg"
+                )).execute()
             }
-            try await SupabaseManager.shared.client.from("documents").insert(DocumentInsert(
-                owner_id: userId, owner_type: "application", application_id: created.id,
-                document_type: documentType, category: "loan",
-                file_name: path.split(separator: "/").last.map(String.init) ?? safeType,
-                storage_bucket: "documents", storage_path: path,
-                file_size_bytes: data.count, mime_type: "image/jpeg"
-            )).execute()
+
+            struct SubmissionUpdate: Encodable { let status: String; let submitted_at: String }
+            try await SupabaseManager.shared.client.from("loan_applications")
+                .update(SubmissionUpdate(status: "submitted", submitted_at: Formatter.iso8601.string(from: Date())))
+                .eq("id", value: created.id).eq("status", value: "draft").execute()
+
+            // Auto-assign nearest branch and least-loaded officer (best-effort, non-blocking)
+            let _ = await BranchAssignmentService.shared.autoAssign(applicationId: created.id)
+
+            NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+            return created.application_number
+        } catch {
+            // Discard draft loan completely if submission fails
+            try? await SupabaseManager.shared.client.from("loan_applications")
+                .delete()
+                .eq("id", value: created.id)
+                .execute()
+            throw error
         }
-
-        struct SubmissionUpdate: Encodable { let status: String; let submitted_at: String }
-        try await SupabaseManager.shared.client.from("loan_applications")
-            .update(SubmissionUpdate(status: "submitted", submitted_at: Formatter.iso8601.string(from: Date())))
-            .eq("id", value: created.id).eq("status", value: "draft").execute()
-
-        // Auto-assign nearest branch and least-loaded officer (best-effort, non-blocking)
-        let _ = await BranchAssignmentService.shared.autoAssign(applicationId: created.id)
-
-        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
-        return created.application_number
     }
     
     /// Fetches the user's loans from the database
@@ -338,7 +347,7 @@ class LoanService {
             .from("loan_applications")
             .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, sent_back_reason, rejection_reason, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
-            .in("status", values: ["draft", "submitted", "under_review", "sent_back", "approved"])
+            .in("status", values: ["submitted", "under_review", "sent_back", "approved"])
             .order("last_updated_at", ascending: false)
             .execute()
             .value
@@ -483,47 +492,20 @@ class LoanService {
     }
     
     func acceptDisbursement(applicationId: UUID) async throws {
-        // Find the loan associated with this application
-        struct LoanIdResponse: Decodable { let id: UUID }
-        let loanResult: LoanIdResponse = try await SupabaseManager.shared.client
-            .from("loans")
-            .select("id")
-            .eq("application_id", value: applicationId)
-            .single()
-            .execute()
-            .value
-            
-        // Update loan status to active
-        try await SupabaseManager.shared.client
-            .from("loans")
-            .update(["status": "active"])
-            .eq("id", value: loanResult.id)
-            .execute()
-            
-        // Update application status to disbursed
+        // Update application status to approved
         try await SupabaseManager.shared.client
             .from("loan_applications")
-            .update(["status": "disbursed"])
+            .update(["status": "approved"])
             .eq("id", value: applicationId)
             .execute()
     }
     
     func rejectDisbursement(applicationId: UUID) async throws {
-        // Update application status to sent_back
+        // Update application status to rejected
         try await SupabaseManager.shared.client
             .from("loan_applications")
-            .update([
-                "status": "sent_back",
-                "sent_back_reason": "Borrower rejected the disbursement terms."
-            ])
+            .update(["status": "rejected"])
             .eq("id", value: applicationId)
-            .execute()
-            
-        // Delete the pending loan and EMIs
-        try await SupabaseManager.shared.client
-            .from("loans")
-            .delete()
-            .eq("application_id", value: applicationId)
             .execute()
     }
 

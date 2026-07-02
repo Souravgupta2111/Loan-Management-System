@@ -184,17 +184,52 @@ class ApplicationService {
             .eq("id", value: applicationId)
             .execute()
             
-        // Fetch borrower ID to send notification
-        struct AppRecord: Decodable { let borrower_id: UUID }
+        // Fetch borrower ID and staff info to send notifications
+        struct AppRecord: Decodable { 
+            let borrower_id: UUID
+            let branch_id: UUID?
+            let assigned_officer_id: UUID?
+        }
+        
         if let record: AppRecord = try? await supabase.database
             .from("loan_applications")
-            .select("borrower_id")
+            .select("borrower_id, branch_id, assigned_officer_id")
             .eq("id", value: applicationId)
             .single()
             .execute()
             .value {
             
-            if status == .approved {
+            // Resolve Officer and Manager User IDs
+            let allStaff = try? await StaffManagementService.shared.fetchStaff()
+            let officerUserId = allStaff?.first(where: { $0.staff.id == record.assigned_officer_id })?.user.id
+            var managerUserId: UUID? = nil
+            if let branchId = record.branch_id {
+                managerUserId = try? await StaffManagementService.shared.fetchBranchManager(branchId: branchId)?.id
+            }
+            
+            if status == .underReview {
+                if let managerId = managerUserId {
+                    try? await NotificationService.shared.createNotification(
+                        userId: managerId,
+                        title: "New Application to Review",
+                        message: "An application has been recommended for your review.",
+                        type: .loanUpdate,
+                        referenceId: applicationId,
+                        referenceType: "loan_applications"
+                    )
+                }
+            } else if status == .sentBack {
+                if let officerId = officerUserId {
+                    try? await NotificationService.shared.createNotification(
+                        userId: officerId,
+                        title: "Application Sent Back",
+                        message: "Manager sent back an application for revision. Reason: \(reason ?? "Check details")",
+                        type: .loanUpdate,
+                        referenceId: applicationId,
+                        referenceType: "loan_applications"
+                    )
+                }
+            } else if status == .approved {
                 try? await NotificationService.shared.createNotification(
                     userId: record.borrower_id,
                     title: "Loan Approved!",
@@ -203,6 +238,17 @@ class ApplicationService {
                     referenceId: applicationId,
                     referenceType: "loan_applications"
                 )
+                
+                if let officerId = officerUserId {
+                    try? await NotificationService.shared.createNotification(
+                        userId: officerId,
+                        title: "Application Approved",
+                        message: "An application you recommended has been approved.",
+                        type: .loanUpdate,
+                        referenceId: applicationId,
+                        referenceType: "loan_applications"
+                    )
+                }
             } else if status == .rejected {
                 try? await NotificationService.shared.createNotification(
                     userId: record.borrower_id,
@@ -212,6 +258,17 @@ class ApplicationService {
                     referenceId: applicationId,
                     referenceType: "loan_applications"
                 )
+                
+                if let officerId = officerUserId {
+                    try? await NotificationService.shared.createNotification(
+                        userId: officerId,
+                        title: "Application Rejected",
+                        message: "An application you recommended has been rejected.",
+                        type: .loanUpdate,
+                        referenceId: applicationId,
+                        referenceType: "loan_applications"
+                    )
+                }
             }
         }
         

@@ -150,7 +150,7 @@ class DisbursementService {
             "disbursement_date": AnyEncodable(disbursementDateStr),
             "first_emi_date": AnyEncodable(firstEmiDateStr),
             "maturity_date": AnyEncodable(maturityDateStr),
-            "status": AnyEncodable(LoanStatus.pendingAcceptance.rawValue),
+            "status": AnyEncodable(LoanStatus.active.rawValue),
             "outstanding_principal": AnyEncodable(approvedAmount),
             "outstanding_interest": AnyEncodable(totalPayable - approvedAmount),
             "total_overdue": AnyEncodable(0.0),
@@ -222,14 +222,14 @@ class DisbursementService {
                 .execute()
         }
         
-        // 4. Update Application Status to pendingAcceptance
-        try await ApplicationService.shared.updateStatus(applicationId: application.id, status: .pendingAcceptance)
+        // 4. Update Application Status to disbursed
+        try await ApplicationService.shared.updateStatus(applicationId: application.id, status: .disbursed)
         
         // 5. Notify Borrower
         try await NotificationService.shared.createNotification(
             userId: application.borrowerId,
-            title: "Disbursement Terms Available",
-            message: "Your loan disbursement is ready. Please review and accept the terms in your application to proceed.",
+            title: "Loan Disbursed",
+            message: "Your loan funds have been successfully disbursed to your bank account.",
             type: .loanUpdate,
             referenceId: application.id,
             referenceType: "loan_applications"

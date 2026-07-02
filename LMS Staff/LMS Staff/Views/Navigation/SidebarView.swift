@@ -125,7 +125,7 @@ struct SidebarView: View {
             return [.officerDashboard, .officerPortfolio, .officerMessages]
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
-            return [.managerDashboard, .managerRecommendations, .managerDisbursements, .managerMessages]
+            return [.managerDashboard, .managerDisbursements, .managerMessages]
             // Hidden: .managerPortfolio, .managerNpa, .managerReports
         case .admin:
             return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminBorrowers, .adminChecklist]

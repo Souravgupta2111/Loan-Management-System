@@ -9,9 +9,12 @@ import SwiftUI
 
 struct AuditTrailView: View {
     @State private var logs: [AuditLog] = []
-    @State private var filteredLogs: [AuditLog] = []
     @State private var searchText: String = ""
     @State private var isLoading: Bool = false
+    @State private var isLoadingMore: Bool = false
+    @State private var hasMoreLogs: Bool = true
+    @State private var offset: Int = 0
+    private let pageSize: Int = 30
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,8 +41,12 @@ struct AuditTrailView: View {
                 .cornerRadius(StaffCorner.md)
                 .foregroundColor(.staffTextPrimary)
                 .padding(StaffSpacing.lg)
-                .onChange(of: searchText) {
-                    applyFilters()
+                .onChange(of: searchText) { _ in
+                    Task {
+                        // Debounce search input
+                        try? await Task.sleep(nanoseconds: 500_000_000)
+                        await loadAuditLogs()
+                    }
                 }
             
             Divider()
@@ -51,7 +58,7 @@ struct AuditTrailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                 Spacer()
-            } else if filteredLogs.isEmpty {
+            } else if logs.isEmpty {
                 Spacer()
                 EmptyStateView(
                     icon: "clock.arrow.circlepath",
@@ -60,7 +67,8 @@ struct AuditTrailView: View {
                 )
                 Spacer()
             } else {
-                List(filteredLogs) { log in
+                List {
+                    ForEach(logs) { log in
                     VStack(alignment: .leading, spacing: StaffSpacing.xs) {
                         HStack {
                             Text(log.action)
@@ -90,6 +98,21 @@ struct AuditTrailView: View {
                     }
                     .padding(.vertical, 4)
                     .listRowBackground(Color.staffSurface)
+                    } // Close ForEach
+                    
+                    if hasMoreLogs {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .listRowBackground(Color.staffBackground)
+                        .onAppear {
+                            Task {
+                                await loadMoreAuditLogs()
+                            }
+                        }
+                    }
                 }
                 .listStyle(PlainListStyle())
                 .scrollContentBackground(.hidden)
@@ -104,28 +127,43 @@ struct AuditTrailView: View {
     
     private func loadAuditLogs() async {
         isLoading = true
+        offset = 0
+        hasMoreLogs = true
         do {
-            await AuditService.shared.seedAuditLogsIfEmpty()
-            let fetched = try await AuditService.shared.fetchAuditLogs(limit: 100)
+            if searchText.isEmpty {
+                await AuditService.shared.seedAuditLogsIfEmpty()
+            }
+            let fetched = try await AuditService.shared.fetchAuditLogs(offset: offset, limit: pageSize, searchQuery: searchText)
             self.logs = fetched
-            self.filteredLogs = fetched
+            if fetched.count < pageSize {
+                self.hasMoreLogs = false
+            }
         } catch {
             print("Error fetching audit logs: \(error)")
         }
         isLoading = false
     }
     
-    private func applyFilters() {
-        if searchText.isEmpty {
-            filteredLogs = logs
-        } else {
-            let query = searchText.lowercased()
-            filteredLogs = logs.filter {
-                $0.action.lowercased().contains(query) ||
-                $0.tableName.lowercased().contains(query) ||
-                ($0.changeSummary ?? "").lowercased().contains(query)
+    private func loadMoreAuditLogs() async {
+        guard hasMoreLogs && !isLoadingMore && !isLoading else { return }
+        
+        isLoadingMore = true
+        offset += pageSize
+        
+        do {
+            let fetched = try await AuditService.shared.fetchAuditLogs(offset: offset, limit: pageSize, searchQuery: searchText)
+            if fetched.isEmpty {
+                self.hasMoreLogs = false
+            } else {
+                self.logs.append(contentsOf: fetched)
+                if fetched.count < pageSize {
+                    self.hasMoreLogs = false
+                }
             }
+        } catch {
+            print("Error fetching more audit logs: \(error)")
         }
+        isLoadingMore = false
     }
     
     private func formatTimestamp(_ date: Date?) -> String {

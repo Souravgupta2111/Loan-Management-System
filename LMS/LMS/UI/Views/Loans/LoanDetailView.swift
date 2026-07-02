@@ -466,6 +466,11 @@ private struct TimelineCard: View {
     @State private var uploadError: String? = nil
     @State private var uploadSuccess: String? = nil
     
+    // Action States
+    @State private var isAccepting = false
+    @State private var isRejecting = false
+    @State private var actionError: String? = nil
+    
     struct StandardStep: Identifiable {
         let id = UUID()
         let title: String
@@ -487,6 +492,7 @@ private struct TimelineCard: View {
         case "under_review": return 1.0
         case "sent_back": return 1.0
         case "approved": return 2.0
+        case "pending_acceptance": return 2.5
         case "disbursed", "active", "closed", "overdue": return 3.0
         default: return 0.0
         }
@@ -576,6 +582,78 @@ private struct TimelineCard: View {
                     uploadSuccess: $uploadSuccess,
                     selectedItem: $selectedItem
                 )
+            }
+            
+            if loan.status.lowercased() == "pending_acceptance" {
+                VStack(spacing: 12) {
+                    Divider().padding(.vertical, 8)
+                    
+                    if let error = actionError {
+                        Text(error)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            guard let appId = loan.applicationId else { return }
+                            Task {
+                                await MainActor.run { isRejecting = true; actionError = nil }
+                                do {
+                                    try await LoanService.shared.rejectDisbursement(applicationId: appId)
+                                    await MainActor.run {
+                                        isRejecting = false
+                                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        isRejecting = false
+                                        actionError = error.localizedDescription
+                                    }
+                                }
+                            }
+                        }) {
+                            Text(isRejecting ? "Wait..." : "Reject Terms")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(12)
+                        }
+                        .disabled(isAccepting || isRejecting)
+                        
+                        Button(action: {
+                            guard let appId = loan.applicationId else { return }
+                            Task {
+                                await MainActor.run { isAccepting = true; actionError = nil }
+                                do {
+                                    try await LoanService.shared.acceptDisbursement(applicationId: appId)
+                                    await MainActor.run {
+                                        isAccepting = false
+                                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        isAccepting = false
+                                        actionError = error.localizedDescription
+                                    }
+                                }
+                            }
+                        }) {
+                            Text(isAccepting ? "Wait..." : "Accept Disbursement")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color(hex: "#2D8B4E"))
+                                .cornerRadius(12)
+                        }
+                        .disabled(isAccepting || isRejecting)
+                    }
+                }
+                .padding(.top, 8)
             }
         }
         .padding(.horizontal, 18)

@@ -30,12 +30,12 @@ struct ManagerMessagesView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                     Spacer()
-                } else if dashboardVm.recommendedApplications.isEmpty {
+                } else if dashboardVm.chatApplications.isEmpty {
                     Spacer()
-                    EmptyStateView(icon: "bubble.left.and.bubble.right", title: "No Chats", message: "No recommended applications active for discussion.")
+                    EmptyStateView(icon: "bubble.left.and.bubble.right", title: "No Chats", message: "No applications active for discussion.")
                     Spacer()
                 } else {
-                    List(dashboardVm.recommendedApplications, selection: $selectedApp) { app in
+                    List(dashboardVm.chatApplications, selection: $selectedApp) { app in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(app.borrower.fullName)

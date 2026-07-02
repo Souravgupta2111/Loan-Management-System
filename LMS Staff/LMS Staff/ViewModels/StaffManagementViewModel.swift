@@ -107,7 +107,7 @@ class StaffManagementViewModel: ObservableObject {
         }
     }
     
-    func updateStaffProfile(profileId: UUID, department: String?, designation: String?, reportsTo: UUID?, maxLoanApprovalLimit: Double?, canDisburse: Bool) async {
+    func updateStaffProfile(profileId: UUID, department: String?, designation: String?, reportsTo: UUID?, maxLoanApprovalLimit: Double?, canDisburse: Bool, branchId: UUID?) async {
         isLoading = true
         errorMessage = nil
         do {
@@ -117,7 +117,8 @@ class StaffManagementViewModel: ObservableObject {
                 designation: designation,
                 reportsTo: reportsTo,
                 maxLoanApprovalLimit: maxLoanApprovalLimit,
-                canDisburse: canDisburse
+                canDisburse: canDisburse,
+                branchId: branchId
             )
             await loadStaffAndBranches()
         } catch {

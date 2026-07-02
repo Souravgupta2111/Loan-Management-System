@@ -111,6 +111,8 @@ struct ChatSupportConsole: View {
     @StateObject private var detailVm: ApplicationDetailViewModel
     @State private var messageText: String = ""
     @State private var isInternalChat: Bool
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var showDetailsSheet = false
     
     init(appWithBorrower: ApplicationWithBorrower, forceInternalOnly: Bool = false) {
         self.appWithBorrower = appWithBorrower
@@ -138,6 +140,25 @@ struct ChatSupportConsole: View {
                 }
                 
                 Spacer()
+                
+                Button(action: { showDetailsSheet = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                        Text("View Info")
+                    }
+                    .font(.staffCaption)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.staffBackground)
+                    .foregroundColor(.staffAccent)
+                    .cornerRadius(StaffCorner.md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StaffCorner.md)
+                            .stroke(Color.staffBorder, lineWidth: 1)
+                    )
+                }
+                .padding(.trailing, 8)
                 
                 if !forceInternalOnly {
                     // Toggle between Borrower and Internal chat
@@ -240,33 +261,43 @@ struct ChatSupportConsole: View {
                 .background(Color.staffBorder)
             
             // Text Input Footer
-            HStack(spacing: StaffSpacing.md) {
-                TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
-                    .textInputAutocapitalization(.sentences)
-                    .padding(14)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
-                
-                Button(action: {
-                    Task {
-                        await detailVm.sendChatMessage(messageText, isInternal: isInternalChat)
-                        messageText = ""
-                    }
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(.white)
+            if authViewModel.currentUser?.role != .admin {
+                HStack(spacing: StaffSpacing.md) {
+                    TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
+                        .textInputAutocapitalization(.sentences)
                         .padding(14)
-                        .background(Color.staffAccent)
+                        .background(Color.staffSurface)
                         .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    Button(action: {
+                        Task {
+                            let success = await detailVm.sendChatMessage(messageText, isInternal: isInternalChat)
+                            if success {
+                                messageText = ""
+                            }
+                        }
+                    }) {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundColor(.white)
+                            .padding(14)
+                            .background(Color.staffAccent)
+                            .cornerRadius(StaffCorner.md)
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding(StaffSpacing.lg)
+                .background(Color.staffSurface)
             }
-            .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
         }
         .task {
             await detailVm.loadAllDetails()
+        }
+        .sheet(isPresented: $showDetailsSheet) {
+            NavigationView {
+                ApplicationDetailView(appWithBorrower: appWithBorrower, onStatusUpdated: {})
+                    .environmentObject(authViewModel)
+            }
         }
     }
     

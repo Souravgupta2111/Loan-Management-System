@@ -467,12 +467,57 @@ struct ApplicationDetailView: View {
                                 .background(Color.staffGreen.opacity(0.15))
                                 .cornerRadius(StaffCorner.sm)
                                 
-                            Button(action: {
-                                Task {
-                                    await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: nil)
+                            if authViewModel.currentUser?.role == .officer {
+                                Button(action: {
+                                    Task {
+                                        await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: nil)
+                                    }
+                                }) {
+                                    Text("Unverify")
+                                        .font(.staffCaption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.staffAmber)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(Color.staffAmber.opacity(0.15))
+                                        .cornerRadius(StaffCorner.sm)
                                 }
-                            }) {
-                                Text("Unverify")
+                            }
+                        } else {
+                            if authViewModel.currentUser?.role == .officer {
+                                Button(action: {
+                                    Task {
+                                        await vm.verifyDocument(documentId: doc.id, isVerified: true)
+                                    }
+                                }) {
+                                    Text("Verify")
+                                        .font(.staffCaption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.staffGreen)
+                                        .cornerRadius(StaffCorner.sm)
+                                }
+                                
+                                Button(action: {
+                                    Task {
+                                        await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: "Illegible document scan.")
+                                    }
+                                }) {
+                                    Text("Reject")
+                                        .font(.staffCaption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.staffRed)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: StaffCorner.sm)
+                                                .stroke(Color.staffRed, lineWidth: 1)
+                                        )
+                                }
+                            } else {
+                                Text("Not Verified")
                                     .font(.staffCaption)
                                     .fontWeight(.bold)
                                     .foregroundColor(.staffAmber)
@@ -480,38 +525,6 @@ struct ApplicationDetailView: View {
                                     .padding(.vertical, 4)
                                     .background(Color.staffAmber.opacity(0.15))
                                     .cornerRadius(StaffCorner.sm)
-                            }
-                        } else {
-                            Button(action: {
-                                Task {
-                                    await vm.verifyDocument(documentId: doc.id, isVerified: true)
-                                }
-                            }) {
-                                Text("Verify")
-                                    .font(.staffCaption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.staffGreen)
-                                    .cornerRadius(StaffCorner.sm)
-                            }
-                            
-                            Button(action: {
-                                Task {
-                                    await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: "Illegible document scan.")
-                                }
-                            }) {
-                                Text("Reject")
-                                    .font(.staffCaption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.staffRed)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: StaffCorner.sm)
-                                            .stroke(Color.staffRed, lineWidth: 1)
-                                    )
                             }
                         }
                     }
@@ -586,25 +599,40 @@ struct ApplicationDetailView: View {
                         .foregroundColor(.staffRed)
                     Spacer()
                 } else {
-                    if authViewModel.currentUser?.role != .admin {
-                        
-                        StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                            showRejectSheet = true
+                    if authViewModel.currentUser?.role == .officer {
+                        if vm.application.status == .submitted || vm.application.status == .sentBack {
+                            StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                                showRejectSheet = true
+                            }
+                            
+                            Spacer(minLength: 20)
+                            
+                            let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
+                            StaffButton(
+                                title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
+                                style: .primary,
+                                icon: "hand.thumbsup.fill"
+                            ) {
+                                showRecommendSheet = true
+                            }
+                            .frame(minWidth: 240)
+                            .disabled(!allVerified)
+                            .opacity(allVerified ? 1.0 : 0.5)
+                        } else if vm.application.status == .underReview {
+                            Spacer()
+                            Text("Pending Manager Approval")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffAmber)
+                            Spacer()
                         }
-                        
-                        Spacer(minLength: 20)
-                        
-                        let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
-                        StaffButton(
-                            title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
-                            style: .primary,
-                            icon: "hand.thumbsup.fill"
-                        ) {
-                            showRecommendSheet = true
+                    } else if authViewModel.currentUser?.role == .manager {
+                        if vm.application.status == .underReview {
+                            Spacer()
+                            Text("Under Review")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffAmber)
+                            Spacer()
                         }
-                        .frame(minWidth: 240)
-                        .disabled(!allVerified)
-                        .opacity(allVerified ? 1.0 : 0.5)
                     }
                 }
             }

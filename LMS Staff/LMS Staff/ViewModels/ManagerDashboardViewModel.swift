@@ -16,6 +16,7 @@ class ManagerDashboardViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var recommendedApplications: [ApplicationWithBorrower] = []
+    @Published var chatApplications: [ApplicationWithBorrower] = []
     @Published var activeLoansList: [LoanWithDetails] = []
     @Published var activeLoansCount: Int = 0
     @Published var totalDisbursed: Double = 0.0
@@ -53,6 +54,7 @@ class ManagerDashboardViewModel: ObservableObject {
             // 2. Fetch applications that are recommended (under_review status)
             let allApplications = try await appService.fetchAllApplications()
             self.recommendedApplications = allApplications.filter { $0.application.status == .underReview }
+            self.chatApplications = allApplications
             await fetchMessageTimestamps()
             
             // 3. Fetch officers
@@ -66,7 +68,7 @@ class ManagerDashboardViewModel: ObservableObject {
     }
     
     private func fetchMessageTimestamps() async {
-        let appIds = recommendedApplications.map { $0.application.id }
+        let appIds = chatApplications.map { $0.application.id }
         guard !appIds.isEmpty else { return }
         
         struct MessageTimestamp: Decodable {
@@ -98,7 +100,7 @@ class ManagerDashboardViewModel: ObservableObject {
             }
             
             // Sort by latest message
-            self.recommendedApplications.sort { app1, app2 in
+            self.chatApplications.sort { app1, app2 in
                 let date1 = latestTimes[app1.application.id] ?? .distantPast
                 let date2 = latestTimes[app2.application.id] ?? .distantPast
                 return date1 > date2
@@ -123,7 +125,7 @@ class ManagerDashboardViewModel: ObservableObject {
                 .update([
                     "requested_amount": AnyEncodable(approvedAmount),
                     "requested_tenure_months": AnyEncodable(tenureMonths),
-                    "status": AnyEncodable(ApplicationStatus.approved.rawValue),
+                    "status": AnyEncodable(ApplicationStatus.pendingAcceptance.rawValue),
                     "decided_at": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
                 ])
                 .eq("id", value: applicationId)

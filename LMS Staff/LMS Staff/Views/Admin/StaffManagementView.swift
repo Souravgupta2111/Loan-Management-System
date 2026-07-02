@@ -254,6 +254,7 @@ struct StaffProfileDetailView: View {
     @State private var canDisburse: Bool = false
     @State private var isActive: Bool = false
     @State private var selectedRole: UserRole = .officer
+    @State private var selectedBranchId: UUID? = nil
     
     enum ActiveAlert: Identifiable {
         case confirmSave
@@ -376,9 +377,27 @@ struct StaffProfileDetailView: View {
                                 .background(Color.staffSurfaceMuted)
                                 .cornerRadius(StaffCorner.sm)
                                 .foregroundColor(.staffTextPrimary)
+                                
+                                Text("Assigned Branch")
+                                    .font(.staffCaption)
+                                    .foregroundColor(.staffTextSecondary)
+                                Picker("Branch", selection: $selectedBranchId) {
+                                    Text("None").tag(Optional<UUID>.none)
+                                    ForEach(viewModel.branches) { branch in
+                                        Text(branch.name).tag(Optional(branch.id))
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                                .padding(8)
+                                .background(Color.staffSurfaceMuted)
+                                .cornerRadius(StaffCorner.sm)
+                                .foregroundColor(.staffTextPrimary)
                             } else {
                                 detailRow(title: "Designation", value: item.staff.designation ?? "None")
                                 detailRow(title: "Department", value: item.staff.department ?? "None")
+                                
+                                let branchName = viewModel.branches.first(where: { $0.id == item.staff.branchId })?.name ?? "None"
+                                detailRow(title: "Assigned Branch", value: branchName)
                                 
                                 let managerName = viewModel.staffList.first(where: { $0.id == item.staff.reportsTo })?.user.fullName ?? "None"
                                 detailRow(title: "Reports To", value: managerName)
@@ -504,6 +523,7 @@ struct StaffProfileDetailView: View {
         canDisburse = item.staff.canDisburse
         isActive = item.user.isActive
         selectedRole = item.user.role
+        selectedBranchId = item.staff.branchId
     }
     
     private func startEditing() {
@@ -528,14 +548,14 @@ struct StaffProfileDetailView: View {
                 await viewModel.toggleStaffActiveStatus(userId: item.user.id, isActive: isActive)
             }
             
-            // Update profile
             await viewModel.updateStaffProfile(
                 profileId: item.staff.id,
                 department: department.isEmpty ? nil : department,
                 designation: designation.isEmpty ? nil : designation,
                 reportsTo: selectedManager,
                 maxLoanApprovalLimit: limit,
-                canDisburse: canDisburse
+                canDisburse: canDisburse,
+                branchId: selectedBranchId
             )
             
             editMode = false

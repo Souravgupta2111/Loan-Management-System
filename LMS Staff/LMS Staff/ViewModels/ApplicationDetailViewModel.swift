@@ -261,8 +261,8 @@ class ApplicationDetailViewModel: ObservableObject {
         }
     }
     
-    func sendChatMessage(_ content: String, isInternal: Bool = false) async {
-        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    func sendChatMessage(_ content: String, isInternal: Bool = false) async -> Bool {
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         isSendingMessage = true
         
         do {
@@ -278,7 +278,12 @@ class ApplicationDetailViewModel: ObservableObject {
                 
                 if currentStaff?.user.role == .manager {
                     // Manager sends to Officer
-                    receiverId = application.assignedOfficerId ?? currentUserId
+                    if let officerProfileId = application.assignedOfficerId,
+                       let officerStaff = allStaff?.first(where: { $0.staff.id == officerProfileId }) {
+                        receiverId = officerStaff.user.id
+                    } else {
+                        receiverId = currentUserId
+                    }
                 } else if let branchId = application.branchId, let manager = try? await StaffManagementService.shared.fetchBranchManager(branchId: branchId) {
                     // Officer sends to Manager
                     receiverId = manager.id
@@ -301,11 +306,13 @@ class ApplicationDetailViewModel: ObservableObject {
             } else {
                 self.borrowerMessages.append(sent)
             }
+            isSendingMessage = false
+            return true
         } catch {
             self.errorMessage = error.localizedDescription
+            isSendingMessage = false
+            return false
         }
-        
-        isSendingMessage = false
     }
     
     func markMessageAsRead(_ messageId: UUID) async {

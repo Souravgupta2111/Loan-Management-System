@@ -49,13 +49,20 @@ class AuditService {
             .execute()
     }
     
-    /// Fetches audit logs with simple pagination.
-    func fetchAuditLogs(limit: Int = 100) async throws -> [AuditLog] {
-        let logs: [AuditLog] = try await supabase.database
+    /// Fetches audit logs with pagination and optional search.
+    func fetchAuditLogs(offset: Int = 0, limit: Int = 50, searchQuery: String? = nil) async throws -> [AuditLog] {
+        var query = supabase.database
             .from("audit_log")
             .select()
+            
+        if let search = searchQuery, !search.isEmpty {
+            let term = "%\(search)%"
+            query = query.or("action.ilike.\(term),table_name.ilike.\(term),change_summary.ilike.\(term)")
+        }
+            
+        let logs: [AuditLog] = try await query
             .order("created_at", ascending: false)
-            .limit(limit)
+            .range(from: offset, to: offset + limit - 1)
             .execute()
             .value
         return logs

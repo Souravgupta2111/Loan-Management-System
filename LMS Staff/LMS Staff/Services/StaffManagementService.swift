@@ -239,7 +239,8 @@ class StaffManagementService {
         designation: String?,
         reportsTo: UUID?,
         maxLoanApprovalLimit: Double?,
-        canDisburse: Bool
+        canDisburse: Bool,
+        branchId: UUID?
     ) async throws {
         var updates: [String: AnyEncodable] = [
             "can_disburse": AnyEncodable(canDisburse)
@@ -267,6 +268,12 @@ class StaffManagementService {
             updates["max_loan_approval_limit"] = AnyEncodable(limit)
         } else {
             updates["max_loan_approval_limit"] = AnyEncodable(Optional<Double>.none)
+        }
+        
+        if let bId = branchId {
+            updates["branch_id"] = AnyEncodable(bId.uuidString)
+        } else {
+            updates["branch_id"] = AnyEncodable(Optional<String>.none)
         }
         
         try await supabase.database
