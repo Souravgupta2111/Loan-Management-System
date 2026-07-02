@@ -22,6 +22,8 @@ class LoanDetailViewModel: ObservableObject {
     
     @Published var documents: [LMSDocument] = []
     @Published var timelineItems: [StaffTimelineView.TimelineItem] = []
+    @Published var auditLogs: [AuditLog] = []
+    @Published var messages: [Message] = []
     @Published var emiSchedule: [EMIScheduleItem] = []
     @Published var payments: [Payment] = []
     
@@ -96,6 +98,7 @@ class LoanDetailViewModel: ObservableObject {
             
             // Add audit logs for NPA recovery actions
             let auditLogs: [AuditLog] = try await AuditService.shared.fetchAuditLogs(forRecordId: loanWithDetails.loan.id)
+            self.auditLogs = auditLogs
                 
             let auditActorIds = Array(Set(auditLogs.compactMap { $0.actorId }))
             if !auditActorIds.isEmpty {
@@ -107,6 +110,15 @@ class LoanDetailViewModel: ObservableObject {
                     .value
                 for user in users { actorsMap[user.id] = user }
             }
+            
+            // Fetch messages for this loan's application
+            self.messages = (try? await supabase.database
+                .from("messages")
+                .select()
+                .eq("application_id", value: app.id)
+                .order("sent_at", ascending: false)
+                .execute()
+                .value) ?? []
             
             var allTimelineItems: [StaffTimelineView.TimelineItem] = []
             

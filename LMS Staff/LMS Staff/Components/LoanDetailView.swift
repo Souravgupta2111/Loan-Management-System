@@ -339,42 +339,15 @@ struct LoanDetailView: View {
                     .foregroundColor(.staffTextPrimary)
                 
                 Spacer()
-            }
-            
-            if vm.timelineItems.isEmpty {
-                Text("No audit logs found for this loan.")
-                    .font(.staffBody)
-                    .foregroundColor(.staffTextSecondary)
-            } else {
-                ForEach(vm.timelineItems) { log in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(log.action)
-                                .font(.staffBody)
-                                .fontWeight(.bold)
-                                .foregroundColor(log.color)
-                            Spacer()
-                            Text(log.timestamp.formatted())
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
-                        }
-                        if let remarks = log.remarks, !remarks.isEmpty {
-                            Text(remarks)
-                                .font(.staffBody)
-                                .foregroundColor(.staffTextPrimary)
-                                .padding(.top, 2)
-                        }
-                        Text("Actor Role: \(log.role)")
-                            .font(.staffCaption)
-                            .foregroundColor(.staffTextSecondary)
-                            .padding(.top, 2)
+                
+                Picker("Filter", selection: $logFilter) {
+                    ForEach(LogFilter.allCases) { filter in
+                        Text(filter.rawValue).tag(filter)
                     }
-                    .padding(StaffSpacing.md)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
                 }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(maxWidth: 300)
             }
-            .pickerStyle(SegmentedPickerStyle())
             .padding(.bottom, 4)
             
             if timelineItems.isEmpty {

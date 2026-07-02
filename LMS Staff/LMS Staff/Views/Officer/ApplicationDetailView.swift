@@ -127,7 +127,7 @@ struct ApplicationDetailView: View {
             }
             .background(Color.staffBackground)
             
-            if vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
+            if vm.application.status == .approved || vm.application.status == .disbursed || vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
                 Divider()
                     .background(Color.staffBorder)
                 actionButtonBar
@@ -529,7 +529,13 @@ struct ApplicationDetailView: View {
     private var actionButtonBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: StaffSpacing.md) {
-                if vm.application.status == .rejected {
+                if vm.application.status == .approved || vm.application.status == .disbursed {
+                    Spacer()
+                    StaffButton(title: "Download Sanction Letter", style: .primary, icon: "doc.text.fill") {
+                        generateAndShareSanctionLetter()
+                    }
+                    .frame(width: 300)
+                } else if vm.application.status == .rejected {
                     Spacer()
                     Text("Application Rejected")
                         .font(.staffTitle)
