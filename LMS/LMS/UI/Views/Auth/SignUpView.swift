@@ -8,6 +8,7 @@ struct SignUpView: View {
 
     @State private var fullName = ""
     @State private var email = ""
+    @State private var mobileNumber = ""
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var localError: String? = nil
@@ -55,6 +56,13 @@ struct SignUpView: View {
                                     placeholder: "you@example.com",
                                     text: $email,
                                     keyboardType: .emailAddress
+                                )
+                                
+                                FormField(
+                                    label: "Mobile Number",
+                                    placeholder: "Enter 10-digit number",
+                                    text: $mobileNumber,
+                                    keyboardType: .phonePad
                                 )
 
                                 FormField(
@@ -150,7 +158,7 @@ struct SignUpView: View {
     }
 
     private var isValid: Bool {
-        !fullName.isEmpty && !email.isEmpty && password.count >= 6 && password == confirmPassword
+        !fullName.isEmpty && !email.isEmpty && !mobileNumber.isEmpty && password.count >= 6 && password == confirmPassword
     }
 
     private var passwordMismatchError: String? {
@@ -171,7 +179,7 @@ struct SignUpView: View {
         }
         localError = nil
         Task {
-            await authViewModel.signUp(fullName: fullName, email: email, password: password)
+            await authViewModel.signUp(fullName: fullName, email: email, mobileNumber: mobileNumber, password: password)
         }
     }
 }
