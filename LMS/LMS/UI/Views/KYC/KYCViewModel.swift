@@ -213,7 +213,7 @@ class KYCViewModel: ObservableObject {
             return
         }
         
-        guard let addressData = addressProofData, let selfie = selfieData else {
+        guard let addressDataRaw = addressProofData, let selfieRaw = selfieData else {
             self.errorMessage = "Please upload all required documents and capture a selfie"
             return
         }
@@ -223,10 +223,10 @@ class KYCViewModel: ObservableObject {
         
         do {
             if let userId = SupabaseManager.shared.currentUserId {
-                let addressPath = try await KYCService.shared.uploadDocument(data: addressData, type: "address_proof", userId: userId.uuidString)
-                try await KYCService.shared.recordDocument(userId: userId, type: "address_proof", storagePath: addressPath, byteCount: addressData.count)
-                let selfiePath = try await KYCService.shared.uploadDocument(data: selfie, type: "selfie", userId: userId.uuidString)
-                try await KYCService.shared.recordDocument(userId: userId, type: "selfie", storagePath: selfiePath, byteCount: selfie.count)
+                let addressPath = try await KYCService.shared.uploadDocument(data: addressDataRaw, type: "address_proof", userId: userId.uuidString)
+                try await KYCService.shared.recordDocument(userId: userId, type: "address_proof", storagePath: addressPath, byteCount: addressDataRaw.count)
+                let selfiePath = try await KYCService.shared.uploadDocument(data: selfieRaw, type: "selfie", userId: userId.uuidString)
+                try await KYCService.shared.recordDocument(userId: userId, type: "selfie", storagePath: selfiePath, byteCount: selfieRaw.count)
                 
                 var addressLine1 = ""
                 if let house = aadhaarAddress?.house, !house.isEmpty {

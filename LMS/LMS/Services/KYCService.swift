@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import UIKit
 
 struct PANVerificationResponse: Codable {
     let pan: String
@@ -111,11 +112,17 @@ class KYCService {
     func uploadDocument(data: Data, type: String, userId: String) async throws -> String {
         let filePath = "\(userId.lowercased())/\(type)_\(UUID().uuidString.lowercased()).jpg"
         
+        #if canImport(UIKit)
+        let compressedData = UIImage(data: data)?.jpegData(compressionQuality: 0.3) ?? data
+        #else
+        let compressedData = data
+        #endif
+        
         try await SupabaseManager.shared.client.storage
             .from("documents")
             .upload(
                 filePath,
-                data: data,
+                data: compressedData,
                 options: FileOptions(contentType: "image/jpeg")
             )
         
