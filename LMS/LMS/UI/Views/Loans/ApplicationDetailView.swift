@@ -161,18 +161,18 @@ struct ApplicationDetailView: View {
                         }
                         if let suc = successMessage {
                             Text(suc).font(.caption2).foregroundColor(.accentGreen)
-                        }
-                        
-                        HStack(spacing: Spacing.md) {
-                            PillButton(title: isSubmitting ? "Processing..." : "Accept Terms", style: .primary) {
-                                Task { await acceptTerms() }
+                        } else {
+                            HStack(spacing: Spacing.md) {
+                                PillButton(title: isSubmitting ? "Processing..." : "Accept Terms", style: .primary) {
+                                    Task { await acceptTerms() }
+                                }
+                                .disabled(isSubmitting)
+                                
+                                PillButton(title: "Reject", style: .outline) {
+                                    Task { await rejectTerms() }
+                                }
+                                .disabled(isSubmitting)
                             }
-                            .disabled(isSubmitting)
-                            
-                            PillButton(title: "Reject", style: .outline) {
-                                Task { await rejectTerms() }
-                            }
-                            .disabled(isSubmitting)
                         }
                     }
                     .padding(Spacing.lg)

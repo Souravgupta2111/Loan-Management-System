@@ -470,6 +470,7 @@ private struct TimelineCard: View {
     @State private var isAccepting = false
     @State private var isRejecting = false
     @State private var actionError: String? = nil
+    @State private var hasActed = false
     
     struct StandardStep: Identifiable {
         let id = UUID()
@@ -595,62 +596,66 @@ private struct TimelineCard: View {
                             .multilineTextAlignment(.center)
                     }
                     
-                    HStack(spacing: 12) {
-                        Button(action: {
-                            guard let appId = loan.applicationId else { return }
-                            Task {
-                                await MainActor.run { isRejecting = true; actionError = nil }
-                                do {
-                                    try await LoanService.shared.rejectDisbursement(applicationId: appId)
-                                    await MainActor.run {
-                                        isRejecting = false
-                                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
-                                    }
-                                } catch {
-                                    await MainActor.run {
-                                        isRejecting = false
-                                        actionError = error.localizedDescription
-                                    }
-                                }
-                            }
-                        }) {
-                            Text(isRejecting ? "Wait..." : "Reject Terms")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.red)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .disabled(isAccepting || isRejecting)
-                        
-                        Button(action: {
-                            guard let appId = loan.applicationId else { return }
-                            Task {
-                                await MainActor.run { isAccepting = true; actionError = nil }
-                                do {
-                                    try await LoanService.shared.acceptDisbursement(applicationId: appId)
-                                    await MainActor.run {
-                                        isAccepting = false
-                                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
-                                    }
-                                } catch {
-                                    await MainActor.run {
-                                        isAccepting = false
-                                        actionError = error.localizedDescription
+                    if !hasActed {
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                guard let appId = loan.applicationId else { return }
+                                Task {
+                                    await MainActor.run { isRejecting = true; actionError = nil }
+                                    do {
+                                        try await LoanService.shared.rejectDisbursement(applicationId: appId)
+                                        await MainActor.run {
+                                            isRejecting = false
+                                            hasActed = true
+                                            NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            isRejecting = false
+                                            actionError = error.localizedDescription
+                                        }
                                     }
                                 }
+                            }) {
+                                Text(isRejecting ? "Wait..." : "Reject Terms")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.red)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.red.opacity(0.1))
+                                    .cornerRadius(12)
                             }
-                        }) {
-                            Text(isAccepting ? "Wait..." : "Accept Disbursement")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(Color(hex: "#2D8B4E"))
-                                .cornerRadius(12)
+                            .disabled(isAccepting || isRejecting)
+                            
+                            Button(action: {
+                                guard let appId = loan.applicationId else { return }
+                                Task {
+                                    await MainActor.run { isAccepting = true; actionError = nil }
+                                    do {
+                                        try await LoanService.shared.acceptDisbursement(applicationId: appId)
+                                        await MainActor.run {
+                                            isAccepting = false
+                                            hasActed = true
+                                            NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            isAccepting = false
+                                            actionError = error.localizedDescription
+                                        }
+                                    }
+                                }
+                            }) {
+                                Text(isAccepting ? "Wait..." : "Accept Disbursement")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color(hex: "#2D8B4E"))
+                                    .cornerRadius(12)
+                            }
+                            .disabled(isAccepting || isRejecting)
                         }
-                        .disabled(isAccepting || isRejecting)
                     }
                 }
                 .padding(.top, 8)
