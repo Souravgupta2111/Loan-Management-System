@@ -130,7 +130,9 @@ struct ManagerDashboardView: View {
                     } label: {
                         queueListRow(app)
                     }
-                    .listRowBackground(Color.staffSurface)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                 }
                 .listStyle(PlainListStyle())
                 .scrollContentBackground(.hidden)
@@ -357,7 +359,7 @@ struct ManagerDashboardView: View {
     
     @ViewBuilder
     private func queueListRow(_ app: ApplicationWithBorrower) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(app.borrower.fullName)
                     .font(.staffBody)
@@ -365,7 +367,7 @@ struct ManagerDashboardView: View {
                     .foregroundColor(.staffTextPrimary)
                 Spacer()
                 Text("₹\(String(format: "%.0f", app.application.requestedAmount))")
-                    .font(.staffCaption)
+                    .font(.staffBody)
                     .fontWeight(.bold)
                     .foregroundColor(.staffAccent)
             }
@@ -378,24 +380,30 @@ struct ManagerDashboardView: View {
                 
                 if selectedSegment == .sentBack {
                     Text("↩ Sent Back")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffAmber)
                 } else if selectedSegment == .rejected {
                     Text("✕ Rejected")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffRed)
                 } else if selectedSegment == .approved {
                     Text("✓ Approved")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffGreen)
                 } else {
                     Text("Tenure: \(app.application.requestedTenureMonths)m")
-                        .font(.system(size: 10))
+                        .font(.system(size: 12))
                         .foregroundColor(.staffTextSecondary)
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(16)
+        .background(Color.staffSurface)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.staffBorder, lineWidth: 1)
+        )
     }
     
     // MARK: - Inspection Panel (Actionable — Pending Review)
