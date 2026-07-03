@@ -456,6 +456,7 @@ class LoanService {
             .from("loan_applications")
             .select("id, application_number, requested_amount, status, submitted_at, rejection_reason, sent_back_reason, assigned_officer_id, branch_id, loan_product:loan_products(name, type), branch:branches(name), approval_history(action, actioned_at, to_status, approved_amount, approved_tenure_months, approved_interest_rate)")
             .eq("borrower_id", value: userId)
+            .neq("status", value: "draft")
             .order("last_updated_at", ascending: false)
             .execute().value
 

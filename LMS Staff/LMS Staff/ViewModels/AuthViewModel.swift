@@ -27,11 +27,7 @@ class AuthViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
-    // MARK: - Inactivity Timer Properties
-    
-    private var lastActivityTime: Date = Date()
-    private var inactivityTimer: Timer?
-    private let timeoutInterval: TimeInterval = 900 // 15 minutes in seconds
+
     
     private let authService = AuthService.shared
     private let supabase = SupabaseManager.shared
@@ -69,7 +65,6 @@ class AuthViewModel: ObservableObject {
                 self.currentUser = appUser
                 self.currentStaff = staffProfile
                 self.authState = .authenticated(appUser.role)
-                startInactivityTimer()
             } else {
                 self.authState = .unauthenticated
             }
@@ -87,8 +82,6 @@ class AuthViewModel: ObservableObject {
             self.currentUser = appUser
             self.currentStaff = staffProfile
             self.authState = .authenticated(appUser.role)
-            resetActivity()
-            startInactivityTimer()
         } catch {
             print("❌ LOGIN ERROR: \(error)")
             self.errorMessage = error.localizedDescription
@@ -119,7 +112,6 @@ class AuthViewModel: ObservableObject {
     }
     
     func logout() async {
-        stopInactivityTimer()
         do {
             try await authService.signOut()
         } catch {
@@ -130,36 +122,4 @@ class AuthViewModel: ObservableObject {
         self.authState = .unauthenticated
     }
     
-    // MARK: - Inactivity Monitoring
-    
-    func resetActivity() {
-        lastActivityTime = Date()
-    }
-    
-    private func startInactivityTimer() {
-        stopInactivityTimer()
-        // Check every 30 seconds for inactivity
-        inactivityTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self = self else { return }
-                if self.authState != .unauthenticated {
-                    let elapsed = Date().timeIntervalSince(self.lastActivityTime)
-                    if elapsed >= self.timeoutInterval {
-                        print("Session timed out due to inactivity")
-                        await self.logout()
-                        self.errorMessage = "You have been logged out due to inactivity."
-                    }
-                }
-            }
-        }
-    }
-    
-    private func stopInactivityTimer() {
-        inactivityTimer?.invalidate()
-        inactivityTimer = nil
-    }
-    
-    deinit {
-        inactivityTimer?.invalidate()
-    }
 }

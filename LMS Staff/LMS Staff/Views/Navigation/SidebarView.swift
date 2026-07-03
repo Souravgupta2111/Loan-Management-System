@@ -96,6 +96,7 @@ struct SidebarView: View {
                 .background(Color.staffSurface.opacity(0.2))
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.staffSurface.ignoresSafeArea())
         .onAppear {
             // Auto-select first item
@@ -128,8 +129,8 @@ struct SidebarView: View {
             return [.managerDashboard, .managerDisbursements, .managerMessages]
             // Hidden: .managerPortfolio, .managerNpa, .managerReports
         case .admin:
-            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminBorrowers, .adminChecklist]
-            // Hidden: .adminAudit, .adminNotifications
+            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]
+            // Hidden: .adminBorrowers
         case .borrower:
             return []
         }

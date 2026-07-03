@@ -168,22 +168,23 @@ struct MiniStatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
-            HStack {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                 Image(systemName: icon)
+                    .font(.system(size: 20))
                     .foregroundColor(color)
-                Spacer()
-                Text(value)
-                    .font(.staffBody)
-                    .fontWeight(.bold)
-                    .foregroundColor(.staffTextPrimary)
+                Text(title)
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
             }
-            Text(title)
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
+            Spacer()
+            Text(value)
+                .font(.staffBody)
+                .fontWeight(.bold)
+                .foregroundColor(.staffTextPrimary)
         }
-        .padding(StaffSpacing.md)
-        .frame(maxWidth: .infinity)
+        .padding(StaffSpacing.lg)
+        .frame(maxWidth: .infinity, minHeight: 85)
         .background(Color.staffSurface)
         .cornerRadius(StaffCorner.md)
         .overlay(

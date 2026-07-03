@@ -56,7 +56,7 @@ class StaffManagementViewModel: ObservableObject {
         isLoading = false
     }
     
-    func createStaffAccount(fullName: String, role: UserRole, designation: String, branchId: UUID) async -> Bool {
+    func createStaffAccount(fullName: String, role: UserRole, designation: String, branchId: UUID, email: String) async -> Bool {
         isLoading = true
         errorMessage = nil
         
@@ -65,7 +65,8 @@ class StaffManagementViewModel: ObservableObject {
                 fullName: fullName,
                 role: role,
                 designation: designation,
-                branchId: branchId
+                branchId: branchId,
+                staffEmail: email.isEmpty ? nil : email
             )
             self.newlyCreatedCredentials = creds
             self.showCredentialsAlert = true
@@ -127,12 +128,12 @@ class StaffManagementViewModel: ObservableObject {
         isLoading = false
     }
     
-    func resetStaffPassword(userId: UUID, employeeId: String) async -> Bool {
+    func resetStaffPassword(userId: UUID, employeeId: String, email: String) async -> Bool {
         isLoading = true
         errorMessage = nil
         
         do {
-            let password = try await staffService.resetStaffPassword(userId: userId)
+            let password = try await staffService.resetStaffPassword(userId: userId, employeeId: employeeId, email: email)
             self.resetPasswordResult = (employeeId: employeeId, password: password)
             
             // Introduce a short delay to allow the confirmation alert's dismissal animation to finish

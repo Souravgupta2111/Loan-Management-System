@@ -16,6 +16,7 @@ struct StaffManagementView: View {
     
     // Create form values
     @State private var inputName: String = ""
+    @State private var inputEmail: String = ""
     @State private var selectedRole: UserRole = .officer
     @State private var inputDesignation: String = "Loan Officer"
     @State private var selectedBranchId: UUID = UUID()
@@ -164,6 +165,13 @@ struct StaffManagementView: View {
                     error: nil
                 )
                 
+                StaffFormField(
+                    label: "Employee Email",
+                    placeholder: "employee@company.com",
+                    text: $inputEmail,
+                    error: nil
+                )
+                
                 Picker("System Authorization Role", selection: $selectedRole) {
                     Text("System Administrator").tag(UserRole.admin)
                     Text("Branch Manager").tag(UserRole.manager)
@@ -198,18 +206,20 @@ struct StaffManagementView: View {
                 Button("Cancel") {
                     showCreateSheet = false
                     inputName = ""
+                    inputEmail = ""
                 }
                 .foregroundColor(.staffTextSecondary)
                 
                 Spacer()
                 
-                StaffButton(title: "Generate Access Key", style: .primary, icon: "key.fill") {
+                StaffButton(title: "Generate Access", style: .primary, icon: "paperplane.fill") {
                     Task {
                         let success = await vm.createStaffAccount(
                             fullName: inputName,
                             role: selectedRole,
                             designation: inputDesignation,
-                            branchId: selectedBranchId
+                            branchId: selectedBranchId,
+                            email: inputEmail
                         )
                         // Don't dismiss sheet here — wait for credentials alert
                         if !success {
@@ -226,12 +236,13 @@ struct StaffManagementView: View {
         .background(Color.staffBackground.ignoresSafeArea())
         .alert(isPresented: $vm.showCredentialsAlert) {
             Alert(
-                title: Text("✅ Staff Credentials Generated"),
-                message: Text("Employee ID: \(vm.newlyCreatedCredentials?.employeeId ?? "")\nTemporary Password: \(vm.newlyCreatedCredentials?.password ?? "")\n\n⚠️ IMPORTANT: Copy this password now. It will NOT be shown again."),
-                dismissButton: .default(Text("I've Copied The Credentials")) {
+                title: Text("✅ Account Created Successfully"),
+                message: Text("A new staff account has been provisioned.\n\nSecure login credentials and instructions have been automatically emailed to \(inputEmail.isEmpty ? "the provided email address" : inputEmail)."),
+                dismissButton: .default(Text("Done")) {
                     vm.newlyCreatedCredentials = nil
                     showCreateSheet = false
                     inputName = ""
+                    inputEmail = ""
                 }
             )
         }
@@ -256,15 +267,17 @@ struct StaffProfileDetailView: View {
     @State private var selectedRole: UserRole = .officer
     @State private var selectedBranchId: UUID? = nil
     
+    // Reset password flow
+    @State private var showResetSheet: Bool = false
+    @State private var resetEmail: String = ""
+    
     enum ActiveAlert: Identifiable {
         case confirmSave
-        case confirmReset
-        case resetSuccess(password: String)
+        case resetSuccess(password: String, email: String)
         
         var id: String {
             switch self {
             case .confirmSave: return "confirmSave"
-            case .confirmReset: return "confirmReset"
             case .resetSuccess: return "resetSuccess"
             }
         }
@@ -295,7 +308,8 @@ struct StaffProfileDetailView: View {
                 if !editMode {
                     HStack(spacing: StaffSpacing.md) {
                         StaffButton(title: "Reset Password", style: .destructive, icon: "key.fill", isFullWidth: false) {
-                            activeAlert = .confirmReset
+                            resetEmail = item.user.email ?? ""
+                            showResetSheet = true
                         }
                         .frame(width: 160)
                         
@@ -486,31 +500,18 @@ struct StaffProfileDetailView: View {
                     },
                     secondaryButton: .cancel()
                 )
-            case .confirmReset:
+            case .resetSuccess(_, let email):
                 return Alert(
-                    title: Text("Reset Password"),
-                    message: Text("Are you sure you want to reset the password for \(item.user.fullName)? They will need the new credentials to sign in."),
-                    primaryButton: .destructive(Text("Reset Password")) {
-                        Task {
-                            let success = await viewModel.resetStaffPassword(userId: item.user.id, employeeId: item.staff.employeeId)
-                            if success, let res = viewModel.resetPasswordResult {
-                                // Short delay to allow the confirmation alert dismissal animation to complete
-                                try? await Task.sleep(nanoseconds: 600_000_000)
-                                activeAlert = .resetSuccess(password: res.password)
-                            }
-                        }
-                    },
-                    secondaryButton: .cancel()
-                )
-            case .resetSuccess(let newPassword):
-                return Alert(
-                    title: Text("🔑 Password Reset Successfully"),
-                    message: Text("Employee ID: \(item.staff.employeeId)\nNew Password: \(newPassword)\n\n⚠️ IMPORTANT: Copy this new password now. It will NOT be shown again."),
-                    dismissButton: .default(Text("I've Copied The Password")) {
+                    title: Text("✅ Password Reset Successfully"),
+                    message: Text("The employee's password has been reset.\n\nNew secure credentials have been automatically emailed to \(email)."),
+                    dismissButton: .default(Text("Done")) {
                         viewModel.resetPasswordResult = nil
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showResetSheet) {
+            resetPasswordSheet
         }
         .animation(.easeInOut, value: viewModel.isLoading)
     }
@@ -578,5 +579,63 @@ struct StaffProfileDetailView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+    
+    // MARK: - Reset Password Sheet
+    
+    private var resetPasswordSheet: some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+            Text("Reset Password")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            Text("Enter the employee's email address. The new credentials will be saved to the database and a notification will be sent to the employee.")
+                .font(.staffCaption)
+                .foregroundColor(.staffTextSecondary)
+            
+            VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                Text("Employee: \(item.user.fullName) (\(item.staff.employeeId))")
+                    .font(.staffBody)
+                    .foregroundColor(.staffTextPrimary)
+                    .fontWeight(.bold)
+            }
+            
+            StaffFormField(
+                label: "Employee Email Address",
+                placeholder: "employee@company.com",
+                text: $resetEmail,
+                error: resetEmail.isEmpty ? "Email is required to send credentials" : nil
+            )
+            
+            HStack {
+                Button("Cancel") {
+                    showResetSheet = false
+                    resetEmail = ""
+                }
+                .foregroundColor(.staffTextSecondary)
+                
+                Spacer()
+                
+                StaffButton(title: "Reset & Send Credentials", style: .destructive, icon: "paperplane.fill") {
+                    Task {
+                        showResetSheet = false
+                        let success = await viewModel.resetStaffPassword(
+                            userId: item.user.id,
+                            employeeId: item.staff.employeeId,
+                            email: resetEmail
+                        )
+                        if success, let res = viewModel.resetPasswordResult {
+                            try? await Task.sleep(nanoseconds: 600_000_000)
+                            activeAlert = .resetSuccess(password: res.password, email: resetEmail)
+                        }
+                    }
+                }
+                .disabled(resetEmail.isEmpty)
+                .frame(width: 260)
+            }
+            .padding(.top, StaffSpacing.md)
+        }
+        .padding(30)
+        .background(Color.staffBackground.ignoresSafeArea())
     }
 }

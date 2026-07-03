@@ -125,9 +125,16 @@ class NotificationService {
         content.title = title
         content.body = body
         content.sound = .default
+        content.categoryIdentifier = "LMS_NOTIFICATION"
         
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil) // Deliver immediately
-        UNUserNotificationCenter.current().add(request)
+        // Use a tiny time-interval trigger instead of nil for reliable simulator delivery
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Local notification error: \(error.localizedDescription)")
+            }
+        }
     }
     
     func unsubscribe() {

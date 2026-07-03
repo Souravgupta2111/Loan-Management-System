@@ -6,12 +6,43 @@
 //
 
 import SwiftUI
+import UserNotifications
+
+// MARK: - Notification Delegate (foreground delivery)
+/// Without this delegate, iOS silently consumes local notifications
+/// when the app is in the foreground — they never appear as banners.
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show banner + sound + badge even when in foreground
+        completionHandler([.banner, .sound, .badge])
+    }
+    
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        completionHandler()
+    }
+}
 
 @main
 struct LMS_StaffApp: App {
     // Initialize Supabase on app launch
     private let supabase = SupabaseManager.shared
     @StateObject private var authViewModel = AuthViewModel()
+    
+    // Notification delegate must be retained for the app's lifetime
+    private let notificationDelegate = NotificationDelegate()
+
+    init() {
+        // Set delegate BEFORE any notification requests
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -19,18 +50,7 @@ struct LMS_StaffApp: App {
                 .preferredColorScheme(.light)
                 .tint(.staffAccent)
                 .environmentObject(authViewModel)
-                .onAppear {
-                    // Start global activity monitoring on the window
-                    NotificationCenter.default.addObserver(
-                        forName: NSNotification.Name("UserDidInteract"),
-                        object: nil,
-                        queue: .main
-                    ) { _ in
-                        Task { @MainActor in
-                            authViewModel.resetActivity()
-                        }
-                    }
-                }
+
         }
     }
 }

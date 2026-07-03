@@ -70,7 +70,7 @@ class PortfolioViewModel: ObservableObject {
     }
     
     private func applyFilters(search: String, filter: String) {
-        // Active portfolios should only display Active, Restructured, and NPA loans
+        // Active portfolios display Active, Restructured, and NPA loans (disbursed loans become .active)
         var result = loans.filter { $0.loan.status == .active || $0.loan.status == .restructured || $0.loan.status == .npa }
         
         if filter != "All" {

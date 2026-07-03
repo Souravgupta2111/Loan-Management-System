@@ -141,7 +141,7 @@ struct ChatSupportConsole: View {
                 
                 Spacer()
                 
-                if authViewModel.currentUser?.role != .admin {
+                if authViewModel.currentUser?.role == .officer {
                     Button(action: { showDetailsSheet = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "doc.text.magnifyingglass")

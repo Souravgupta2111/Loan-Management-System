@@ -2,7 +2,8 @@
 //  NotificationTemplatesView.swift
 //  LMS Staff
 //
-//  Alert Notification Templates editor with validation checks for placeholder tags.
+//  Alert Notification Templates editor with full CRUD — edit all fields,
+//  toggle active status, create new templates, and delete existing ones.
 //
 
 import SwiftUI
@@ -13,9 +14,25 @@ struct NotificationTemplatesView: View {
     @State private var errorMessage: String?
     
     @State private var selectedTemplate: NotificationTemplate?
+    
+    // Editor state
+    @State private var editorEventName: String = ""
     @State private var editorText: String = ""
+    @State private var editorDescription: String = ""
+    @State private var editorPlaceholders: String = ""
+    @State private var editorIsActive: Bool = true
     @State private var validationErrorMessage: String? = nil
     @State private var isSaving = false
+    
+    // Create sheet
+    @State private var showCreateSheet = false
+    @State private var newEventName: String = ""
+    @State private var newTemplateText: String = ""
+    @State private var newDescription: String = ""
+    @State private var newPlaceholders: String = ""
+    
+    // Delete confirmation
+    @State private var showDeleteConfirm = false
     
     private let service = NotificationTemplateService.shared
     
@@ -23,11 +40,27 @@ struct NotificationTemplatesView: View {
         HStack(spacing: 0) {
             // Left list of templates
             VStack(alignment: .leading, spacing: 0) {
-                Text("Alert Templates")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.lg)
+                HStack {
+                    Text("Alert Templates")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        newEventName = ""
+                        newTemplateText = ""
+                        newDescription = ""
+                        newPlaceholders = ""
+                        showCreateSheet = true
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.staffAccent)
+                    }
+                }
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.top, StaffSpacing.lg)
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -40,18 +73,25 @@ struct NotificationTemplatesView: View {
                     Spacer()
                 } else if templates.isEmpty {
                     Spacer()
-                    EmptyStateView(icon: "envelope.fill", title: "No Templates", message: "No notification templates found in database.")
+                    EmptyStateView(icon: "envelope.fill", title: "No Templates", message: "No notification templates found. Tap '+' to create one.")
                     Spacer()
                 } else {
                     List(templates, selection: $selectedTemplate) { template in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(template.eventName.replacingOccurrences(of: "_", with: " ").capitalized)
-                                .font(.staffBody)
-                                .fontWeight(.bold)
-                                .foregroundColor(.staffTextPrimary)
-                            Text(template.description ?? "")
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
+                        HStack(spacing: StaffSpacing.sm) {
+                            Circle()
+                                .fill(template.isActive ? Color.staffGreen : Color.staffTextSecondary.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(template.eventName.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    .font(.staffBody)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.staffTextPrimary)
+                                Text(template.description ?? "")
+                                    .font(.staffCaption)
+                                    .foregroundColor(.staffTextSecondary)
+                                    .lineLimit(2)
+                            }
                         }
                         .padding(.vertical, 4)
                         .tag(template)
@@ -78,7 +118,7 @@ struct NotificationTemplatesView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
-                    Text("Select a Template to Edit Alert Copy")
+                    Text("Select a Template to Edit")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
                 }
@@ -97,6 +137,26 @@ struct NotificationTemplatesView: View {
             Button("OK") { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            createTemplateSheet
+        }
+        .alert("Delete Template?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                guard let template = selectedTemplate else { return }
+                Task {
+                    do {
+                        try await service.deleteTemplate(id: template.id)
+                        selectedTemplate = nil
+                        loadTemplates()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently remove the template. This action cannot be undone.")
         }
     }
     
@@ -128,44 +188,102 @@ struct NotificationTemplatesView: View {
                         .foregroundColor(.staffTextSecondary)
                 }
                 Spacer()
+                
+                // Active toggle
+                HStack(spacing: StaffSpacing.sm) {
+                    Text(editorIsActive ? "Active" : "Inactive")
+                        .font(.staffCaption)
+                        .foregroundColor(editorIsActive ? .staffGreen : .staffTextSecondary)
+                        .fontWeight(.bold)
+                    Toggle("", isOn: $editorIsActive)
+                        .labelsHidden()
+                        .tint(.staffGreen)
+                }
+                
+                // Delete button
+                Button(action: {
+                    showDeleteConfirm = true
+                }) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.staffRed)
+                }
+                .padding(.leading, StaffSpacing.md)
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffSurface)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-                    // Placeholders reference card
+                    
+                    // Event Name Editor
+                    StaffCard {
+                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                            Text("Event Name")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            
+                            Text("The unique event trigger identifier (use snake_case).")
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
+                            
+                            Divider()
+                            
+                            TextField("e.g. loan_approved", text: $editorEventName)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .padding(10)
+                                .background(Color.staffSurfaceMuted)
+                                .cornerRadius(StaffCorner.md)
+                                .foregroundColor(.staffTextPrimary)
+                                .font(.system(.body, design: .monospaced))
+                        }
+                    }
+                    
+                    // Description Editor
+                    StaffCard {
+                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                            Text("Template Description")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            
+                            Divider()
+                            
+                            TextField("Brief description of when this template is used", text: $editorDescription)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .padding(10)
+                                .background(Color.staffSurfaceMuted)
+                                .cornerRadius(StaffCorner.md)
+                                .foregroundColor(.staffTextPrimary)
+                        }
+                    }
+                    
+                    // Placeholders Editor
                     StaffCard {
                         VStack(alignment: .leading, spacing: StaffSpacing.md) {
                             Text("Supported Dynamic Tags")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
                             
-                            Text("The template will automatically format when dispatched by replacing the tags below:")
+                            Text("Comma-separated list of placeholder tags (e.g. {{borrower_name}}, {{amount}}).")
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
                             
                             Divider()
                             
-                            let placeholders = item.supportedPlaceholders ?? []
-                            if placeholders.isEmpty {
-                                Text("No dynamic tags supported for this event.")
-                                    .font(.staffBody)
-                                    .foregroundColor(.staffTextSecondary)
-                            } else {
-                                ForEach(placeholders, id: \.self) { tag in
-                                    Text(tag)
-                                        .font(.system(.body, design: .monospaced))
-                                        .foregroundColor(.staffAccent)
-                                }
-                            }
+                            TextField("{{tag1}}, {{tag2}}, ...", text: $editorPlaceholders)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .padding(10)
+                                .background(Color.staffSurfaceMuted)
+                                .cornerRadius(StaffCorner.md)
+                                .foregroundColor(.staffAccent)
+                                .font(.system(.body, design: .monospaced))
                         }
                     }
                     
                     // Copy Editor
                     StaffCard {
                         VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                            Text("Template Message Text Copy")
+                            Text("Template Message Text")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
                             
@@ -179,7 +297,8 @@ struct NotificationTemplatesView: View {
                                 .foregroundColor(.staffTextPrimary)
                                 .tint(.staffAccent)
                                 .onChange(of: editorText) { newValue in
-                                    validateTemplateCopy(newValue, placeholders: item.supportedPlaceholders ?? [])
+                                    let placeholders = parsePlaceholders(editorPlaceholders)
+                                    validateTemplateCopy(newValue, placeholders: placeholders)
                                 }
                             
                             if let error = validationErrorMessage {
@@ -205,16 +324,29 @@ struct NotificationTemplatesView: View {
             HStack {
                 Spacer()
                 StaffButton(
-                    title: "Save Template changes",
+                    title: "Save All Changes",
                     style: .primary,
                     icon: "checkmark.circle.fill"
                 ) {
                     Task {
                         isSaving = true
                         do {
-                            if try await service.updateTemplate(id: item.id, templateText: editorText) {
+                            let placeholderArray = parsePlaceholders(editorPlaceholders)
+                            if try await service.updateTemplateFull(
+                                id: item.id,
+                                eventName: editorEventName,
+                                templateText: editorText,
+                                description: editorDescription,
+                                isActive: editorIsActive,
+                                supportedPlaceholders: placeholderArray
+                            ) {
+                                // Update local state
                                 if let index = templates.firstIndex(where: { $0.id == item.id }) {
+                                    templates[index].eventName = editorEventName
                                     templates[index].templateText = editorText
+                                    templates[index].description = editorDescription
+                                    templates[index].isActive = editorIsActive
+                                    templates[index].supportedPlaceholders = placeholderArray
                                     selectedTemplate = templates[index]
                                 }
                             }
@@ -224,18 +356,114 @@ struct NotificationTemplatesView: View {
                         isSaving = false
                     }
                 }
-                .disabled(validationErrorMessage != nil || editorText.isEmpty || isSaving)
+                .disabled(validationErrorMessage != nil || editorText.isEmpty || editorEventName.isEmpty || isSaving)
                 .frame(width: 280)
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffSurface)
         }
         .onAppear {
-            editorText = item.templateText
+            syncEditor(with: item)
         }
         .onChange(of: item) { newItem in
-            editorText = newItem.templateText
+            syncEditor(with: newItem)
         }
+    }
+    
+    private func syncEditor(with item: NotificationTemplate) {
+        editorEventName = item.eventName
+        editorText = item.templateText
+        editorDescription = item.description ?? ""
+        editorIsActive = item.isActive
+        editorPlaceholders = (item.supportedPlaceholders ?? []).joined(separator: ", ")
+        validationErrorMessage = nil
+    }
+    
+    private func parsePlaceholders(_ text: String) -> [String] {
+        text.components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+    
+    // MARK: - Create Template Sheet
+    
+    private var createTemplateSheet: some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+            Text("Create New Notification Template")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            Text("Define a new event template that the system can use to dispatch notifications.")
+                .font(.staffCaption)
+                .foregroundColor(.staffTextSecondary)
+            
+            VStack(spacing: StaffSpacing.md) {
+                StaffFormField(
+                    label: "Event Name (snake_case)",
+                    placeholder: "e.g. loan_approved",
+                    text: $newEventName,
+                    error: nil
+                )
+                
+                StaffFormField(
+                    label: "Description",
+                    placeholder: "Brief description of the event trigger",
+                    text: $newDescription,
+                    error: nil
+                )
+                
+                StaffFormField(
+                    label: "Supported Placeholders (comma-separated)",
+                    placeholder: "{{borrower_name}}, {{amount}}, {{loan_id}}",
+                    text: $newPlaceholders,
+                    error: nil
+                )
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Template Text")
+                        .font(.staffCaption)
+                        .foregroundColor(.staffTextSecondary)
+                    TextEditor(text: $newTemplateText)
+                        .frame(height: 100)
+                        .padding(8)
+                        .background(Color.staffSurfaceMuted)
+                        .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                }
+            }
+            
+            HStack {
+                Button("Cancel") {
+                    showCreateSheet = false
+                }
+                .foregroundColor(.staffTextSecondary)
+                
+                Spacer()
+                
+                StaffButton(title: "Create Template", style: .primary, icon: "plus.circle.fill") {
+                    Task {
+                        do {
+                            let placeholderArray = parsePlaceholders(newPlaceholders)
+                            let _ = try await service.createTemplate(
+                                eventName: newEventName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                templateText: newTemplateText,
+                                description: newDescription,
+                                placeholders: placeholderArray
+                            )
+                            showCreateSheet = false
+                            loadTemplates()
+                        } catch {
+                            errorMessage = error.localizedDescription
+                        }
+                    }
+                }
+                .disabled(newEventName.isEmpty || newTemplateText.isEmpty)
+                .frame(width: 220)
+            }
+            .padding(.top, StaffSpacing.md)
+        }
+        .padding(30)
+        .background(Color.staffBackground.ignoresSafeArea())
     }
     
     // MARK: - Validation Logic
@@ -262,7 +490,9 @@ struct NotificationTemplatesView: View {
             }
         }
         
-        // 2. Detect unsupported placeholder tags
+        // 2. Detect unsupported placeholder tags (only if placeholders are defined)
+        guard !placeholders.isEmpty else { return }
+        
         let tagPattern = "\\{\\{[a-zA-Z_0-9]+\\}\\}"
         let tagRegex = try? NSRegularExpression(pattern: tagPattern, options: [])
         if let matches = tagRegex?.matches(in: text, options: [], range: range) {
