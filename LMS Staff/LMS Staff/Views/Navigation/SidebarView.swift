@@ -128,8 +128,8 @@ struct SidebarView: View {
             return [.managerDashboard, .managerDisbursements, .managerMessages]
             // Hidden: .managerPortfolio, .managerNpa, .managerReports
         case .admin:
-            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminBorrowers, .adminChecklist]
-            // Hidden: .adminAudit, .adminNotifications
+            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]
+            // Hidden: .adminBorrowers
         case .borrower:
             return []
         }

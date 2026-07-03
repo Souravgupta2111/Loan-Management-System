@@ -2,14 +2,22 @@
 //  ManagerDashboardView.swift
 //  LMS Staff
 //
-//  Manager Dashboard for reviewing recommendations, checking KPIs, and managing approvals.
+//  Manager Dashboard with segmented queues, inline analytics charts, and approval workflow.
 //
 
 import SwiftUI
+import Charts
 
 enum ManagerDashboardMode {
     case standard
     case recommendations
+}
+
+enum ManagerQueueSegment: String, CaseIterable {
+    case pendingReview = "Pending Review"
+    case sentBack = "Sent Back"
+    case rejected = "Rejected"
+    case approved = "Approved"
 }
 
 struct ManagerDashboardView: View {
@@ -17,6 +25,7 @@ struct ManagerDashboardView: View {
     
     @StateObject private var vm = ManagerDashboardViewModel()
     @State private var selectedApp: ApplicationWithBorrower?
+    @State private var selectedSegment: ManagerQueueSegment = .pendingReview
     
     // Approval terms state
     @State private var showApprovalSheet: Bool = false
@@ -27,17 +36,27 @@ struct ManagerDashboardView: View {
     // Reject & Send back modals
     @State private var showRejectSheet: Bool = false
     @State private var showSendBackSheet: Bool = false
-    @State private var showReassignSheet: Bool = false
-    @State private var selectedOfficerId: UUID? = nil
     @State private var remarks: String = ""
     
     @State private var showMetricDetailSheet: Bool = false
     @State private var metricDetailTitle: String = ""
     @State private var metricDetailData: MetricDataType = .loans([])
     
+    // Chart expand state
+    @State private var showChartsSection: Bool = true
+    
+    var currentQueue: [ApplicationWithBorrower] {
+        switch selectedSegment {
+        case .pendingReview: return vm.recommendedApplications
+        case .sentBack: return vm.sentBackApplications
+        case .rejected: return vm.rejectedApplications
+        case .approved: return vm.approvedApplications
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 0) {
-            // Left column: Queue list and metrics
+            // Left column: KPIs, Charts, Queue list
             VStack(alignment: .leading, spacing: 0) {
                 Text("Manager Console")
                     .font(.staffTitle)
@@ -45,115 +64,87 @@ struct ManagerDashboardView: View {
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
-                // KPI summary widgets
-                VStack(spacing: StaffSpacing.sm) {
-                    HStack(spacing: StaffSpacing.sm) {
-                        Button(action: {
-                            metricDetailTitle = "Active Portfolio"
-                            metricDetailData = .loans(vm.activeLoansList)
-                            showMetricDetailSheet = true
-                        }) {
-                            MiniStatCard(title: "Active Portfolio", value: "INR \(String(format: "%.0f", vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                ScrollView {
+                    VStack(spacing: StaffSpacing.sm) {
+                        // KPI summary widgets
+                        kpiCardsSection
                         
-                        Button(action: {
-                            metricDetailTitle = "Active Loans"
-                            metricDetailData = .loans(vm.activeLoansList)
-                            showMetricDetailSheet = true
-                        }) {
-                            MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
+                        // Inline Charts
+                        if showChartsSection {
+                            chartsSection
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        
+                        // Charts toggle
+                        Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
+                            HStack {
+                                Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
+                                Text(showChartsSection ? "Hide Insights" : "Show Insights")
+                            }
+                            .font(.staffCaption)
+                            .foregroundColor(.staffAccent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                        }
                     }
-                    HStack(spacing: StaffSpacing.sm) {
-                        Button(action: {
-                            metricDetailTitle = "Collection Efficiency"
-                            metricDetailData = .loans(vm.activeLoansList)
-                            showMetricDetailSheet = true
-                        }) {
-                            MiniStatCard(title: "Collection Eff.", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        Button(action: {
-                            metricDetailTitle = "NPA Ratio"
-                            metricDetailData = .loans(vm.activeLoansList.filter { $0.loan.status == .npa })
-                            showMetricDetailSheet = true
-                        }) {
-                            MiniStatCard(title: "NPA Ratio", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                    .padding(.horizontal, StaffSpacing.lg)
+                    .padding(.top, StaffSpacing.sm)
+                }
+                .frame(maxHeight: showChartsSection ? 420 : 180)
+                
+                // Segment Control
+                Picker("Queue", selection: $selectedSegment) {
+                    ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
+                        Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
                     }
                 }
-                .padding(StaffSpacing.lg)
-                
-                Text("Recommended Queue")
-                    .font(.staffBody)
-                    .fontWeight(.bold)
-                    .foregroundColor(.staffTextSecondary)
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.bottom, StaffSpacing.xs)
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.vertical, StaffSpacing.sm)
+                .onChange(of: selectedSegment) { _ in
+                    selectedApp = nil
+                }
                 
                 Divider()
                     .background(Color.staffBorder)
                 
+                // Queue List
                 if vm.isLoading {
                     Spacer()
                     ProgressView()
                         .frame(maxWidth: .infinity)
                     Spacer()
-                } else if vm.recommendedApplications.isEmpty {
+                } else if currentQueue.isEmpty {
                     Spacer()
                     EmptyStateView(
-                        icon: "checkmark.shield",
-                        title: "Queue Clean",
-                        message: "No applications are currently awaiting manager approval."
+                        icon: emptyIcon(for: selectedSegment),
+                        title: emptyTitle(for: selectedSegment),
+                        message: emptyMessage(for: selectedSegment)
                     )
                     Spacer()
                 } else {
-                    List(vm.recommendedApplications, selection: $selectedApp) { app in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(app.borrower.fullName)
-                                    .font(.staffBody)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.staffTextPrimary)
-                                Spacer()
-                                Text("INR \(String(format: "%.0f", app.application.requestedAmount))")
-                                    .font(.staffCaption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.staffAccent)
-                            }
-                            
-                            HStack {
-                                Text(app.application.applicationNumber ?? "APP-NEW")
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
-                                Spacer()
-                                Text("Tenure: \(app.application.requestedTenureMonths)m")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.staffTextSecondary)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                        .tag(app)
-                        .listRowBackground(Color.staffSurface)
+                    List(currentQueue, selection: $selectedApp) { app in
+                        queueListRow(app)
+                            .tag(app)
+                            .listRowBackground(Color.staffSurface)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
                     .background(Color.staffBackground)
                 }
             }
-            .frame(width: 360)
+            .frame(width: 400)
             .background(Color.staffBackground)
             
             Divider()
                 .background(Color.staffBorder)
             
-            // Right column: Detailed decision pane
+            // Right column: Detail pane
             if let app = selectedApp {
-                recommendationInspectorSection(app)
+                if selectedSegment == .pendingReview {
+                    recommendationInspectorSection(app)
+                } else {
+                    readOnlyInspectorSection(app)
+                }
             } else {
                 VStack(spacing: StaffSpacing.md) {
                     Image(systemName: "hand.thumbsup.fill")
@@ -161,7 +152,7 @@ struct ManagerDashboardView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
-                    Text("Select a Recommended Application")
+                    Text("Select an Application")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
                 }
@@ -171,9 +162,7 @@ struct ManagerDashboardView: View {
         }
         .background(Color.staffBackground)
         .onAppear {
-            Task {
-                await vm.loadDashboard()
-            }
+            Task { await vm.loadDashboard() }
         }
         .sheet(isPresented: $showApprovalSheet) {
             approvalTermsSheet
@@ -184,9 +173,6 @@ struct ManagerDashboardView: View {
         .sheet(isPresented: $showSendBackSheet) {
             sendBackRemarksSheet
         }
-        .sheet(isPresented: $showReassignSheet) {
-            reassignOfficerSheet
-        }
         .sheet(isPresented: $showMetricDetailSheet) {
             NavigationStack {
                 MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
@@ -194,7 +180,225 @@ struct ManagerDashboardView: View {
         }
     }
     
-    // MARK: - Inspection Panel Subviews
+    // MARK: - KPI Cards
+    
+    private var kpiCardsSection: some View {
+        VStack(spacing: StaffSpacing.sm) {
+            HStack(spacing: StaffSpacing.sm) {
+                Button(action: {
+                    metricDetailTitle = "Active Portfolio"
+                    metricDetailData = .loans(vm.activeLoansList)
+                    showMetricDetailSheet = true
+                }) {
+                    MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Button(action: {
+                    metricDetailTitle = "Active Loans"
+                    metricDetailData = .loans(vm.activeLoansList)
+                    showMetricDetailSheet = true
+                }) {
+                    MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            HStack(spacing: StaffSpacing.sm) {
+                Button(action: {
+                    metricDetailTitle = "Collection Efficiency"
+                    metricDetailData = .loans(vm.activeLoansList)
+                    showMetricDetailSheet = true
+                }) {
+                    MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Button(action: {
+                    metricDetailTitle = "NPA Ratio"
+                    metricDetailData = .loans(vm.activeLoansList.filter { $0.loan.status == .npa })
+                    showMetricDetailSheet = true
+                }) {
+                    MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+    
+    // MARK: - Inline Charts
+    
+    private var chartsSection: some View {
+        VStack(spacing: StaffSpacing.sm) {
+            // Collection Efficiency Sparkline
+            if !vm.collectionTrends.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Collection Efficiency Trend")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.staffTextSecondary)
+                    
+                    Chart(vm.collectionTrends) { item in
+                        LineMark(
+                            x: .value("Month", item.month),
+                            y: .value("Eff", item.efficiency)
+                        )
+                        .foregroundStyle(Color.staffGreen)
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        
+                        AreaMark(
+                            x: .value("Month", item.month),
+                            y: .value("Eff", item.efficiency)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(colors: [Color.staffGreen.opacity(0.3), Color.staffGreen.opacity(0.02)], startPoint: .top, endPoint: .bottom)
+                        )
+                    }
+                    .frame(height: 60)
+                    .chartYScale(domain: 0...100)
+                    .chartXAxis(.hidden)
+                    .chartYAxis(.hidden)
+                }
+                .padding(10)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+            }
+            
+            HStack(spacing: StaffSpacing.sm) {
+                // Portfolio Breakdown Donut
+                if !vm.portfolioBreakdown.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Portfolio Mix")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.staffTextSecondary)
+                        
+                        Chart(vm.portfolioBreakdown, id: \.status) { item in
+                            SectorMark(
+                                angle: .value("Amount", item.amount),
+                                innerRadius: .ratio(0.55),
+                                angularInset: 1.5
+                            )
+                            .foregroundStyle(colorForStatus(item.status))
+                            .annotation(position: .overlay) {
+                                if item.count > 0 {
+                                    Text("\(item.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                        .frame(height: 90)
+                        
+                        // Legend
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(vm.portfolioBreakdown, id: \.status) { item in
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(colorForStatus(item.status))
+                                        .frame(width: 6, height: 6)
+                                    Text("\(item.status): \(item.count)")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.staffSurface)
+                    .cornerRadius(StaffCorner.md)
+                }
+                
+                // NPA Aging Bars
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("NPA Aging")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.staffTextSecondary)
+                    
+                    let totalNPA = vm.npaAgingBuckets.reduce(0) { $0 + $1.count }
+                    
+                    if totalNPA == 0 {
+                        Text("No NPA loans")
+                            .font(.system(size: 10))
+                            .foregroundColor(.staffGreen)
+                            .frame(maxWidth: .infinity, minHeight: 90, alignment: .center)
+                    } else {
+                        Chart(vm.npaAgingBuckets, id: \.range) { item in
+                            BarMark(
+                                x: .value("Count", item.count),
+                                y: .value("Range", item.range)
+                            )
+                            .foregroundStyle(npaBarColor(item.range))
+                            .annotation(position: .trailing) {
+                                if item.count > 0 {
+                                    Text("\(item.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                            }
+                        }
+                        .frame(height: 90)
+                        .chartXAxis(.hidden)
+                        .chartYAxis {
+                            AxisMarks { _ in
+                                AxisValueLabel()
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(Color.staffTextSecondary)
+                            }
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+            }
+        }
+    }
+    
+    // MARK: - Queue List Row
+    
+    @ViewBuilder
+    private func queueListRow(_ app: ApplicationWithBorrower) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(app.borrower.fullName)
+                    .font(.staffBody)
+                    .fontWeight(.bold)
+                    .foregroundColor(.staffTextPrimary)
+                Spacer()
+                Text("₹\(String(format: "%.0f", app.application.requestedAmount))")
+                    .font(.staffCaption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.staffAccent)
+            }
+            
+            HStack {
+                Text(app.application.applicationNumber ?? "APP-NEW")
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
+                Spacer()
+                
+                if selectedSegment == .sentBack {
+                    Text("↩ Sent Back")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.staffAmber)
+                } else if selectedSegment == .rejected {
+                    Text("✕ Rejected")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.staffRed)
+                } else if selectedSegment == .approved {
+                    Text("✓ Approved")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.staffGreen)
+                } else {
+                    Text("Tenure: \(app.application.requestedTenureMonths)m")
+                        .font(.system(size: 10))
+                        .foregroundColor(.staffTextSecondary)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+    
+    // MARK: - Inspection Panel (Actionable — Pending Review)
     
     @ViewBuilder
     private func recommendationInspectorSection(_ item: ApplicationWithBorrower) -> some View {
@@ -226,9 +430,9 @@ struct ManagerDashboardView: View {
                             
                             Divider()
                             
-                            KYCRow(label: "Requested Amount", value: "INR \(String(format: "%.2f", item.application.requestedAmount))")
+                            KYCRow(label: "Requested Amount", value: "₹\(String(format: "%.2f", item.application.requestedAmount))")
                             KYCRow(label: "Requested Tenure", value: "\(item.application.requestedTenureMonths) Months")
-                            KYCRow(label: "Borrower Monthly Income", value: item.profile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", item.profile!.monthlyIncome!))" : "N/A")
+                            KYCRow(label: "Borrower Monthly Income", value: computeMonthlyIncomeDisplay(item))
                             KYCRow(label: "Borrower Credit Score", value: item.profile?.creditScore != nil ? "\(item.profile!.creditScore!)" : "N/A")
                         }
                     }
@@ -254,12 +458,8 @@ struct ManagerDashboardView: View {
             Divider()
                 .background(Color.staffBorder)
             
-            // Bottom Action Bar
+            // Bottom Action Bar — No Reassign button
             HStack(spacing: StaffSpacing.md) {
-                StaffButton(title: "Reassign", style: .outline, icon: "person.badge.plus") {
-                    showReassignSheet = true
-                }
-                
                 StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
                     showSendBackSheet = true
                 }
@@ -271,8 +471,8 @@ struct ManagerDashboardView: View {
                 Spacer()
                 
                 StaffButton(title: "Verify & Approve", style: .success, icon: "checkmark.seal.fill") {
-                    // Prepopulate sliders with Underwriting Suggestion
-                    let income = item.profile?.verifiedAnnualIncome != nil ? (item.profile!.verifiedAnnualIncome! / 12) : (item.profile?.monthlyIncome ?? 0)
+                    // Compute recommended amount for slider
+                    let income = computeMonthlyIncome(item)
                     let creditScore = item.profile?.creditScore ?? 0
                     let empType = item.profile?.employmentType ?? .salaried
                     
@@ -286,8 +486,9 @@ struct ManagerDashboardView: View {
                         isIncomeVerified: item.profile?.incomeVerified ?? false
                     )
                     
+                    // Use suggestion, falling back to requested amount — never zero
                     let suggestionAmount = suggestion.suggestedAmount > 0 ? suggestion.suggestedAmount : item.application.requestedAmount
-                    let suggestionTenure = suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : (item.application.requestedTenureMonths ?? item.product.minTenureMonths)
+                    let suggestionTenure = suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : item.application.requestedTenureMonths
                     let suggestionRate = suggestion.suggestedInterestRate > 0 ? suggestion.suggestedInterestRate : item.product.minInterestRate
                     
                     approvedAmount = max(item.product.minAmount, min(suggestionAmount, item.product.maxAmount))
@@ -299,6 +500,71 @@ struct ManagerDashboardView: View {
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffSurface)
+        }
+    }
+    
+    // MARK: - Read-Only Inspector (Sent Back, Rejected, Approved)
+    
+    @ViewBuilder
+    private func readOnlyInspectorSection(_ item: ApplicationWithBorrower) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(item.borrower.fullName)
+                            .font(.staffTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.staffTextPrimary)
+                        StaffStatusBadge(status: item.application.status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+                    }
+                    Text("App: \(item.application.applicationNumber ?? "N/A") | Product: \(item.product.name)")
+                        .font(.staffCaption)
+                        .foregroundColor(.staffTextSecondary)
+                }
+                Spacer()
+            }
+            .padding(StaffSpacing.lg)
+            .background(Color.staffSurface)
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+                    StaffCard {
+                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                            Text("Application Details")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            Divider()
+                            KYCRow(label: "Requested Amount", value: "₹\(String(format: "%.2f", item.application.requestedAmount))")
+                            KYCRow(label: "Requested Tenure", value: "\(item.application.requestedTenureMonths) Months")
+                            KYCRow(label: "Monthly Income", value: computeMonthlyIncomeDisplay(item))
+                            KYCRow(label: "Credit Score", value: item.profile?.creditScore != nil ? "\(item.profile!.creditScore!)" : "N/A")
+                            KYCRow(label: "Status", value: item.application.status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+                        }
+                    }
+                    
+                    // Show reason if sent back or rejected
+                    if selectedSegment == .sentBack || selectedSegment == .rejected {
+                        StaffCard {
+                            VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                                HStack {
+                                    Image(systemName: selectedSegment == .rejected ? "xmark.seal.fill" : "arrow.uturn.left.circle.fill")
+                                        .foregroundColor(selectedSegment == .rejected ? .staffRed : .staffAmber)
+                                    Text(selectedSegment == .rejected ? "Rejection Reason" : "Send-Back Remarks")
+                                        .font(.staffTitle)
+                                        .foregroundColor(.staffTextPrimary)
+                                }
+                                Divider()
+                                Text(item.application.rejectionReason ?? "No reason provided")
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .italic()
+                            }
+                        }
+                    }
+                }
+                .padding(StaffSpacing.lg)
+            }
         }
     }
     
@@ -314,7 +580,7 @@ struct ManagerDashboardView: View {
                 VStack(alignment: .leading, spacing: StaffSpacing.xl) {
                     
                     VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                        Text("Approved Amount: INR \(String(format: "%.2f", approvedAmount))")
+                        Text("Approved Amount: ₹\(String(format: "%.2f", approvedAmount))")
                             .font(.staffBody)
                             .fontWeight(.medium)
                             .foregroundColor(.staffTextPrimary)
@@ -354,23 +620,13 @@ struct ManagerDashboardView: View {
             }
             
             HStack(spacing: StaffSpacing.md) {
-                StaffButton(
-                    title: "Cancel",
-                    style: .outline,
-                    icon: "xmark",
-                    isFullWidth: false
-                ) {
+                StaffButton(title: "Cancel", style: .outline, icon: "xmark", isFullWidth: false) {
                     showApprovalSheet = false
                 }
                 
                 Spacer()
                 
-                StaffButton(
-                    title: "Sanction Approval",
-                    style: .primary,
-                    icon: "checkmark.seal.fill",
-                    isFullWidth: true
-                ) {
+                StaffButton(title: "Sanction Approval", style: .primary, icon: "checkmark.seal.fill", isFullWidth: true) {
                     if let app = selectedApp?.application {
                         Task {
                             if await vm.approveApplication(applicationId: app.id, approvedAmount: approvedAmount, tenureMonths: approvedTenure, interestRate: approvedRate) {
@@ -466,67 +722,93 @@ struct ManagerDashboardView: View {
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
-    private var reassignOfficerSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Reassign Officer")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Select an officer to handle this application instead of the current one.")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            List(vm.availableOfficers, selection: $selectedOfficerId) { staffWithUser in
-                HStack {
-                    Text(staffWithUser.staff.employeeId)
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextSecondary)
-                        .frame(width: 80, alignment: .leading)
-                    
-                    Text(staffWithUser.user.fullName)
-                        .font(.staffBody)
-                        .foregroundColor(.staffTextPrimary)
-                        
-                    Spacer()
-                    
-                    if selectedOfficerId == staffWithUser.user.id {
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.staffAccent)
-                    }
-                }
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedOfficerId = staffWithUser.user.id
-                }
-                .listRowBackground(Color.staffSurface)
-            }
-            .listStyle(PlainListStyle())
-            .frame(height: 250)
-            .background(Color.staffSurface)
-            .cornerRadius(StaffCorner.md)
-            
-            HStack {
-                Button("Cancel") { showReassignSheet = false }
-                    .foregroundColor(.staffTextSecondary)
-                Spacer()
-                Button("Reassign Application") {
-                    if let app = selectedApp?.application, let newOfficerId = selectedOfficerId {
-                        Task {
-                            if await vm.reassignOfficer(applicationId: app.id, newOfficerId: newOfficerId) {
-                                showReassignSheet = false
-                                selectedOfficerId = nil
-                                selectedApp = nil
-                            }
-                        }
-                    }
-                }
-                .foregroundColor(.staffAccent)
-                .fontWeight(.bold)
-                .disabled(selectedOfficerId == nil)
-            }
+    // MARK: - Helpers
+    
+    private func computeMonthlyIncome(_ item: ApplicationWithBorrower) -> Double {
+        if let verified = item.profile?.verifiedAnnualIncome, verified > 0 {
+            return verified / 12.0
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        if let monthly = item.profile?.monthlyIncome, monthly > 0 {
+            return monthly
+        }
+        // Fallback: use requested amount as rough proxy (shouldn't happen with real data)
+        return 0
+    }
+    
+    private func computeMonthlyIncomeDisplay(_ item: ApplicationWithBorrower) -> String {
+        let income = computeMonthlyIncome(item)
+        if income > 0 {
+            return "₹\(String(format: "%.2f", income))"
+        }
+        return "N/A"
+    }
+    
+    private func countFor(_ segment: ManagerQueueSegment) -> Int {
+        switch segment {
+        case .pendingReview: return vm.recommendedApplications.count
+        case .sentBack: return vm.sentBackApplications.count
+        case .rejected: return vm.rejectedApplications.count
+        case .approved: return vm.approvedApplications.count
+        }
+    }
+    
+    private func emptyIcon(for segment: ManagerQueueSegment) -> String {
+        switch segment {
+        case .pendingReview: return "checkmark.shield"
+        case .sentBack: return "arrow.uturn.left.circle"
+        case .rejected: return "xmark.seal"
+        case .approved: return "checkmark.seal"
+        }
+    }
+    
+    private func emptyTitle(for segment: ManagerQueueSegment) -> String {
+        switch segment {
+        case .pendingReview: return "Queue Clear"
+        case .sentBack: return "No Sent Back Loans"
+        case .rejected: return "No Rejected Loans"
+        case .approved: return "No Approved Loans"
+        }
+    }
+    
+    private func emptyMessage(for segment: ManagerQueueSegment) -> String {
+        switch segment {
+        case .pendingReview: return "No applications are currently awaiting manager approval."
+        case .sentBack: return "No loans have been sent back to officers."
+        case .rejected: return "No loan applications have been rejected."
+        case .approved: return "No loans have been approved yet."
+        }
+    }
+    
+    private func formatAmount(_ amount: Double) -> String {
+        if amount >= 10_000_000 {
+            return String(format: "%.1fCr", amount / 10_000_000)
+        } else if amount >= 100_000 {
+            return String(format: "%.1fL", amount / 100_000)
+        } else if amount >= 1_000 {
+            return String(format: "%.0fK", amount / 1_000)
+        }
+        return String(format: "%.0f", amount)
+    }
+    
+    private func colorForStatus(_ status: String) -> Color {
+        switch status.lowercased() {
+        case "active": return .staffGreen
+        case "npa": return .staffRed
+        case "restructured": return .staffAmber
+        case "closed": return .staffTextSecondary
+        case "written off": return .staffRed.opacity(0.6)
+        case "pending acceptance": return .staffAccent
+        default: return .staffTextSecondary
+        }
+    }
+    
+    private func npaBarColor(_ range: String) -> Color {
+        switch range {
+        case "30–60 days": return .staffAmber
+        case "60–90 days": return .orange
+        case "90–180 days": return .staffRed.opacity(0.7)
+        case "180+ days": return .staffRed
+        default: return .staffTextSecondary
+        }
     }
 }

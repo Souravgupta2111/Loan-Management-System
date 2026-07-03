@@ -127,12 +127,14 @@ class StaffManagementService {
         fullName: String,
         role: UserRole,
         designation: String,
-        branchId: UUID
+        branchId: UUID,
+        staffEmail: String? = nil
     ) async throws -> (employeeId: String, password: String) {
         
         let employeeId = await generateEmployeeId(for: role)
         let password = generateRandomPassword()
-        let email = AuthService.shared.resolveEmail(from: employeeId)
+        // Use provided email for auth, falling back to internal email
+        let authEmail = AuthService.shared.resolveEmail(from: employeeId)
         
         struct CreateParams: Encodable {
             let p_email: String
@@ -145,7 +147,7 @@ class StaffManagementService {
         }
         
         let params = CreateParams(
-            p_email: email,
+            p_email: authEmail,
             p_password: password,
             p_full_name: fullName,
             p_role: role.rawValue,
@@ -155,10 +157,31 @@ class StaffManagementService {
         )
         
         // Execute the SECURITY DEFINER Postgres RPC function to create Auth user without logging out
-        let _: UUID = try await supabase.database
+        let newUserId: UUID = try await supabase.database
             .rpc("create_staff_user", params: params)
             .execute()
             .value
+        
+        // Save the real email to users table if provided
+        if let email = staffEmail, !email.isEmpty {
+            try? await supabase.database
+                .from("users")
+                .update(["email": AnyEncodable(email)])
+                .eq("id", value: newUserId)
+                .execute()
+        }
+        
+        // Save credentials to staff_credentials table
+        let credPayload: [String: AnyEncodable] = [
+            "user_id": AnyEncodable(newUserId.uuidString),
+            "employee_id": AnyEncodable(employeeId),
+            "email": AnyEncodable(staffEmail ?? authEmail),
+            "password_plain": AnyEncodable(password)
+        ]
+        try? await supabase.database
+            .from("staff_credentials")
+            .insert(credPayload)
+            .execute()
             
         // Log action in audit trail
         try await AuditService.shared.logAction(
@@ -166,6 +189,15 @@ class StaffManagementService {
             tableName: "staff_profiles",
             recordId: nil,
             summary: "Created staff user \(fullName) (\(employeeId)) as \(designation)"
+        )
+        
+        // Send real email with credentials
+        await sendCredentialEmail(
+            toEmail: staffEmail ?? authEmail,
+            employeeName: fullName,
+            employeeId: employeeId,
+            password: password,
+            isReset: false
         )
         
         return (employeeId, password)
@@ -291,8 +323,8 @@ class StaffManagementService {
         )
     }
     
-    /// Resets staff member's password and returns the new temporary password
-    func resetStaffPassword(userId: UUID) async throws -> String {
+    /// Resets staff member's password, saves credentials, and sends notification
+    func resetStaffPassword(userId: UUID, employeeId: String, email: String) async throws -> String {
         let newPassword = generateRandomPassword()
         
         struct ResetParams: Encodable {
@@ -310,15 +342,119 @@ class StaffManagementService {
             .rpc("reset_staff_password", params: params)
             .execute()
             .value
+        
+        // Update the user's email in the users table
+        if !email.isEmpty {
+            try? await supabase.database
+                .from("users")
+                .update(["email": AnyEncodable(email)])
+                .eq("id", value: userId)
+                .execute()
+        }
+        
+        // Upsert credentials into staff_credentials table
+        // First try to find existing record
+        struct CredRecord: Decodable { let id: UUID }
+        let existing: [CredRecord] = (try? await supabase.database
+            .from("staff_credentials")
+            .select("id")
+            .eq("employee_id", value: employeeId)
+            .execute()
+            .value) ?? []
+        
+        if let existingId = existing.first?.id {
+            // Update existing
+            try? await supabase.database
+                .from("staff_credentials")
+                .update([
+                    "email": AnyEncodable(email),
+                    "password_plain": AnyEncodable(newPassword),
+                    "updated_at": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
+                ])
+                .eq("id", value: existingId)
+                .execute()
+        } else {
+            // Insert new
+            let credPayload: [String: AnyEncodable] = [
+                "user_id": AnyEncodable(userId.uuidString),
+                "employee_id": AnyEncodable(employeeId),
+                "email": AnyEncodable(email),
+                "password_plain": AnyEncodable(newPassword)
+            ]
+            try? await supabase.database
+                .from("staff_credentials")
+                .insert(credPayload)
+                .execute()
+        }
+        
+        // Send in-app notification to the employee with new credentials
+        try? await NotificationService.shared.createNotification(
+            userId: userId,
+            title: "Password Reset",
+            message: "Your password has been reset by an administrator. Your new credentials have been sent to \(email). Employee ID: \(employeeId)",
+            type: .system
+        )
             
         // Log action in audit trail
         try await AuditService.shared.logAction(
             action: "RESET_STAFF_PASSWORD",
             tableName: "users",
             recordId: userId,
-            summary: "Reset password for staff user ID \(userId)"
+            summary: "Reset password for staff \(employeeId), credentials sent to \(email)"
+        )
+        
+        // Send real email with credentials
+        await sendCredentialEmail(
+            toEmail: email,
+            employeeName: employeeId,
+            employeeId: employeeId,
+            password: newPassword,
+            isReset: true
         )
         
         return newPassword
+    }
+    
+    // MARK: - Email Delivery via Edge Function
+    
+    /// Sends credential email to staff via Supabase Edge Function
+    private func sendCredentialEmail(
+        toEmail: String,
+        employeeName: String,
+        employeeId: String,
+        password: String,
+        isReset: Bool
+    ) async {
+        do {
+            struct EmailRequest: Encodable {
+                let to_email: String
+                let employee_name: String
+                let employee_id: String
+                let password: String
+                let is_reset: Bool
+                let admin_name: String?
+            }
+            
+            let adminName = supabase.currentUser?.email?.components(separatedBy: "@").first ?? "Administrator"
+            
+            let request = EmailRequest(
+                to_email: toEmail,
+                employee_name: employeeName,
+                employee_id: employeeId,
+                password: password,
+                is_reset: isReset,
+                admin_name: adminName
+            )
+            
+            try await supabase.client.functions.invoke(
+                "send-credentials-email",
+                options: .init(body: request)
+            )
+            
+            print("✅ Credential email sent to \(toEmail)")
+        } catch {
+            print("⚠️ Failed to send credential email: \(error.localizedDescription)")
+            // Non-blocking: credentials are already saved in DB
+        }
     }
 }

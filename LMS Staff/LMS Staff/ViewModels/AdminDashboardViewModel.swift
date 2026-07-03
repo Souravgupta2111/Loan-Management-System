@@ -51,11 +51,19 @@ class AdminDashboardViewModel: ObservableObject {
             // 1. Fetch system metrics
             let allApps = try await appService.fetchAllApplications()
             
-            self.allApplicationsList = allApps
-            self.pendingReviewsList = allApps.filter { $0.application.status == .underReview || $0.application.status == .submitted }
-            self.approvedList = allApps.filter { $0.application.status == .approved || $0.application.status == .disbursed }
-            self.rejectedList = allApps.filter { $0.application.status == .rejected }
-            self.disbursedList = allApps.filter { $0.application.status == .disbursed }
+            // Sort by status priority (actionable first) then by date (newest first)
+            let sorted = allApps.sorted { a, b in
+                let priorityA = Self.statusPriority(a.application.status)
+                let priorityB = Self.statusPriority(b.application.status)
+                if priorityA != priorityB { return priorityA < priorityB }
+                return (a.application.createdAt ?? Date.distantPast) > (b.application.createdAt ?? Date.distantPast)
+            }
+            
+            self.allApplicationsList = sorted
+            self.pendingReviewsList = sorted.filter { $0.application.status == .underReview || $0.application.status == .submitted }
+            self.approvedList = sorted.filter { $0.application.status == .approved || $0.application.status == .disbursed }
+            self.rejectedList = sorted.filter { $0.application.status == .rejected }
+            self.disbursedList = sorted.filter { $0.application.status == .disbursed }
             
             self.totalApplicationsCount = self.allApplicationsList.count
             self.pendingReviewsCount = self.pendingReviewsList.count
@@ -99,6 +107,18 @@ class AdminDashboardViewModel: ObservableObject {
                 print("Realtime update received, refreshing dashboard...")
                 await self.loadDashboard()
             }
+        }
+    }
+    
+    /// Status priority for sorting: lower = more actionable = shown first
+    private static func statusPriority(_ status: ApplicationStatus) -> Int {
+        switch status {
+        case .submitted:   return 0
+        case .underReview: return 1
+        case .approved:    return 2
+        case .disbursed:   return 3
+        case .rejected:    return 4
+        default:           return 5
         }
     }
     
