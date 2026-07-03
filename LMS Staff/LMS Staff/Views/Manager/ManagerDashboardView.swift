@@ -73,18 +73,47 @@ struct ManagerDashboardView: View {
                     .padding(.top, StaffSpacing.sm)
                 }
                 
-                // Segment Control
-                Picker("Queue", selection: $selectedSegment) {
-                    ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
-                        Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
+                // Queue Filter Pills
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: StaffSpacing.sm) {
+                        ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
+                            let count = countFor(seg)
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedSegment = seg
+                                    selectedApp = nil
+                                }
+                            }) {
+                                HStack(spacing: 6) {
+                                    Text(seg.rawValue)
+                                    if count > 0 {
+                                        Text("\(count)")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(selectedSegment == seg ? .staffAccent : .staffTextSecondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(selectedSegment == seg ? Color.white : Color.staffBackground)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                .font(.staffCaption)
+                                .fontWeight(selectedSegment == seg ? .bold : .medium)
+                                .foregroundColor(selectedSegment == seg ? .white : .staffTextPrimary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(selectedSegment == seg ? Color.staffAccent : Color.staffSurface)
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(selectedSegment == seg ? Color.clear : Color.staffBorder, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
                     }
+                    .padding(.horizontal, StaffSpacing.lg)
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal, StaffSpacing.lg)
                 .padding(.vertical, StaffSpacing.sm)
-                .onChange(of: selectedSegment) { _ in
-                    selectedApp = nil
-                }
                 
                 Divider()
                     .background(Color.staffBorder)
