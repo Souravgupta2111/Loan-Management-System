@@ -57,101 +57,112 @@ struct ManagerDashboardView: View {
         }
     }
     
+    // Detail sheet for inspecting an application
+    @State private var showDetailSheet: Bool = false
+    
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Manager Console")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.lg)
-                
-                VStack(spacing: StaffSpacing.sm) {
-                    // KPI summary widgets
-                    kpiCardsSection
-                    
-                    // Inline Charts
-                    if showChartsSection {
-                        chartsSection
-                    }
-                    
-                    // Charts toggle
-                    Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
-                        HStack {
-                            Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
-                            Text(showChartsSection ? "Hide Insights" : "Show Insights")
-                        }
-                        .font(.staffCaption)
-                        .foregroundColor(.staffAccent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Manager Console")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
                 .padding(.horizontal, StaffSpacing.lg)
-                .padding(.top, StaffSpacing.sm)
+                .padding(.top, StaffSpacing.lg)
+            
+            VStack(spacing: StaffSpacing.sm) {
+                // KPI summary widgets
+                kpiCardsSection
                 
-                // Segment Control
-                Picker("Queue", selection: $selectedSegment) {
-                    ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
-                        Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal, StaffSpacing.lg)
-                .padding(.vertical, StaffSpacing.sm)
-                .onChange(of: selectedSegment) { _ in
-                    selectedApp = nil
+                // Inline Charts
+                if showChartsSection {
+                    chartsSection
                 }
                 
-                Divider()
-                    .background(Color.staffBorder)
-                
-                // Queue List
-                if vm.isLoading {
-                    Spacer()
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                    Spacer()
-                } else if currentQueue.isEmpty {
-                    Spacer()
-                    EmptyStateView(
-                        icon: emptyIcon(for: selectedSegment),
-                        title: emptyTitle(for: selectedSegment),
-                        message: emptyMessage(for: selectedSegment)
-                    )
-                    Spacer()
-                } else {
-                    List(currentQueue) { app in
-                        Button {
-                            selectedApp = app
-                            navigationPath.append(app.application.id)
-                        } label: {
-                            queueListRow(app)
-                        }
-                        .listRowBackground(Color.staffSurface)
+                // Charts toggle
+                Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
+                    HStack {
+                        Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
+                        Text(showChartsSection ? "Hide Insights" : "Show Insights")
                     }
-                    .listStyle(PlainListStyle())
-                    .scrollContentBackground(.hidden)
-                    .background(Color.staffBackground)
+                    .font(.staffCaption)
+                    .foregroundColor(.staffAccent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
                 }
             }
-            .background(Color.staffBackground)
-            .navigationBarHidden(true)
-            .navigationDestination(for: UUID.self) { appId in
-                if let app = selectedApp, app.application.id == appId {
-                    if selectedSegment == .pendingReview {
-                        recommendationInspectorSection(app)
-                            .navigationBarTitleDisplayMode(.inline)
-                    } else {
-                        readOnlyInspectorSection(app)
-                            .navigationBarTitleDisplayMode(.inline)
-                    }
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.top, StaffSpacing.sm)
+            
+            // Segment Control
+            Picker("Queue", selection: $selectedSegment) {
+                ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
+                    Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
                 }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.vertical, StaffSpacing.sm)
+            .onChange(of: selectedSegment) { _ in
+                selectedApp = nil
+            }
+            
+            Divider()
+                .background(Color.staffBorder)
+            
+            // Queue List
+            if vm.isLoading {
+                Spacer()
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                Spacer()
+            } else if currentQueue.isEmpty {
+                Spacer()
+                EmptyStateView(
+                    icon: emptyIcon(for: selectedSegment),
+                    title: emptyTitle(for: selectedSegment),
+                    message: emptyMessage(for: selectedSegment)
+                )
+                Spacer()
+            } else {
+                List(currentQueue) { app in
+                    Button {
+                        selectedApp = app
+                        showDetailSheet = true
+                    } label: {
+                        queueListRow(app)
+                    }
+                    .listRowBackground(Color.staffSurface)
+                }
+                .listStyle(PlainListStyle())
+                .scrollContentBackground(.hidden)
+                .background(Color.staffBackground)
             }
         }
         .background(Color.staffBackground)
         .onAppear {
             Task { await vm.loadDashboard() }
+        }
+        .sheet(isPresented: $showDetailSheet) {
+            if let app = selectedApp {
+                NavigationStack {
+                    if selectedSegment == .pendingReview {
+                        recommendationInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarLeading) {
+                                    Button("Close") { showDetailSheet = false }
+                                }
+                            }
+                    } else {
+                        readOnlyInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarLeading) {
+                                    Button("Close") { showDetailSheet = false }
+                                }
+                            }
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showApprovalSheet) {
             approvalTermsSheet
