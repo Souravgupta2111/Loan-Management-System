@@ -43,7 +43,10 @@ struct ManagerDashboardView: View {
     @State private var metricDetailData: MetricDataType = .loans([])
     
     // Chart expand state
-
+    @State private var showChartsSection: Bool = false
+    
+    // Navigation
+    @State private var navigationPath = NavigationPath()
     
     var currentQueue: [ApplicationWithBorrower] {
         switch selectedSegment {
@@ -55,8 +58,7 @@ struct ManagerDashboardView: View {
     }
     
     var body: some View {
-        HStack(spacing: 0) {
-            // Left column: KPIs, Charts, Queue list
+        NavigationStack(path: $navigationPath) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Manager Console")
                     .font(.staffTitle)
@@ -64,56 +66,42 @@ struct ManagerDashboardView: View {
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
-                ScrollView {
-                    VStack(spacing: StaffSpacing.sm) {
-                        // KPI summary widgets
-                        kpiCardsSection
+                VStack(spacing: StaffSpacing.sm) {
+                    // KPI summary widgets
+                    kpiCardsSection
+                    
+                    // Inline Charts
+                    if showChartsSection {
+                        chartsSection
                     }
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.sm)
-                }
-                
-                // Queue Filter Pills
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: StaffSpacing.sm) {
-                        ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
-                            let count = countFor(seg)
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedSegment = seg
-                                    selectedApp = nil
-                                }
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text(seg.rawValue)
-                                    if count > 0 {
-                                        Text("\(count)")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(selectedSegment == seg ? .staffAccent : .staffTextSecondary)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(selectedSegment == seg ? Color.white : Color.staffBackground)
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                                .font(.staffCaption)
-                                .fontWeight(selectedSegment == seg ? .bold : .medium)
-                                .foregroundColor(selectedSegment == seg ? .white : .staffTextPrimary)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(selectedSegment == seg ? Color.staffAccent : Color.staffSurface)
-                                .clipShape(Capsule())
-                                .overlay(
-                                    Capsule()
-                                        .stroke(selectedSegment == seg ? Color.clear : Color.staffBorder, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
+                    
+                    // Charts toggle
+                    Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
+                        HStack {
+                            Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
+                            Text(showChartsSection ? "Hide Insights" : "Show Insights")
                         }
+                        .font(.staffCaption)
+                        .foregroundColor(.staffAccent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
                     }
-                    .padding(.horizontal, StaffSpacing.lg)
                 }
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.top, StaffSpacing.sm)
+                
+                // Segment Control
+                Picker("Queue", selection: $selectedSegment) {
+                    ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
+                        Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal, StaffSpacing.lg)
                 .padding(.vertical, StaffSpacing.sm)
+                .onChange(of: selectedSegment) { _ in
+                    selectedApp = nil
+                }
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -133,31 +121,32 @@ struct ManagerDashboardView: View {
                     )
                     Spacer()
                 } else {
-                    List(currentQueue, selection: $selectedApp) { app in
-                        queueListRow(app)
-                            .tag(app)
-                            .listRowBackground(Color.staffSurface)
+                    List(currentQueue) { app in
+                        Button {
+                            selectedApp = app
+                            navigationPath.append(app.application.id)
+                        } label: {
+                            queueListRow(app)
+                        }
+                        .listRowBackground(Color.staffSurface)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
                     .background(Color.staffBackground)
                 }
             }
-            .frame(width: 400)
             .background(Color.staffBackground)
-            
-            Divider()
-                .background(Color.staffBorder)
-            
-            // Right column: Detail pane
-            if let app = selectedApp {
-                if selectedSegment == .pendingReview {
-                    recommendationInspectorSection(app)
-                } else {
-                    readOnlyInspectorSection(app)
+            .navigationBarHidden(true)
+            .navigationDestination(for: UUID.self) { appId in
+                if let app = selectedApp, app.application.id == appId {
+                    if selectedSegment == .pendingReview {
+                        recommendationInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                    } else {
+                        readOnlyInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
                 }
-            } else {
-                fullWidthAnalyticsDashboard
             }
         }
         .background(Color.staffBackground)
@@ -225,153 +214,132 @@ struct ManagerDashboardView: View {
         }
     }
     
-    // MARK: - Full Width Analytics Dashboard
+    // MARK: - Inline Charts
     
-    private var fullWidthAnalyticsDashboard: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: StaffSpacing.xl) {
-                Text("Portfolio Analytics")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(.bottom, StaffSpacing.md)
-                
-                // Collection Efficiency Sparkline (Big)
-                if !vm.collectionTrends.isEmpty {
-                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                        Text("Collection Efficiency Trend (Past 6 Months)")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.staffTextPrimary)
-                        
-                        Chart(vm.collectionTrends) { item in
-                            LineMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(Color.staffGreen)
-                            .interpolationMethod(.catmullRom)
-                            .lineStyle(StrokeStyle(lineWidth: 3))
-                            
-                            AreaMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(
-                                LinearGradient(colors: [Color.staffGreen.opacity(0.4), Color.staffGreen.opacity(0.0)], startPoint: .top, endPoint: .bottom)
-                            )
-                            
-                            PointMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(Color.staffGreen)
-                            .annotation(position: .top) {
-                                Text(String(format: "%.1f%%", item.efficiency))
-                                    .font(.caption)
-                                    .foregroundColor(.staffTextSecondary)
-                            }
-                        }
-                        .frame(height: 250)
-                        .chartYScale(domain: 0...100)
-                    }
-                    .padding(StaffSpacing.xl)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.lg)
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-                }
-                
-                HStack(alignment: .top, spacing: StaffSpacing.xl) {
-                    // Portfolio Breakdown Donut
-                    if !vm.portfolioBreakdown.isEmpty {
-                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                            Text("Portfolio Mix by Status")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            Chart(vm.portfolioBreakdown, id: \.status) { item in
-                                SectorMark(
-                                    angle: .value("Amount", item.amount),
-                                    innerRadius: .ratio(0.55),
-                                    angularInset: 2.0
-                                )
-                                .foregroundStyle(colorForStatus(item.status))
-                                .annotation(position: .overlay) {
-                                    if item.count > 0 {
-                                        Text("\(item.count)")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                            }
-                            .frame(height: 250)
-                            
-                            // Legend
-                            HStack(spacing: StaffSpacing.lg) {
-                                ForEach(vm.portfolioBreakdown, id: \.status) { item in
-                                    HStack(spacing: 6) {
-                                        Circle()
-                                            .fill(colorForStatus(item.status))
-                                            .frame(width: 10, height: 10)
-                                        Text("\(item.status)")
-                                            .font(.subheadline)
-                                            .foregroundColor(.staffTextSecondary)
-                                    }
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        }
-                        .padding(StaffSpacing.xl)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.staffSurface)
-                        .cornerRadius(StaffCorner.lg)
-                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-                    }
+    private var chartsSection: some View {
+        VStack(spacing: StaffSpacing.sm) {
+            // Collection Efficiency Sparkline
+            if !vm.collectionTrends.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Collection Efficiency Trend")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.staffTextSecondary)
                     
-                    // NPA Aging Bars
-                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                        Text("NPA Aging Buckets")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.staffTextPrimary)
+                    Chart(vm.collectionTrends) { item in
+                        LineMark(
+                            x: .value("Month", item.month),
+                            y: .value("Eff", item.efficiency)
+                        )
+                        .foregroundStyle(Color.staffGreen)
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
                         
-                        let totalNPA = vm.npaAgingBuckets.reduce(0) { $0 + $1.count }
+                        AreaMark(
+                            x: .value("Month", item.month),
+                            y: .value("Eff", item.efficiency)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(colors: [Color.staffGreen.opacity(0.3), Color.staffGreen.opacity(0.02)], startPoint: .top, endPoint: .bottom)
+                        )
+                    }
+                    .frame(height: 60)
+                    .chartYScale(domain: 0...100)
+                    .chartXAxis(.hidden)
+                    .chartYAxis(.hidden)
+                }
+                .padding(10)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+            }
+            
+            HStack(spacing: StaffSpacing.sm) {
+                // Portfolio Breakdown Donut
+                if !vm.portfolioBreakdown.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Portfolio Mix")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.staffTextSecondary)
                         
-                        if totalNPA == 0 {
-                            Text("No NPA loans currently in the portfolio. Excellent!")
-                                .font(.body)
-                                .foregroundColor(.staffGreen)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        } else {
-                            Chart(vm.npaAgingBuckets, id: \.range) { item in
-                                BarMark(
-                                    x: .value("Count", item.count),
-                                    y: .value("Range", item.range)
-                                )
-                                .foregroundStyle(npaBarColor(item.range))
-                                .annotation(position: .trailing) {
-                                    if item.count > 0 {
-                                        Text("\(item.count)")
-                                            .font(.subheadline)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(.staffTextPrimary)
-                                    }
+                        Chart(vm.portfolioBreakdown, id: \.status) { item in
+                            SectorMark(
+                                angle: .value("Amount", item.amount),
+                                innerRadius: .ratio(0.55),
+                                angularInset: 1.5
+                            )
+                            .foregroundStyle(colorForStatus(item.status))
+                            .annotation(position: .overlay) {
+                                if item.count > 0 {
+                                    Text("\(item.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.white)
                                 }
                             }
-                            .frame(height: 250)
+                        }
+                        .frame(height: 90)
+                        
+                        // Legend
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(vm.portfolioBreakdown, id: \.status) { item in
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(colorForStatus(item.status))
+                                        .frame(width: 6, height: 6)
+                                    Text("\(item.status): \(item.count)")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                            }
                         }
                     }
-                    .padding(StaffSpacing.xl)
-                    .frame(maxWidth: .infinity)
+                    .padding(10)
                     .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.lg)
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+                    .cornerRadius(StaffCorner.md)
                 }
+                
+                // NPA Aging Bars
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("NPA Aging")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.staffTextSecondary)
+                    
+                    let totalNPA = vm.npaAgingBuckets.reduce(0) { $0 + $1.count }
+                    
+                    if totalNPA == 0 {
+                        Text("No NPA loans")
+                            .font(.system(size: 10))
+                            .foregroundColor(.staffGreen)
+                            .frame(maxWidth: .infinity, minHeight: 90, alignment: .center)
+                    } else {
+                        Chart(vm.npaAgingBuckets, id: \.range) { item in
+                            BarMark(
+                                x: .value("Count", item.count),
+                                y: .value("Range", item.range)
+                            )
+                            .foregroundStyle(npaBarColor(item.range))
+                            .annotation(position: .trailing) {
+                                if item.count > 0 {
+                                    Text("\(item.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.staffTextSecondary)
+                                }
+                            }
+                        }
+                        .frame(height: 90)
+                        .chartXAxis(.hidden)
+                        .chartYAxis {
+                            AxisMarks { _ in
+                                AxisValueLabel()
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(Color.staffTextSecondary)
+                            }
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
             }
-            .padding(StaffSpacing.xxl)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.staffSurface.opacity(0.1))
     }
     
     // MARK: - Queue List Row
