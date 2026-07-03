@@ -43,7 +43,10 @@ struct ManagerDashboardView: View {
     @State private var metricDetailData: MetricDataType = .loans([])
     
     // Chart expand state
-    @State private var showChartsSection: Bool = true
+    @State private var showChartsSection: Bool = false
+    
+    // Navigation
+    @State private var navigationPath = NavigationPath()
     
     var currentQueue: [ApplicationWithBorrower] {
         switch selectedSegment {
@@ -55,8 +58,7 @@ struct ManagerDashboardView: View {
     }
     
     var body: some View {
-        HStack(spacing: 0) {
-            // Left column: KPIs, Charts, Queue list
+        NavigationStack(path: $navigationPath) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Manager Console")
                     .font(.staffTitle)
@@ -64,32 +66,29 @@ struct ManagerDashboardView: View {
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
-                ScrollView {
-                    VStack(spacing: StaffSpacing.sm) {
-                        // KPI summary widgets
-                        kpiCardsSection
-                        
-                        // Inline Charts
-                        if showChartsSection {
-                            chartsSection
-                        }
-                        
-                        // Charts toggle
-                        Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
-                            HStack {
-                                Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
-                                Text(showChartsSection ? "Hide Insights" : "Show Insights")
-                            }
-                            .font(.staffCaption)
-                            .foregroundColor(.staffAccent)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                        }
+                VStack(spacing: StaffSpacing.sm) {
+                    // KPI summary widgets
+                    kpiCardsSection
+                    
+                    // Inline Charts
+                    if showChartsSection {
+                        chartsSection
                     }
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.sm)
+                    
+                    // Charts toggle
+                    Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
+                        HStack {
+                            Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
+                            Text(showChartsSection ? "Hide Insights" : "Show Insights")
+                        }
+                        .font(.staffCaption)
+                        .foregroundColor(.staffAccent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                    }
                 }
-                .frame(maxHeight: showChartsSection ? 420 : 180)
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.top, StaffSpacing.sm)
                 
                 // Segment Control
                 Picker("Queue", selection: $selectedSegment) {
@@ -122,42 +121,32 @@ struct ManagerDashboardView: View {
                     )
                     Spacer()
                 } else {
-                    List(currentQueue, selection: $selectedApp) { app in
-                        queueListRow(app)
-                            .tag(app)
-                            .listRowBackground(Color.staffSurface)
+                    List(currentQueue) { app in
+                        Button {
+                            selectedApp = app
+                            navigationPath.append(app.application.id)
+                        } label: {
+                            queueListRow(app)
+                        }
+                        .listRowBackground(Color.staffSurface)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
                     .background(Color.staffBackground)
                 }
             }
-            .frame(width: 400)
             .background(Color.staffBackground)
-            
-            Divider()
-                .background(Color.staffBorder)
-            
-            // Right column: Detail pane
-            if let app = selectedApp {
-                if selectedSegment == .pendingReview {
-                    recommendationInspectorSection(app)
-                } else {
-                    readOnlyInspectorSection(app)
+            .navigationBarHidden(true)
+            .navigationDestination(for: UUID.self) { appId in
+                if let app = selectedApp, app.application.id == appId {
+                    if selectedSegment == .pendingReview {
+                        recommendationInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                    } else {
+                        readOnlyInspectorSection(app)
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
                 }
-            } else {
-                VStack(spacing: StaffSpacing.md) {
-                    Image(systemName: "hand.thumbsup.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.staffTextSecondary.opacity(0.3))
-                    Text("Select an Application")
-                        .font(.staffTitle)
-                        .foregroundColor(.staffTextSecondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.staffSurface.opacity(0.1))
             }
         }
         .background(Color.staffBackground)
