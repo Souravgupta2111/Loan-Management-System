@@ -580,39 +580,124 @@ private struct TimelineCard: View {
     }
     
     private var steps: [StandardStep] {
-        guard let timeline = loan.timeline, !timeline.isEmpty else {
-            return [
-                StandardStep(title: "Applied", date: loan.disbursedDate, remarks: "Application successfully submitted.", status: .completed)
-            ]
-        }
-        
-        var standardSteps: [StandardStep] = []
         let lowerStatus = loan.status.lowercased()
         
-        for (index, event) in timeline.reversed().enumerated() {
-            let status: StepStatus
-            if index == 0 {
-                // The newest event represents the current state
-                if ["disbursed", "active", "closed", "overdue"].contains(lowerStatus) {
-                    status = .completed
-                } else if ["rejected", "sent_back", "pending_acceptance"].contains(lowerStatus) {
-                    status = .active
-                } else {
-                    status = .active
-                }
-            } else {
-                status = .completed
+        // Helper to find a history event from the timeline
+        let getEvent = { (actionKeyword: String, roleKeyword: String?) -> LoanTimelineEvent? in
+            loan.timeline?.first { event in
+                let matchesAction = event.title.lowercased().contains(actionKeyword.lowercased())
+                let matchesRole = roleKeyword == nil || event.title.lowercased().contains(roleKeyword!.lowercased())
+                return matchesAction && matchesRole
             }
-            
-            standardSteps.append(StandardStep(
-                title: event.title,
-                date: event.date,
-                remarks: event.remarks,
-                status: status
+        }
+        
+        var list: [StandardStep] = []
+        
+        // 1. Applied
+        let appliedEvent = getEvent("Applied", nil)
+        list.append(StandardStep(
+            title: "Applied",
+            date: appliedEvent?.date ?? loan.disbursedDate,
+            remarks: "Application successfully submitted.",
+            status: .completed
+        ))
+        
+        // 2. Reviewed by Loan Officer
+        let officerReviewEvent = getEvent("Officer", "Officer") ?? getEvent("Review", nil)
+        let hasOfficerReviewed = ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed", "overdue", "rejected"].contains(lowerStatus)
+        list.append(StandardStep(
+            title: "Reviewed by Loan Officer",
+            date: officerReviewEvent?.date ?? "",
+            remarks: hasOfficerReviewed ? "Verification completed by credit officer." : "Under credit officer verification.",
+            status: hasOfficerReviewed ? .completed : .active
+        ))
+        
+        // 3. Document Request (Optional, only show if it occurred or is currently active)
+        let docRequestEvent = loan.timeline?.first { $0.title.contains("Additional Document Requested") || $0.title.contains("Document Requested") }
+        let isDocRequestActive = lowerStatus == "sent_back" && (docRequestEvent?.title.contains("Additional Document Requested") == true || loan.sentBackReason != nil)
+        if docRequestEvent != nil || isDocRequestActive {
+            let isResolved = ["under_review", "approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed", "rejected"].contains(lowerStatus)
+            list.append(StandardStep(
+                title: "Additional Document Requested",
+                date: docRequestEvent?.date ?? "",
+                remarks: docRequestEvent?.remarks ?? loan.sentBackReason ?? "Additional proof documents requested for verification.",
+                status: isResolved ? .completed : (isDocRequestActive ? .active : .pending)
             ))
         }
         
-        return standardSteps
+        // 4. Escalated to Manager
+        let recommendationEvent = loan.timeline?.first { $0.title.contains("Approved by Loan Officer") }
+        let hasEscalated = ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed", "overdue", "rejected"].contains(lowerStatus)
+        list.append(StandardStep(
+            title: "Escalated to Manager",
+            date: recommendationEvent?.date ?? "",
+            remarks: hasEscalated ? "Recommended for manager approval." : "",
+            status: hasEscalated ? .completed : (lowerStatus == "under_review" ? .active : .pending)
+        ))
+        
+        // 5. Manager Review (Approved, Rejected, Sent Back)
+        let managerEvent = loan.timeline?.first { $0.title.contains("Manager") || $0.title.contains("Rejected") }
+        let isManagerSendBackActive = lowerStatus == "sent_back" && managerEvent?.title.contains("Sent Back") == true
+        
+        let managerTitle: String
+        let managerRemarks: String?
+        let managerStatus: StepStatus
+        
+        if lowerStatus == "rejected" {
+            managerTitle = "Application Rejected"
+            managerRemarks = loan.rejectionReason ?? "Application did not meet credit criteria."
+            managerStatus = .active
+        } else if isManagerSendBackActive {
+            managerTitle = "Sent Back by Manager"
+            managerRemarks = loan.sentBackReason ?? "Manager requested correction/clarification."
+            managerStatus = .active
+        } else if ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus) {
+            managerTitle = "Approved by Manager"
+            managerRemarks = "Manager approved the credit limit."
+            managerStatus = .completed
+        } else {
+            managerTitle = "Manager Review"
+            managerRemarks = nil
+            managerStatus = .pending
+        }
+        
+        list.append(StandardStep(
+            title: managerTitle,
+            date: managerEvent?.date ?? "",
+            remarks: managerRemarks,
+            status: managerStatus
+        ))
+        
+        // 6. Proposal Acceptance
+        let hasAccepted = ["pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus)
+        let isAcceptanceActive = lowerStatus == "pending_acceptance"
+        list.append(StandardStep(
+            title: "Proposal Acceptance",
+            date: "",
+            remarks: hasAccepted ? "You accepted the loan terms and interest rate." : (isAcceptanceActive ? "Review approved terms and accept disbursement." : nil),
+            status: hasAccepted ? .completed : (isAcceptanceActive ? .active : .pending)
+        ))
+        
+        // 7. Awaiting Disbursement
+        let hasDisbursed = ["disbursed", "active", "closed"].contains(lowerStatus)
+        let isDisbursalActive = lowerStatus == "pending_disbursal"
+        list.append(StandardStep(
+            title: "Awaiting Disbursement",
+            date: "",
+            remarks: hasDisbursed ? "Disbursement processed." : (isDisbursalActive ? "Manager is processing the fund transfer." : nil),
+            status: hasDisbursed ? .completed : (isDisbursalActive ? .active : .pending)
+        ))
+        
+        // 8. Disbursed
+        let disbursedEvent = getEvent("Disbursed", nil)
+        list.append(StandardStep(
+            title: "Disbursed",
+            date: disbursedEvent?.date ?? (hasDisbursed ? loan.disbursedDate : ""),
+            remarks: hasDisbursed ? "Funds disbursed to your bank account." : nil,
+            status: hasDisbursed ? .completed : .pending
+        ))
+        
+        return list
     }
     
     var body: some View {
