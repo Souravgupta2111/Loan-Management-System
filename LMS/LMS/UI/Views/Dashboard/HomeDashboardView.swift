@@ -471,10 +471,10 @@ struct HomeDashboardView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Unlock Your Potential Today")
+                    Text("Start Your Loan Journey")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(Color(hex: "#1A1A1A"))
-                    Text("Get an instant loan with flexible tenures, lowest interest rates, and approval in minutes. Fulfill your dreams now!")
+                    Text("Apply for a new loan today. Get instant approval, competitive interest rates, and flexible tenure options customized for you.")
                         .font(.system(size: 14, weight: .regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .lineSpacing(4)

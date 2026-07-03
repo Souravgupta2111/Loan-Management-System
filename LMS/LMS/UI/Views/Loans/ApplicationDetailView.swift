@@ -23,6 +23,8 @@ struct ApplicationDetailView: View {
     // Documents
     @State private var uploadedDocuments: [LoanService.DocumentRow] = []
     @State private var isLoadingDocuments = false
+    @State private var unreadCount = 0
+    @State private var messagesChannel: RealtimeChannelV2? = nil
     @State private var customDocumentName: String = ""
     @State private var isUploadingCustomDoc = false
     
@@ -185,9 +187,18 @@ struct ApplicationDetailView: View {
                     NavigationLink {
                         ChatRoomView(applicationId: application.id, currentUserId: currentUserId, officerId: officerId)
                     } label: {
-                        HStack {
+                        HStack(spacing: 8) {
                             Image(systemName: "bubble.left.fill")
                             Text("Message Loan Officer")
+                            if unreadCount > 0 {
+                                Text("\(unreadCount)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.accentGreen)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.accentGreenBg)
+                                    .clipShape(Circle())
+                            }
                         }
                         .font(.bodyLarge)
                         .foregroundColor(.white)
@@ -221,6 +232,11 @@ struct ApplicationDetailView: View {
         .task {
             await loadOfficerInfo()
             await loadDocuments()
+            await fetchUnreadCount()
+            subscribeToUnreadMessages()
+        }
+        .onDisappear {
+            unsubscribeMessages()
         }
     }
     
@@ -321,6 +337,55 @@ struct ApplicationDetailView: View {
             print("Failed to load documents: \(error)")
         }
         isLoadingDocuments = false
+    }
+    
+    private func fetchUnreadCount() async {
+        guard let currentUserId = authViewModel.currentUser?.id else { return }
+        do {
+            struct MessageRow: Decodable { let id: UUID }
+            let list: [MessageRow] = try await SupabaseManager.shared.client
+                .from("messages")
+                .select("id")
+                .eq("application_id", value: application.id)
+                .eq("receiver_id", value: currentUserId)
+                .eq("is_read", value: false)
+                .execute()
+                .value
+            unreadCount = list.count
+        } catch {
+            print("Failed to fetch unread messages count: \(error)")
+        }
+    }
+    
+    private func subscribeToUnreadMessages() {
+        let channel = SupabaseManager.shared.client.realtimeV2.channel("public:messages:detail_\(application.id.uuidString)")
+        self.messagesChannel = channel
+        
+        let insertions = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "messages",
+            filter: .eq("application_id", value: application.id)
+        )
+        
+        Task {
+            do {
+                try await channel.subscribeWithError()
+                for await _ in insertions {
+                    await fetchUnreadCount()
+                }
+            } catch {
+                print("Failed to subscribe: \(error)")
+            }
+        }
+    }
+    
+    private func unsubscribeMessages() {
+        if let channel = messagesChannel {
+            Task {
+                await SupabaseManager.shared.client.realtimeV2.removeChannel(channel)
+            }
+        }
     }
     
     private var documentsCard: some View {

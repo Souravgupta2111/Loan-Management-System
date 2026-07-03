@@ -98,6 +98,9 @@ struct SelectLoanTypeView: View {
         }
         .task { await loadLoanTypes() }
         .refreshable { await loadLoanTypes() }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PopToDashboard"))) { _ in
+            dismiss()
+        }
     }
 
     // MARK: - Data Fetch

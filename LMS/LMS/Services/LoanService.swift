@@ -163,6 +163,9 @@ class LoanService {
     
     /// Fetches the user's detailed loans for the list view
     func fetchDetailedUserLoans(userId: UUID) async throws -> [LoanListItem] {
+        struct ActorRow: Decodable {
+            let role: String
+        }
         struct HistoryRow: Decodable {
             let action: String
             let actioned_at: String
@@ -171,6 +174,7 @@ class LoanService {
             let approved_interest_rate: Double?
             let approved_amount: Double?
             let approved_tenure_months: Int?
+            let actor: ActorRow?
         }
         
         struct DocumentRow: Decodable {
@@ -191,7 +195,7 @@ class LoanService {
             let documents: [DocumentRow]
         }
         
-        let mapTimeline: ([HistoryRow], String?) -> [LoanTimelineEvent] = { history, submittedAt in
+        let mapTimeline: ([HistoryRow], String?, String?, String?) -> [LoanTimelineEvent] = { history, submittedAt, rejectionReason, sentBackReason in
             let sortedHistory = history.sorted { $0.actioned_at < $1.actioned_at }
             
             var filteredHistory: [HistoryRow] = []
@@ -211,16 +215,32 @@ class LoanService {
             var events = filteredHistory.map { h in
                 let date = self.displayDate(h.actioned_at)
                 let title: String
+                let isManager = h.actor?.role.lowercased() == "manager"
+                
                 switch h.action.lowercased() {
                 case "submit": title = "Applied"
                 case "review": title = "Under Review"
                 case "approve": title = h.to_status == "approved" ? "Approved by Manager" : "Approved by Loan Officer"
                 case "reject": title = "Rejected"
-                case "send_back": title = "Sent Back"
+                case "send_back":
+                    if isManager {
+                        title = "Sent Back by Manager"
+                    } else {
+                        title = "Additional Document Requested"
+                    }
                 case "disburse": title = "Disbursed"
                 default: title = h.action.capitalized
                 }
-                return LoanTimelineEvent(title: title, date: date, remarks: h.remarks)
+                
+                var remarks = h.remarks
+                if h.action.lowercased() == "reject" && (remarks == nil || remarks?.isEmpty == true) {
+                    remarks = rejectionReason
+                }
+                if h.action.lowercased() == "send_back" && (remarks == nil || remarks?.isEmpty == true) {
+                    remarks = sentBackReason
+                }
+                
+                return LoanTimelineEvent(title: title, date: date, remarks: remarks)
             }
             if !events.contains(where: { $0.title == "Applied" }), let submittedAt = submittedAt {
                 events.insert(LoanTimelineEvent(title: "Applied", date: self.displayDate(submittedAt), remarks: nil), at: 0)
@@ -297,7 +317,7 @@ class LoanService {
 
         let response: [SupabaseDetailedLoanResponse] = try await SupabaseManager.shared.client
             .from("loans")
-            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, tenure_months, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, sent_back_reason, rejection_reason, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate), documents(document_type, file_name, uploaded_at, category, storage_path))")
+            .select("id, loan_number, principal_amount, outstanding_principal, total_payable, interest_rate, tenure_months, status, disbursement_date, loan_product:loan_products(name, type), emi_schedule(total_emi, status, due_date), loan_applications(id, requested_tenure_months, submitted_at, sent_back_reason, rejection_reason, approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, actor:users(role)), documents(document_type, file_name, uploaded_at, category, storage_path))")
             .eq("borrower_id", value: userId.uuidString)
             .execute()
             .value
@@ -314,7 +334,7 @@ class LoanService {
                 LoanListItemEMI(amount: emi.total_emi, status: emi.status, dueDate: emi.due_date)
             }.sorted { $0.dueDate < $1.dueDate }
 
-            let timeline = loan.loan_applications.map { mapTimeline($0.approval_history, $0.submitted_at) } ?? []
+            let timeline = loan.loan_applications.map { mapTimeline($0.approval_history, $0.submitted_at, $0.rejection_reason, $0.sent_back_reason) } ?? []
             let documents = loan.loan_applications.map { mapDocuments($0.documents) } ?? []
 
             let approvedRate = loan.loan_applications?.approval_history.compactMap { $0.approved_interest_rate }.last
@@ -345,9 +365,9 @@ class LoanService {
 
         let applications: [ApplicationRow] = try await SupabaseManager.shared.client
             .from("loan_applications")
-            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, sent_back_reason, rejection_reason, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months), documents(document_type, file_name, uploaded_at, category, storage_path)")
+            .select("id, application_number, requested_amount, requested_tenure_months, status, submitted_at, sent_back_reason, rejection_reason, loan_product:loan_products(name, type, min_interest_rate, max_interest_rate), approval_history(action, actioned_at, remarks, to_status, approved_interest_rate, approved_amount, approved_tenure_months, actor:users(role)), documents(document_type, file_name, uploaded_at, category, storage_path)")
             .eq("borrower_id", value: userId)
-            .in("status", values: ["submitted", "under_review", "sent_back", "approved", "pending_acceptance", "pending_disbursal"])
+            .in("status", values: ["submitted", "under_review", "sent_back", "approved", "pending_acceptance", "pending_disbursal", "rejected"])
             .order("last_updated_at", ascending: false)
             .execute()
             .value
@@ -376,7 +396,7 @@ class LoanService {
                     remainingAmount: approvedAmount ?? app.requested_amount,
                     requestedTenure: approvedTenure ?? app.requested_tenure_months,
                     emiSchedule: nil,
-                    timeline: mapTimeline(app.approval_history, app.submitted_at),
+                    timeline: mapTimeline(app.approval_history, app.submitted_at, app.rejection_reason, app.sent_back_reason),
                     documents: mapDocuments(app.documents),
                     sentBackReason: app.sent_back_reason,
                     rejectionReason: app.rejection_reason
@@ -502,10 +522,25 @@ class LoanService {
     }
     
     func rejectDisbursement(applicationId: UUID) async throws {
-        // Update application status to rejected
+        // Delete related approval_history, documents, and messages to satisfy foreign key constraints
+        try? await SupabaseManager.shared.client.from("approval_history")
+            .delete()
+            .eq("application_id", value: applicationId)
+            .execute()
+        
+        try? await SupabaseManager.shared.client.from("documents")
+            .delete()
+            .eq("application_id", value: applicationId)
+            .execute()
+            
+        try? await SupabaseManager.shared.client.from("messages")
+            .delete()
+            .eq("application_id", value: applicationId)
+            .execute()
+
         try await SupabaseManager.shared.client
             .from("loan_applications")
-            .update(["status": "rejected"])
+            .delete()
             .eq("id", value: applicationId)
             .execute()
     }
