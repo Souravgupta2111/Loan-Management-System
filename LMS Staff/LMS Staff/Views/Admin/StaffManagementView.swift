@@ -212,7 +212,7 @@ struct StaffManagementView: View {
                 
                 Spacer()
                 
-                StaffButton(title: "Generate Access Key", style: .primary, icon: "key.fill") {
+                StaffButton(title: "Generate Access", style: .primary, icon: "paperplane.fill") {
                     Task {
                         let success = await vm.createStaffAccount(
                             fullName: inputName,
@@ -236,9 +236,9 @@ struct StaffManagementView: View {
         .background(Color.staffBackground.ignoresSafeArea())
         .alert(isPresented: $vm.showCredentialsAlert) {
             Alert(
-                title: Text("✅ Staff Credentials Generated"),
-                message: Text("Employee ID: \(vm.newlyCreatedCredentials?.employeeId ?? "")\nTemporary Password: \(vm.newlyCreatedCredentials?.password ?? "")\nEmail: \(inputEmail.isEmpty ? "Not provided" : inputEmail)\n\n⚠️ Credentials have been saved to the database.\(inputEmail.isEmpty ? "" : " Notification sent to \(inputEmail).")"),
-                dismissButton: .default(Text("I've Noted The Credentials")) {
+                title: Text("✅ Account Created Successfully"),
+                message: Text("A new staff account has been provisioned.\n\nSecure login credentials and instructions have been automatically emailed to \(inputEmail.isEmpty ? "the provided email address" : inputEmail)."),
+                dismissButton: .default(Text("Done")) {
                     vm.newlyCreatedCredentials = nil
                     showCreateSheet = false
                     inputName = ""
@@ -500,10 +500,10 @@ struct StaffProfileDetailView: View {
                     },
                     secondaryButton: .cancel()
                 )
-            case .resetSuccess(let newPassword, let email):
+            case .resetSuccess(_, let email):
                 return Alert(
-                    title: Text("🔑 Password Reset Successfully"),
-                    message: Text("Employee ID: \(item.staff.employeeId)\nNew Password: \(newPassword)\nSent To: \(email)\n\n✅ Credentials saved to database and notification sent to the employee."),
+                    title: Text("✅ Password Reset Successfully"),
+                    message: Text("The employee's password has been reset.\n\nNew secure credentials have been automatically emailed to \(email)."),
                     dismissButton: .default(Text("Done")) {
                         viewModel.resetPasswordResult = nil
                     }
@@ -616,7 +616,7 @@ struct StaffProfileDetailView: View {
                 
                 Spacer()
                 
-                StaffButton(title: "Reset & Send Credentials", style: .destructive, icon: "key.fill") {
+                StaffButton(title: "Reset & Send Credentials", style: .destructive, icon: "paperplane.fill") {
                     Task {
                         showResetSheet = false
                         let success = await viewModel.resetStaffPassword(

@@ -96,6 +96,7 @@ struct SidebarView: View {
                 .background(Color.staffSurface.opacity(0.2))
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.staffSurface.ignoresSafeArea())
         .onAppear {
             // Auto-select first item
