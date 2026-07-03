@@ -23,6 +23,7 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var borrowerMessages: [Message] = []
     @Published var internalMessages: [Message] = []
     @Published var timelineItems: [StaffTimelineView.TimelineItem] = []
+    @Published var pipelineStages: [StaffLoanPipelineView.PipelineStage] = []
     @Published var underwritingSuggestion: UnderwritingSuggestion?
     
     @Published var isLoading: Bool = false
@@ -164,6 +165,14 @@ class ApplicationDetailViewModel: ObservableObject {
             
             filteredItems.sort(by: { $0.timestamp > $1.timestamp })
             self.timelineItems = filteredItems
+            
+            // Build chronological pipeline stages (mirrors borrower timeline)
+            self.pipelineStages = buildPipelineStages(
+                status: application.status,
+                logs: logs,
+                actorsMap: actorsMap,
+                submittedAt: application.submittedAt
+            )
             
             // Fetch chat history
             let allMessages = try await messageService.fetchMessages(forApplicationId: application.id)
@@ -459,5 +468,142 @@ class ApplicationDetailViewModel: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+    
+    // MARK: - Pipeline Stages Builder
+    
+    private func buildPipelineStages(
+        status: ApplicationStatus,
+        logs: [ApprovalHistoryItem],
+        actorsMap: [UUID: AppUser],
+        submittedAt: Date?
+    ) -> [StaffLoanPipelineView.PipelineStage] {
+        
+        let fmt = DateFormatter()
+        fmt.dateFormat = "dd MMM yyyy, HH:mm"
+        
+        func fmtDate(_ date: Date?) -> String {
+            guard let d = date else { return "" }
+            return fmt.string(from: d)
+        }
+        
+        let sortedLogs = logs.sorted { ($0.actionedAt ?? .distantPast) < ($1.actionedAt ?? .distantPast) }
+        
+        // Find specific log events
+        let submitLog = sortedLogs.first { $0.action == .submit }
+        let reviewLog = sortedLogs.first { $0.action == .review || $0.action == .escalate }
+        let sendBackLog = sortedLogs.last { $0.action == .sendBack }
+        let sendBackActor = sendBackLog.flatMap { actorsMap[$0.actorId] }
+        let approveLog = sortedLogs.first { $0.action == .approve && $0.toStatus == .approved }
+        let escalateLog = sortedLogs.first { $0.action == .approve && $0.toStatus != .approved } ?? sortedLogs.first { $0.action == .escalate }
+        let rejectLog = sortedLogs.first { $0.action == .reject }
+        let disburseLog = sortedLogs.first { $0.action == .disburse }
+        
+        var list: [StaffLoanPipelineView.PipelineStage] = []
+        
+        // 1. Applied
+        list.append(.init(
+            title: "Applied",
+            date: fmtDate(submitLog?.actionedAt ?? submittedAt),
+            remarks: "Application successfully submitted.",
+            status: .completed
+        ))
+        
+        // 2. Reviewed by Loan Officer
+        let hasOfficerReviewed = [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed, .rejected].contains(status)
+        list.append(.init(
+            title: "Reviewed by Loan Officer",
+            date: fmtDate(reviewLog?.actionedAt ?? escalateLog?.actionedAt),
+            remarks: hasOfficerReviewed ? "Verification completed by credit officer." : "Under credit officer verification.",
+            status: hasOfficerReviewed ? .completed : (status == .underReview || status == .sentBack ? .active : .pending)
+        ))
+        
+        // 3. Additional Document Requested (conditional)
+        let isOfficerSendBack = sendBackActor?.role == .officer
+        if sendBackLog != nil {
+            let isResolved = [.underReview, .approved, .pendingAcceptance, .pendingDisbursal, .disbursed, .rejected].contains(status)
+            let isActive = status == .sentBack && isOfficerSendBack
+            
+            list.append(.init(
+                title: isOfficerSendBack ? "Additional Document Requested" : "Sent Back by Manager",
+                date: fmtDate(sendBackLog?.actionedAt),
+                remarks: sendBackLog?.remarks ?? application.sentBackReason ?? "Additional documents requested for verification.",
+                status: isResolved ? .completed : (isActive ? .active : .pending)
+            ))
+        }
+        
+        // 4. Escalated to Manager
+        let hasEscalated = [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed, .rejected].contains(status)
+        list.append(.init(
+            title: "Escalated to Manager",
+            date: fmtDate(escalateLog?.actionedAt),
+            remarks: hasEscalated ? "Recommended for manager approval." : "",
+            status: hasEscalated ? .completed : (status == .underReview ? .active : .pending)
+        ))
+        
+        // 5. Manager Review
+        let managerTitle: String
+        let managerRemarks: String?
+        let managerStatus: StaffLoanPipelineView.StageStatus
+        let managerDate: String
+        
+        if status == .rejected {
+            managerTitle = "Application Rejected"
+            managerRemarks = rejectLog?.remarks ?? application.rejectionReason ?? "Application did not meet credit criteria."
+            managerStatus = .active
+            managerDate = fmtDate(rejectLog?.actionedAt)
+        } else if status == .sentBack && !isOfficerSendBack {
+            managerTitle = "Sent Back by Manager"
+            managerRemarks = sendBackLog?.remarks ?? application.sentBackReason ?? "Manager requested correction/clarification."
+            managerStatus = .active
+            managerDate = fmtDate(sendBackLog?.actionedAt)
+        } else if [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed].contains(status) {
+            managerTitle = "Approved by Manager"
+            managerRemarks = "Manager approved the credit limit."
+            managerStatus = .completed
+            managerDate = fmtDate(approveLog?.actionedAt)
+        } else {
+            managerTitle = "Manager Review"
+            managerRemarks = nil
+            managerStatus = .pending
+            managerDate = ""
+        }
+        
+        list.append(.init(
+            title: managerTitle,
+            date: managerDate,
+            remarks: managerRemarks,
+            status: managerStatus
+        ))
+        
+        // 6. Proposal Acceptance
+        let hasAccepted = [.pendingDisbursal, .disbursed].contains(status)
+        let isAcceptanceActive = status == .pendingAcceptance
+        list.append(.init(
+            title: "Proposal Acceptance",
+            date: "",
+            remarks: hasAccepted ? "Borrower accepted the loan terms." : (isAcceptanceActive ? "Awaiting borrower's acceptance of approved terms." : nil),
+            status: hasAccepted ? .completed : (isAcceptanceActive ? .active : .pending)
+        ))
+        
+        // 7. Awaiting Disbursement
+        let hasDisbursed = status == .disbursed
+        let isDisbursalActive = status == .pendingDisbursal
+        list.append(.init(
+            title: "Awaiting Disbursement",
+            date: "",
+            remarks: hasDisbursed ? "Disbursement processed." : (isDisbursalActive ? "Processing fund transfer." : nil),
+            status: hasDisbursed ? .completed : (isDisbursalActive ? .active : .pending)
+        ))
+        
+        // 8. Disbursed
+        list.append(.init(
+            title: "Disbursed",
+            date: fmtDate(disburseLog?.actionedAt),
+            remarks: hasDisbursed ? "Funds disbursed to borrower's account." : nil,
+            status: hasDisbursed ? .completed : .pending
+        ))
+        
+        return list
     }
 }
