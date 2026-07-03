@@ -2,71 +2,131 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-/// Document Upload View for KYC
+/// Document Upload View for KYC & Loan Applications
 struct DocumentUploadView: View {
     let title: String
     let subtitle: String
     @Binding var documentData: Data?
+    
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var isLoading = false
     @State private var validationError: String?
+    @State private var showPreview = false
 
     var body: some View {
-        VStack(spacing: Spacing.xl) {
-            VStack(spacing: Spacing.sm) {
-                Text(title)
-                    .font(.cardTitle)
-                    .foregroundColor(.textPrimary)
-                Text(subtitle)
-                    .font(.bodyRegular)
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            if documentData != nil {
-                VStack(spacing: Spacing.md) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .resizable()
-                        .frame(width: 48, height: 48)
-                        .foregroundColor(.accentGreen)
-                    Text("Document Selected")
-                        .font(.bodyLarge)
-                        .foregroundColor(.textPrimary)
-                    PillButton(title: "Replace", style: .outline) {
-                        documentData = nil
-                        selectedItem = nil
+        VStack(alignment: .leading, spacing: 0) {
+            if let data = documentData {
+                // Uploaded State Card
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentGreenBg)
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.accentGreen)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundColor(.textPrimary)
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.accentGreen)
+                            Text("Uploaded")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.accentGreen)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.accentGreenBg)
+                        .clipShape(Capsule())
+                    }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 10) {
+                        Button {
+                            showPreview = true
+                        } label: {
+                            Image(systemName: "eye.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.accentGreen)
+                                .frame(width: 36, height: 36)
+                                .background(Color.accentGreenBg)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            documentData = nil
+                            selectedItem = nil
+                        } label: {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.accentRed)
+                                .frame(width: 36, height: 36)
+                                .background(Color.accentRed.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(Spacing.xl)
+                .padding(16)
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.02), radius: 8, x: 0, y: 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.accentGreen.opacity(0.25), lineWidth: 1)
+                )
             } else {
-                VStack(spacing: Spacing.md) {
-                    Image(systemName: "doc.viewfinder")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 60)
-                        .foregroundColor(.textTertiary)
-
+                // Empty / Upload Input Card
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .stroke(style: StrokeStyle(lineWidth: 1.2, dash: [4]))
+                            .foregroundColor(.textTertiary)
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 16))
+                            .foregroundColor(.textTertiary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundColor(.textPrimary)
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundColor(.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
                     if isLoading {
                         ProgressView()
                             .tint(.accentGreen)
-                        Text("Loading...")
-                            .font(.caption2)
-                            .foregroundColor(.textSecondary)
+                            .frame(width: 82, height: 34)
                     } else {
                         PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
-                            HStack {
-                                Image(systemName: "paperclip")
-                                Text("Select File")
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.up.doc")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("Upload")
+                                    .font(.system(size: 12, weight: .bold))
                             }
-                            .font(.bodyLarge)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 14)
-                            .frame(maxWidth: .infinity)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
                             .background(Color.accentGreen)
-                            .foregroundColor(.appBackground)
                             .clipShape(Capsule())
                         }
-                        .onChange(of: selectedItem) { newItem in
+                        .buttonStyle(.plain)
+                        .onChange(of: selectedItem) { _, newItem in
                             guard let newItem = newItem else { return }
                             isLoading = true
                             Task {
@@ -83,33 +143,69 @@ struct DocumentUploadView: View {
                                 isLoading = false
                             }
                         }
-
-                        Text("Supported formats: PDF, JPG, PNG (Max 2MB)")
-                            .font(.caption2)
-                            .foregroundColor(.textSecondary)
-
-                        if let validationError {
-                            Text(validationError)
-                                .font(.caption2)
-                                .foregroundColor(.accentRed)
+                    }
+                }
+                .padding(16)
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.02), radius: 8, x: 0, y: 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.border, lineWidth: 1)
+                )
+            }
+            
+            if let validationError {
+                Text(validationError)
+                    .font(.caption2)
+                    .foregroundColor(.accentRed)
+                    .padding(.top, 6)
+                    .padding(.horizontal, 4)
+            }
+        }
+        .sheet(isPresented: $showPreview) {
+            NavigationStack {
+                VStack {
+                    if let data = documentData, let uiImage = UIImage(data: data) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .cornerRadius(12)
+                            .padding(24)
+                            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 44))
+                                .foregroundColor(.textTertiary)
+                            Text("Unable to preview document")
+                                .font(.bodyLarge)
+                                .foregroundColor(.textPrimary)
                         }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(Spacing.xl)
-                .background(Color.surfaceMuted)
-                .clipShape(RoundedRectangle(cornerRadius: Corner.lg))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Corner.lg)
-                        .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6]))
-                        .foregroundColor(.border)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
                 )
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Close") {
+                            showPreview = false
+                        }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.accentGreen)
+                    }
+                }
             }
         }
-        .padding(Spacing.xl)
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Corner.xl))
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
     }
 
     private static func normalizedImageData(from data: Data) -> Data? {

@@ -114,6 +114,12 @@ struct LoanApplicationFlowView: View {
                 print("Failed to fetch products: \(error)")
             }
         }
+        .onChange(of: selectedProduct) { _, newValue in
+            if let product = newValue {
+                amount = product.minAmount
+                tenureMonths = Double(product.minTenureMonths)
+            }
+        }
     }
 
     private func fetchKYCStatus() async {
@@ -254,7 +260,6 @@ struct LoanApplicationFlowView: View {
                     detailSection(title: "Interest & Rates") {
                         detailRow(icon: "percent",                    label: "Interest Rate Range",   value: product.formattedRateRange)
                         detailRow(icon: "arrow.up.arrow.down",        label: "Interest Types",         value: product.formattedInterestTypes)
-                        detailRow(icon: "chart.line.uptrend.xyaxis",  label: "Spread Over RBI Base",   value: String(format: "%.2f%%", product.spreadOverBase))
                     }
 
                     // Amount & Tenure — fully backend-driven
@@ -551,7 +556,10 @@ struct LoanApplicationFlowView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
-            PillButton(title: "Back to Dashboard", style: .primary) { dismiss() }
+            PillButton(title: "Back to Dashboard", style: .primary) {
+                NotificationCenter.default.post(name: NSNotification.Name("PopToDashboard"), object: nil)
+                dismiss()
+            }
                 .frame(width: 240)
         }
         .padding(32)
@@ -615,8 +623,7 @@ struct SelectProductStep: View {
                             title: product.name,
                             subtitle: product.formattedAmountRange,
                             rate: product.formattedStartingRate,
-                            isSelected: selected?.id == product.id,
-                            onViewDetails: { onViewDetails?(product) }
+                            isSelected: selected?.id == product.id
                         )
                         .onTapGesture { selected = product }
                     }
@@ -634,7 +641,6 @@ struct ProductOptionRow: View {
     let subtitle: String
     let rate: String
     let isSelected: Bool
-    var onViewDetails: (() -> Void)? = nil
 
     var body: some View {
         HStack {
@@ -644,23 +650,10 @@ struct ProductOptionRow: View {
                 Text(rate).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(hex: "#2D8B4E"))
             }
             Spacer()
-            VStack(spacing: 8) {
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill").foregroundColor(.accentGreen).font(.title3)
-                } else {
-                    Circle().strokeBorder(Color.border, lineWidth: 1.5).frame(width: 22, height: 22)
-                }
-                if let onViewDetails {
-                    Button { onViewDetails() } label: {
-                        Text("Details")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
-                            .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(Color(hex: "#89DBA6").opacity(0.18))
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill").foregroundColor(.accentGreen).font(.title3)
+            } else {
+                Circle().strokeBorder(Color.border, lineWidth: 1.5).frame(width: 22, height: 22)
             }
         }
         .padding(16)

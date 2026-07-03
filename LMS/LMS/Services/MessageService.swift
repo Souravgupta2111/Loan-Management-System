@@ -54,8 +54,36 @@ class MessageService: ObservableObject {
                     isDeletedByReceiver: false
                 )
             }
+            
+            await self.markUnreadAsRead()
         } catch {
             print("Failed to fetch messages: \(error)")
+        }
+    }
+    
+    func markUnreadAsRead() async {
+        guard let currentUserId = SupabaseManager.shared.currentUserId else { return }
+        let unreadIds = messages.filter { !$0.isRead && $0.receiverId == currentUserId }.map { $0.id }
+        guard !unreadIds.isEmpty else { return }
+        
+        do {
+            for id in unreadIds {
+                struct Update: Encodable { let is_read: Bool }
+                try await SupabaseManager.shared.client
+                    .from("messages")
+                    .update(Update(is_read: true))
+                    .eq("id", value: id)
+                    .execute()
+            }
+            
+            // Update local state
+            for i in 0..<messages.count {
+                if unreadIds.contains(messages[i].id) {
+                    messages[i].isRead = true
+                }
+            }
+        } catch {
+            print("Failed to mark messages as read: \(error)")
         }
     }
     

@@ -28,6 +28,8 @@ struct ProfileView: View {
     @State private var isEditingEmail = false
     @State private var isEditingPhone = false
     @State private var isEditingAddress = false
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @State private var showHelpAndSupport = false
 
     @State private var draftName = ""
     @State private var draftEmail = ""
@@ -197,7 +199,6 @@ struct ProfileView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("KYC Status").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
-                    Text(kycStatus.capitalized).font(.bodyLarge).foregroundColor(.textPrimary)
                 }
                 Spacer()
                 StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
@@ -217,7 +218,6 @@ struct ProfileView: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Income Verification").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
-                        Text((aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") ? "Verified via AA" : "Pending").font(.bodyLarge).foregroundColor(.textPrimary)
                     }
                     Spacer()
                     if (aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") {
@@ -255,9 +255,9 @@ struct ProfileView: View {
                             .foregroundColor(.textPrimary)
                             .lineLimit(3, reservesSpace: true)
                     } else {
-                        Text(address.isEmpty ? "Not set" : address)
+                        Text(address.isEmpty ? "please enter your address" : address)
                             .font(.bodyLarge)
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(address.isEmpty ? .textSecondary : .textPrimary)
                     }
                 }
                 Spacer()
@@ -272,9 +272,14 @@ struct ProfileView: View {
                         draftAddress = address
                         isEditingAddress = true
                     } label: {
-                        Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(Color(hex: "#89DBA6"))
-                            .font(.title3)
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#E0E0E0"))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.black)
+                        }
                     }
                 }
             }
@@ -373,9 +378,86 @@ struct ProfileView: View {
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Settings")
-            actionRow(icon: "bell.fill", title: "Notifications", color: .textPrimary)
+            
+            Toggle(isOn: $notificationsEnabled) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "bell.fill")
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .font(.system(size: 14))
+                    }
+                    Text("Notifications")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textPrimary)
+                }
+            }
+            .tint(Color(hex: "#2D8B4E"))
+            .padding(Spacing.lg)
+            
             divider
-            actionRow(icon: "questionmark.circle.fill", title: "Help & Support", color: .textPrimary)
+            
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showHelpAndSupport.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "questionmark.circle.fill")
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .font(.system(size: 14))
+                    }
+                    Text("Help & Support")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    Image(systemName: showHelpAndSupport ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.textTertiary)
+                }
+                .padding(Spacing.lg)
+            }
+            .buttonStyle(.plain)
+            
+            if showHelpAndSupport {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider()
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Contact Customer Care")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.textPrimary)
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: "envelope.fill")
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .font(.system(size: 12))
+                            Text("support@loanmanagement.com")
+                                .font(.system(size: 13))
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: "phone.fill")
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .font(.system(size: 12))
+                            Text("1800-200-5678 (Toll Free)")
+                                .font(.system(size: 13))
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.bottom, Spacing.lg)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .liquidGlass(cornerRadius: 22)
     }
@@ -446,9 +528,14 @@ struct ProfileView: View {
                     }
                 } else {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(Color(hex: "#89DBA6"))
-                            .font(.title3)
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#E0E0E0"))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.black)
+                        }
                     }
                 }
             }

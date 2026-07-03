@@ -11,6 +11,8 @@ struct LoanDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel: LoanDetailViewModel
+    @State private var unreadCount = 0
+    @State private var messagesChannel: RealtimeChannelV2? = nil
 
     init(loan: LoanListItem) {
         self.loan = loan
@@ -58,6 +60,15 @@ struct LoanDetailView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "bubble.left.and.text.bubble.right.fill")
                                 Text("Message Officer")
+                                if unreadCount > 0 {
+                                    Text("\(unreadCount)")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.accentGreen)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.accentGreenBg)
+                                        .clipShape(Circle())
+                                }
                             }
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
@@ -76,7 +87,16 @@ struct LoanDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { viewModel.animateProgress() }
-        .task { await viewModel.loadOfficerInfo() }
+        .task {
+            await viewModel.loadOfficerInfo()
+            if let appId = viewModel.detail.applicationId, let currentUserId = authViewModel.currentUser?.id {
+                await fetchUnreadCount(appId: appId, currentUserId: currentUserId)
+                subscribeToUnreadMessages(appId: appId, currentUserId: currentUserId)
+            }
+        }
+        .onDisappear {
+            unsubscribeMessages()
+        }
         .sheet(item: $viewModel.previewURLItem) { item in
             DocumentPreview(url: item.url)
         }
@@ -145,6 +165,54 @@ struct LoanDetailView: View {
                         .padding(.horizontal, 24)
                 }
                 .padding(.vertical, 40)
+            }
+        }
+    }
+    
+    private func fetchUnreadCount(appId: UUID, currentUserId: UUID) async {
+        do {
+            struct MessageRow: Decodable { let id: UUID }
+            let list: [MessageRow] = try await SupabaseManager.shared.client
+                .from("messages")
+                .select("id")
+                .eq("application_id", value: appId.uuidString)
+                .eq("receiver_id", value: currentUserId.uuidString)
+                .eq("is_read", value: false)
+                .execute()
+                .value
+            unreadCount = list.count
+        } catch {
+            print("Failed to fetch unread messages count: \(error)")
+        }
+    }
+
+    private func subscribeToUnreadMessages(appId: UUID, currentUserId: UUID) {
+        let channel = SupabaseManager.shared.client.realtimeV2.channel("public:messages:loandetail_\(appId.uuidString)")
+        self.messagesChannel = channel
+        
+        let insertions = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "messages",
+            filter: .eq("application_id", value: appId)
+        )
+        
+        Task {
+            do {
+                try await channel.subscribeWithError()
+                for await _ in insertions {
+                    await fetchUnreadCount(appId: appId, currentUserId: currentUserId)
+                }
+            } catch {
+                print("Failed to subscribe to unread messages in detail: \(error)")
+            }
+        }
+    }
+    
+    private func unsubscribeMessages() {
+        if let channel = messagesChannel {
+            Task {
+                await SupabaseManager.shared.client.realtimeV2.removeChannel(channel)
             }
         }
     }
@@ -512,62 +580,39 @@ private struct TimelineCard: View {
     }
     
     private var steps: [StandardStep] {
-        let isSentBack = loan.status.lowercased() == "sent_back"
-        let isRejected = loan.status.lowercased() == "rejected"
-        
-        // Level 3: Disbursed
-        let disbursedDate = getEventDate(for: ["Disbursed"]) ?? 
-            (["disbursed", "active", "closed", "overdue"].contains(loan.status.lowercased()) ? loan.disbursedDate : "")
-        let stepDisbursed = StandardStep(
-            title: "Disbursed",
-            date: disbursedDate,
-            remarks: ["disbursed", "active", "closed", "overdue"].contains(loan.status.lowercased()) ? "Loan funds disbursed to your account." : "",
-            status: targetProgress >= 3.0 ? .completed : .pending
-        )
-        
-        // Level 2: Approved
-        let approvedDate = getEventDate(for: ["Approved"]) ?? ""
-        let stepApproved = StandardStep(
-            title: "Approved",
-            date: approvedDate,
-            remarks: targetProgress >= 2.0 ? "Application approved. Awaiting disbursement." : "",
-            status: targetProgress > 2.0 ? .completed : (targetProgress == 2.0 ? .active : .pending)
-        )
-        
-        // Level 1: Under Review / Document Requested / Rejected
-        let reviewTitle: String
-        let reviewDate: String
-        let reviewRemarks: String?
-        if isSentBack {
-            reviewTitle = "Document Requested"
-            reviewDate = getEventDate(for: ["Sent Back"]) ?? ""
-            reviewRemarks = loan.sentBackReason ?? "Loan officer has requested additional documents."
-        } else if isRejected {
-            reviewTitle = "Application Rejected"
-            reviewDate = getEventDate(for: ["Rejected"]) ?? ""
-            reviewRemarks = loan.rejectionReason ?? "Application did not meet credit criteria."
-        } else {
-            reviewTitle = "Under Review"
-            reviewDate = getEventDate(for: ["Under Review"]) ?? ""
-            reviewRemarks = targetProgress >= 1.0 ? "Your application is currently under verification." : ""
+        guard let timeline = loan.timeline, !timeline.isEmpty else {
+            return [
+                StandardStep(title: "Applied", date: loan.disbursedDate, remarks: "Application successfully submitted.", status: .completed)
+            ]
         }
-        let stepReview = StandardStep(
-            title: reviewTitle,
-            date: reviewDate,
-            remarks: reviewRemarks,
-            status: targetProgress > 1.0 ? .completed : (targetProgress == 1.0 ? .active : .pending)
-        )
         
-        // Level 0: Applied
-        let appliedDate = getEventDate(for: ["Applied", "Submitted"]) ?? loan.disbursedDate
-        let stepApplied = StandardStep(
-            title: "Applied",
-            date: appliedDate,
-            remarks: "Application successfully submitted.",
-            status: targetProgress > 0.0 ? .completed : .active
-        )
+        var standardSteps: [StandardStep] = []
+        let lowerStatus = loan.status.lowercased()
         
-        return [stepDisbursed, stepApproved, stepReview, stepApplied]
+        for (index, event) in timeline.reversed().enumerated() {
+            let status: StepStatus
+            if index == 0 {
+                // The newest event represents the current state
+                if ["disbursed", "active", "closed", "overdue"].contains(lowerStatus) {
+                    status = .completed
+                } else if ["rejected", "sent_back", "pending_acceptance"].contains(lowerStatus) {
+                    status = .active
+                } else {
+                    status = .active
+                }
+            } else {
+                status = .completed
+            }
+            
+            standardSteps.append(StandardStep(
+                title: event.title,
+                date: event.date,
+                remarks: event.remarks,
+                status: status
+            ))
+        }
+        
+        return standardSteps
     }
     
     var body: some View {
@@ -576,7 +621,7 @@ private struct TimelineCard: View {
                 TimelineItemRow(
                     step: step,
                     isLast: index == steps.count - 1,
-                    fillFraction: index < steps.count - 1 ? max(0.0, min(1.0, animatedProgress - Double(steps.count - 2 - index))) : 0.0,
+                    fillFraction: step.status == .completed ? 1.0 : 0.0,
                     loan: loan,
                     isUploading: $isUploading,
                     uploadError: $uploadError,
@@ -764,11 +809,15 @@ private struct TimelineItemRow: View {
                     Text(remarks)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(remarksColor)
-                        .padding(.top, 2)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(remarksBgColor)
+                        .cornerRadius(6)
+                        .padding(.top, 4)
                 }
                 
-                // If it is Document Requested, show inline PhotosPicker
-                if step.title == "Document Requested" && step.status == .active {
+                // If it is Document Requested or Additional Document Requested, show inline PhotosPicker
+                if (step.title == "Document Requested" || step.title == "Additional Document Requested") && step.status == .active {
                     VStack(alignment: .leading, spacing: 8) {
                         if isUploading {
                             HStack(spacing: 8) {
@@ -828,7 +877,7 @@ private struct TimelineItemRow: View {
                     .foregroundColor(.white)
                 
             case .active:
-                if step.title == "Document Requested" {
+                if step.title == "Document Requested" || step.title == "Additional Document Requested" || step.title == "Sent Back by Manager" {
                     Circle()
                         .stroke(Color(hex: "#E65100"), lineWidth: 2)
                         .background(Circle().fill(Color(hex: "#FFF3E0")))
@@ -837,7 +886,7 @@ private struct TimelineItemRow: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#E65100"))
-                } else if step.title == "Application Rejected" {
+                } else if step.title == "Application Rejected" || step.title == "Rejected" {
                     Circle()
                         .stroke(Color(hex: "#D32F2F"), lineWidth: 2)
                         .background(Circle().fill(Color(hex: "#FFEBEE")))
@@ -880,12 +929,24 @@ private struct TimelineItemRow: View {
     }
     
     private var remarksColor: Color {
-        if step.title == "Document Requested" && step.status == .active {
+        let titleLower = step.title.lowercased()
+        if (titleLower.contains("document") || titleLower.contains("back")) && step.status == .active {
             return Color(hex: "#E65100")
-        } else if step.title == "Application Rejected" && step.status == .active {
+        } else if titleLower.contains("reject") && step.status == .active {
             return Color(hex: "#D32F2F")
         } else {
             return Color(hex: "#2D8B4E")
+        }
+    }
+    
+    private var remarksBgColor: Color {
+        let titleLower = step.title.lowercased()
+        if (titleLower.contains("document") || titleLower.contains("back")) && step.status == .active {
+            return Color(hex: "#FFF3E0")
+        } else if titleLower.contains("reject") && step.status == .active {
+            return Color(hex: "#FFEBEE")
+        } else {
+            return Color(hex: "#F5F5F0")
         }
     }
 }

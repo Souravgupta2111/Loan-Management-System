@@ -9,6 +9,8 @@ struct LoansListView: View {
     @State private var selectedFilter: LoanFilter = .all
     @State private var loans: [LoanListItem] = []
     @State private var isLoading = true
+    @State private var unreadMessageCounts: [UUID: Int] = [:]
+    @State private var messagesChannel: RealtimeChannelV2? = nil
 
     enum LoanFilter: String, CaseIterable, Identifiable {
 
@@ -17,6 +19,7 @@ struct LoansListView: View {
         case pendingApproval = "Pending"
         case overdue = "Overdue"
         case closed = "Closed"
+        case rejected = "Rejected"
 
         var id: String { rawValue }
 
@@ -35,7 +38,10 @@ struct LoansListView: View {
                     "pending",
                     "approved",
                     "draft",
-                    "under_review"
+                    "under_review",
+                    "sent_back",
+                    "pending_acceptance",
+                    "pending_disbursal"
                 ].contains(loan.status.lowercased())
 
             case .overdue:
@@ -43,6 +49,9 @@ struct LoansListView: View {
 
             case .closed:
                 return loan.status.lowercased() == "closed"
+                
+            case .rejected:
+                return loan.status.lowercased() == "rejected"
             }
         }
 
@@ -138,7 +147,7 @@ struct LoansListView: View {
             .navigationBarTitleDisplayMode(.inline)
 
             .task {
-                await loadLoans(resetFilter: true)
+                await loadLoans(resetFilter: false)
             }
 
             .refreshable {
@@ -154,6 +163,10 @@ struct LoansListView: View {
                 Task {
                     await loadLoans(resetFilter: false)
                 }
+            }
+            .onDisappear {
+                unsubscribeMessages()
+                messagesChannel = nil
             }
         }
     }
@@ -370,16 +383,29 @@ struct LoansListView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
 
-                    Text(loan.name)
-                        .font(
-                            .system(
-                                size: 17,
-                                weight: .bold,
-                                design: .rounded
+                    HStack(spacing: 6) {
+                        Text(loan.name)
+                            .font(
+                                .system(
+                                    size: 17,
+                                    weight: .bold,
+                                    design: .rounded
+                                )
                             )
-                        )
-                        .foregroundColor(Color(hex: "#1A1A1A"))
-                        .lineLimit(1)
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                            .lineLimit(1)
+                        
+                        if let appId = loan.applicationId, let count = unreadMessageCounts[appId], count > 0 {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.accentGreen)
+                                    .frame(width: 18, height: 18)
+                                Text("\(count)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                    }
 
                     statusBadge(for: loan.status)
                 }
@@ -702,6 +728,11 @@ struct LoansListView: View {
             loans = try await LoanService.shared.fetchDetailedUserLoans(
                 userId: userId
             )
+            await fetchUnreadCounts(userId: userId)
+            
+            if messagesChannel == nil {
+                subscribeToUnreadMessages(userId: userId)
+            }
 
             if resetFilter {
                 selectedFilter = .all
@@ -710,6 +741,60 @@ struct LoansListView: View {
         } catch {
 
             print("Failed to load loans:", error)
+        }
+    }
+    
+    private func fetchUnreadCounts(userId: UUID) async {
+        do {
+            struct UnreadMessageRow: Decodable {
+                let application_id: UUID
+            }
+            let unreadMessages: [UnreadMessageRow] = try await SupabaseManager.shared.client
+                .from("messages")
+                .select("application_id")
+                .eq("receiver_id", value: userId.uuidString)
+                .eq("is_read", value: false)
+                .execute()
+                .value
+            
+            var counts: [UUID: Int] = [:]
+            for msg in unreadMessages {
+                counts[msg.application_id, default: 0] += 1
+            }
+            self.unreadMessageCounts = counts
+        } catch {
+            print("Failed to fetch unread messages counts in LoansListView: \(error)")
+        }
+    }
+    
+    private func subscribeToUnreadMessages(userId: UUID) {
+        let channel = SupabaseManager.shared.client.realtimeV2.channel("public:messages:loanslist_\(userId.uuidString)")
+        self.messagesChannel = channel
+        
+        let insertions = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "messages",
+            filter: .eq("receiver_id", value: userId)
+        )
+        
+        Task {
+            do {
+                try await channel.subscribeWithError()
+                for await _ in insertions {
+                    await fetchUnreadCounts(userId: userId)
+                }
+            } catch {
+                print("Failed to subscribe to unread messages in LoansListView: \(error)")
+            }
+        }
+    }
+    
+    private func unsubscribeMessages() {
+        if let channel = messagesChannel {
+            Task {
+                await SupabaseManager.shared.client.realtimeV2.removeChannel(channel)
+            }
         }
     }
 } // End of LoansListView
