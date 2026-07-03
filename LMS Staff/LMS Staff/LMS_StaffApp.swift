@@ -50,18 +50,7 @@ struct LMS_StaffApp: App {
                 .preferredColorScheme(.light)
                 .tint(.staffAccent)
                 .environmentObject(authViewModel)
-                .onAppear {
-                    // Start global activity monitoring on the window
-                    NotificationCenter.default.addObserver(
-                        forName: NSNotification.Name("UserDidInteract"),
-                        object: nil,
-                        queue: .main
-                    ) { _ in
-                        Task { @MainActor in
-                            authViewModel.resetActivity()
-                        }
-                    }
-                }
+
         }
     }
 }
