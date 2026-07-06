@@ -379,7 +379,7 @@ struct ManagerDashboardView: View {
                 Spacer()
                 
                 if selectedSegment == .sentBack {
-                    Text("↩ Sent Back")
+                    Text("Sent Back")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffAmber)
                 } else if selectedSegment == .rejected {

@@ -264,32 +264,45 @@ struct ChatSupportConsole: View {
             
             // Text Input Footer
             if authViewModel.currentUser?.role != .admin {
-                HStack(spacing: StaffSpacing.md) {
-                    TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
-                        .textInputAutocapitalization(.sentences)
-                        .padding(14)
-                        .background(Color.staffSurface)
-                        .cornerRadius(StaffCorner.md)
-                        .foregroundColor(.staffTextPrimary)
-                    
-                    Button(action: {
-                        Task {
-                            let success = await detailVm.sendChatMessage(messageText, isInternal: isInternalChat)
-                            if success {
-                                messageText = ""
-                            }
-                        }
-                    }) {
-                        Image(systemName: "paperplane.fill")
-                            .foregroundColor(.white)
-                            .padding(14)
-                            .background(Color.staffAccent)
-                            .cornerRadius(StaffCorner.md)
+                if appWithBorrower.application.status == .rejected && isInternalChat {
+                    HStack {
+                        Spacer()
+                        Text("This loan application was rejected. Internal discussion is closed.")
+                            .font(.staffCaption)
+                            .foregroundColor(.staffTextSecondary)
+                            .italic()
+                        Spacer()
                     }
-                    .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(StaffSpacing.lg)
+                    .background(Color.staffSurface)
+                } else {
+                    HStack(spacing: StaffSpacing.md) {
+                        TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
+                            .textInputAutocapitalization(.sentences)
+                            .padding(14)
+                            .background(Color.staffSurface)
+                            .cornerRadius(StaffCorner.md)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Button(action: {
+                            Task {
+                                let success = await detailVm.sendChatMessage(messageText, isInternal: isInternalChat)
+                                if success {
+                                    messageText = ""
+                                }
+                            }
+                        }) {
+                            Image(systemName: "paperplane.fill")
+                                .foregroundColor(.white)
+                                .padding(14)
+                                .background(Color.staffAccent)
+                                .cornerRadius(StaffCorner.md)
+                        }
+                        .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(StaffSpacing.lg)
+                    .background(Color.staffSurface)
                 }
-                .padding(StaffSpacing.lg)
-                .background(Color.staffSurface)
             }
         }
         .task {
