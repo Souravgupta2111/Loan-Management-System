@@ -80,7 +80,7 @@ struct BorrowerSearchView: View {
                     .background(Color.staffBackground)
                 }
             }
-            .frame(width: 320)
+            .frame(width: 340)
             .background(Color.staffBackground)
             
             Divider()

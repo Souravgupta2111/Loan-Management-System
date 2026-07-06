@@ -148,92 +148,73 @@ struct StaffManagementView: View {
     // MARK: - Create Staff View Sheet
     
     private var createStaffSheetView: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Create New Staff Account")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Provision secure institutional access credentials for internal officers or branch managers.")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            VStack(spacing: StaffSpacing.md) {
-                StaffFormField(
-                    label: "Full Name",
-                    placeholder: "Enter staff member name",
-                    text: $inputName,
-                    error: nil
-                )
-                
-                StaffFormField(
-                    label: "Employee Email",
-                    placeholder: "employee@company.com",
-                    text: $inputEmail,
-                    error: nil
-                )
-                
-                Picker("System Authorization Role", selection: $selectedRole) {
-                    Text("System Administrator").tag(UserRole.admin)
-                    Text("Branch Manager").tag(UserRole.manager)
-                    Text("Loan Officer").tag(UserRole.officer)
-                }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-                .foregroundColor(.staffTextPrimary)
-                
-                StaffFormField(
-                    label: "Designation / Position Title",
-                    placeholder: "e.g. Credit Auditor, Underwriter",
-                    text: $inputDesignation,
-                    error: nil
-                )
-                
-                Picker("Assigned Branch Office", selection: $selectedBranchId) {
-                    ForEach(vm.branches) { branch in
-                        Text(branch.name).tag(branch.id)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-                .foregroundColor(.staffTextPrimary)
-            }
-            
-            HStack {
-                Button("Cancel") {
-                    showCreateSheet = false
-                    inputName = ""
-                    inputEmail = ""
-                }
-                .foregroundColor(.staffTextSecondary)
-                
-                Spacer()
-                
-                StaffButton(title: "Generate Access", style: .primary, icon: "paperplane.fill") {
-                    Task {
-                        let success = await vm.createStaffAccount(
-                            fullName: inputName,
-                            role: selectedRole,
-                            designation: inputDesignation,
-                            branchId: selectedBranchId,
-                            email: inputEmail
-                        )
-                        // Don't dismiss sheet here — wait for credentials alert
-                        if !success {
-                            // Only reset on failure; on success the alert will show
+        NavigationView {
+            ScrollView {
+                VStack(spacing: StaffSpacing.xl) {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 56))
+                        .foregroundColor(.staffAccent)
+                        .padding(.top, StaffSpacing.xl)
+                    
+                    Text("Create New Staff Account")
+                        .font(.staffSectionTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    VStack(spacing: StaffSpacing.lg) {
+                        StaffFormField(label: "Full Name *", placeholder: "Enter staff member name", text: $inputName, icon: "person")
+                        StaffFormField(label: "Employee Email", placeholder: "employee@company.com", text: $inputEmail, keyboardType: .emailAddress, icon: "envelope")
+                        
+                        createStaffMenu(label: "Designation / Position Title *", value: inputDesignation, icon: "briefcase") {
+                            Button("System Administrator") { inputDesignation = "System Administrator" }
+                            Button("Branch Manager") { inputDesignation = "Branch Manager" }
+                            Button("Loan Officer") { inputDesignation = "Loan Officer" }
+                        }
+                        
+                        createStaffMenu(
+                            label: "Branch",
+                            value: vm.branches.first(where: { $0.id == selectedBranchId })?.name ?? "Select branch",
+                            icon: "building.2"
+                        ) {
+                            ForEach(vm.branches) { branch in
+                                Button(branch.name) { selectedBranchId = branch.id }
+                            }
                         }
                     }
+                    .padding(.horizontal, StaffSpacing.xl)
+                    
+                    StaffButton(title: "Generate Access", style: .primary, icon: "paperplane.fill") {
+                        Task {
+                            _ = await vm.createStaffAccount(
+                                fullName: inputName,
+                                role: selectedRole,
+                                designation: inputDesignation,
+                                branchId: selectedBranchId,
+                                email: inputEmail
+                            )
+                        }
+                    }
+                    .disabled(inputName.trimmingCharacters(in: .whitespaces).isEmpty || inputDesignation.isEmpty)
+                    .padding(.horizontal, StaffSpacing.xl)
+                    .padding(.bottom, StaffSpacing.xl)
                 }
-                .disabled(inputName.isEmpty || inputDesignation.isEmpty)
-                .frame(width: 220)
             }
-            .padding(.top, StaffSpacing.md)
+            .background(Color.staffBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showCreateSheet = false
+                        inputName = ""
+                        inputEmail = ""
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
+                }
+            }
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        .presentationBackground(Color.staffBackground)
         .alert(isPresented: $vm.showCredentialsAlert) {
             Alert(
                 title: Text("✅ Account Created Successfully"),
@@ -245,6 +226,41 @@ struct StaffManagementView: View {
                     inputEmail = ""
                 }
             )
+        }
+    }
+    
+    @ViewBuilder
+    private func createStaffMenu<Content: View>(label: String, value: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+            Text(label)
+                .font(.staffLabel)
+                .foregroundColor(.staffTextSecondary)
+            
+            Menu {
+                content()
+            } label: {
+                HStack(spacing: StaffSpacing.md) {
+                    Image(systemName: icon)
+                        .font(.system(size: 16))
+                        .foregroundColor(.staffTextTertiary)
+                        .frame(width: 20)
+                    Text(value)
+                        .font(.staffBody)
+                        .foregroundColor(value == "Select branch" ? .staffTextTertiary : .staffTextPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.staffAccent)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.staffSurfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(Color.staffBorder, lineWidth: 1.5)
+                )
+            }
         }
     }
 }
@@ -584,58 +600,71 @@ struct StaffProfileDetailView: View {
     // MARK: - Reset Password Sheet
     
     private var resetPasswordSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Reset Password")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Enter the employee's email address. The new credentials will be saved to the database and a notification will be sent to the employee.")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                Text("Employee: \(item.user.fullName) (\(item.staff.employeeId))")
-                    .font(.staffBody)
-                    .foregroundColor(.staffTextPrimary)
-                    .fontWeight(.bold)
-            }
-            
-            StaffFormField(
-                label: "Employee Email Address",
-                placeholder: "employee@company.com",
-                text: $resetEmail,
-                error: resetEmail.isEmpty ? "Email is required to send credentials" : nil
-            )
-            
-            HStack {
-                Button("Cancel") {
-                    showResetSheet = false
-                    resetEmail = ""
-                }
-                .foregroundColor(.staffTextSecondary)
-                
-                Spacer()
-                
-                StaffButton(title: "Reset & Send Credentials", style: .destructive, icon: "paperplane.fill") {
-                    Task {
-                        showResetSheet = false
-                        let success = await viewModel.resetStaffPassword(
-                            userId: item.user.id,
-                            employeeId: item.staff.employeeId,
-                            email: resetEmail
+        NavigationView {
+            ScrollView {
+                VStack(spacing: StaffSpacing.xl) {
+                    Image(systemName: "key.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundColor(.staffRed)
+                        .padding(.top, StaffSpacing.xl)
+                    
+                    Text("Reset Password")
+                        .font(.staffSectionTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    VStack(spacing: StaffSpacing.lg) {
+                        Text("Employee: \(item.user.fullName) (\(item.staff.employeeId))")
+                            .font(.staffBody)
+                            .foregroundColor(.staffTextPrimary)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        StaffFormField(
+                            label: "Employee Email Address *",
+                            placeholder: "employee@company.com",
+                            text: $resetEmail,
+                            error: resetEmail.isEmpty ? "Email is required to send credentials" : nil,
+                            keyboardType: .emailAddress,
+                            icon: "envelope"
                         )
-                        if success, let res = viewModel.resetPasswordResult {
-                            try? await Task.sleep(nanoseconds: 600_000_000)
-                            activeAlert = .resetSuccess(password: res.password, email: resetEmail)
+                    }
+                    .padding(.horizontal, StaffSpacing.xl)
+                    
+                    StaffButton(title: "Reset & Send Credentials", style: .destructive, icon: "paperplane.fill") {
+                        Task {
+                            showResetSheet = false
+                            let success = await viewModel.resetStaffPassword(
+                                userId: item.user.id,
+                                employeeId: item.staff.employeeId,
+                                email: resetEmail
+                            )
+                            if success, let res = viewModel.resetPasswordResult {
+                                try? await Task.sleep(nanoseconds: 600_000_000)
+                                activeAlert = .resetSuccess(password: res.password, email: resetEmail)
+                            }
                         }
                     }
+                    .disabled(resetEmail.isEmpty)
+                    .padding(.horizontal, StaffSpacing.xl)
+                    .padding(.bottom, StaffSpacing.xl)
                 }
-                .disabled(resetEmail.isEmpty)
-                .frame(width: 260)
             }
-            .padding(.top, StaffSpacing.md)
+            .background(Color.staffBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showResetSheet = false
+                        resetEmail = ""
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
+                }
+            }
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        .presentationBackground(Color.staffBackground)
     }
 }
+

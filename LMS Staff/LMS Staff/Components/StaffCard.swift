@@ -2,19 +2,18 @@ import SwiftUI
 
 /// Glassmorphic card with blur backdrop for Staff app
 struct StaffCard<Content: View>: View {
-    var padding: CGFloat = StaffSpacing.xl
+    var padding: CGFloat = StaffSpacing.lg
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         content()
             .padding(padding)
-            .background(Color.staffSurface)
-            .clipShape(RoundedRectangle(cornerRadius: StaffCorner.lg))
+            .background(Color(hex: "#FAFAF8"))
+            .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
             .overlay(
-                RoundedRectangle(cornerRadius: StaffCorner.lg)
-                    .stroke(Color.staffBorder.opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: StaffCorner.md)
+                    .stroke(Color.staffBorder, lineWidth: 1)
             )
-            .shadow(color: StaffShadow.light, radius: 8, x: 0, y: 4)
     }
 }
 

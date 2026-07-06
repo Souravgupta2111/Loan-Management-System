@@ -21,10 +21,11 @@ struct LoanProductListView: View {
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
                     Spacer()
-                    StaffButton(title: "New Product", style: .primary, icon: "plus.circle.fill", isFullWidth: false) {
-                        showCreateSheet = true
+                    Button(action: { showCreateSheet = true }) {
+                        Image(systemName: "text.pad.header.badge.plus")
+                            .font(.system(size: 20))
+                            .foregroundColor(.staffAccent)
                     }
-                    .frame(width: 180)
                 }
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
@@ -400,55 +401,73 @@ struct CreateProductSheet: View {
     
     // Validation
     @State private var validationError: String?
+    @State private var validationClearTask: Task<Void, Never>?
     @State private var isCreating = false
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
-                    // Section 1: Basic Info
-                    sectionHeader("Basic Information", icon: "info.circle.fill")
+                VStack(spacing: StaffSpacing.xl) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.staffAccent)
+                            .frame(width: 56, height: 56)
+                        Image(systemName: "scroll.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.top, StaffSpacing.xl)
                     
-                    StaffFormField(label: "Product Name", placeholder: "e.g. Personal Loan Express", text: $name)
+                    Text("Create Loan Product")
+                        .font(.staffSectionTitle)
+                        .foregroundColor(.staffTextPrimary)
                     
-                    VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                        Text("Product Type")
-                            .font(.staffLabel)
-                            .foregroundColor(.staffTextSecondary)
+                    validationWarning
+                    
+                    VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
+                        // Section 1: Basic Info
+                        sectionHeader("Basic Information", icon: "info.circle.fill")
                         
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: StaffSpacing.sm),
-                            GridItem(.flexible(), spacing: StaffSpacing.sm),
-                            GridItem(.flexible(), spacing: StaffSpacing.sm)
-                        ], spacing: StaffSpacing.sm) {
-                            ForEach(LoanType.allCases) { type in
-                                Button(action: {
-                                    selectedType = type
-                                }) {
-                                    HStack(spacing: StaffSpacing.xs) {
-                                        Image(systemName: type.icon)
-                                            .font(.system(size: 14))
-                                        Text(type.displayName)
-                                            .font(.staffLabel)
-                                            .lineLimit(1)
+                        StaffFormField(label: "Product Name *", placeholder: "e.g. Personal Loan Express", text: $name, icon: "textformat")
+                        
+                        VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                            Text("Product Type")
+                                .font(.staffLabel)
+                                .foregroundColor(.staffTextSecondary)
+                            
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: StaffSpacing.sm),
+                                GridItem(.flexible(), spacing: StaffSpacing.sm),
+                                GridItem(.flexible(), spacing: StaffSpacing.sm)
+                            ], spacing: StaffSpacing.sm) {
+                                ForEach(LoanType.allCases) { type in
+                                    Button(action: {
+                                        selectedType = type
+                                    }) {
+                                        HStack(spacing: StaffSpacing.xs) {
+                                            Image(systemName: type.icon)
+                                                .font(.system(size: 14))
+                                            Text(type.displayName)
+                                                .font(.staffLabel)
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, StaffSpacing.sm)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
+                                        .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
+                                        .cornerRadius(StaffCorner.sm)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: StaffCorner.sm)
+                                                .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
+                                        )
                                     }
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, StaffSpacing.sm)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
-                                    .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
-                                    .cornerRadius(StaffCorner.sm)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: StaffCorner.sm)
-                                            .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
-                                    )
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                                .buttonStyle(PlainButtonStyle())
                             }
                         }
-                    }
-                    
-                    StaffTextEditor(label: "Description", placeholder: "Describe this loan product, its target audience, and key features...", text: $description, minHeight: 80)
+                        
+                        StaffTextEditor(label: "Description", placeholder: "Describe this loan product, its target audience, and key features...", text: $description, minHeight: 80)
                     
                     Divider().background(Color.staffBorder)
                     
@@ -456,8 +475,8 @@ struct CreateProductSheet: View {
                     sectionHeader("Amount Limits (₹)", icon: "indianrupeesign.circle.fill")
                     
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Minimum Amount", placeholder: "50000", text: $minAmount, keyboardType: .decimalPad)
-                        StaffFormField(label: "Maximum Amount", placeholder: "2500000", text: $maxAmount, keyboardType: .decimalPad)
+                        StaffFormField(label: "Minimum Amount", placeholder: "e.g. 50,000", text: $minAmount, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Maximum Amount", placeholder: "e.g. 25,00,000", text: $maxAmount, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     
                     Divider().background(Color.staffBorder)
@@ -466,8 +485,8 @@ struct CreateProductSheet: View {
                     sectionHeader("Tenure Range (Months)", icon: "calendar.circle.fill")
                     
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Tenure", placeholder: "6", text: $minTenure, keyboardType: .numberPad)
-                        StaffFormField(label: "Max Tenure", placeholder: "60", text: $maxTenure, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Tenure", placeholder: "e.g. 12", text: $minTenure, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Tenure", placeholder: "e.g. 84", text: $maxTenure, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     
                     Divider().background(Color.staffBorder)
@@ -476,20 +495,32 @@ struct CreateProductSheet: View {
                     sectionHeader("Interest Configuration", icon: "percent")
                     
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Interest Rate (%)", placeholder: "8.50", text: $minInterestRate, keyboardType: .decimalPad)
-                        StaffFormField(label: "Max Interest Rate (%)", placeholder: "14.50", text: $maxInterestRate, keyboardType: .decimalPad)
+                        StaffFormField(label: "Min Interest Rate (%)", placeholder: "e.g. 9.50", text: $minInterestRate, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Interest Rate (%)", placeholder: "e.g. 16.00", text: $maxInterestRate, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     
-                    StaffFormField(label: "Spread Over Base Rate (%)", placeholder: "2.00", text: $spreadOverBase, keyboardType: .decimalPad)
+                    StaffFormField(label: "Spread Over Base Rate (%)", placeholder: "e.g. 2.25", text: $spreadOverBase, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     
                     VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                         Text("Supported Interest Types")
                             .font(.staffLabel)
                             .foregroundColor(.staffTextSecondary)
                         HStack(spacing: StaffSpacing.lg) {
-                            interestTypeToggle("Fixed", isOn: $interestFixed)
-                            interestTypeToggle("Floating", isOn: $interestFloating)
-                            interestTypeToggle("Reducing", isOn: $interestReducing)
+                            interestTypeButton("Fixed", isSelected: interestFixed) {
+                                interestFixed.toggle()
+                                if interestFixed { interestReducing = false }
+                            }
+                            interestTypeButton("Floating", isSelected: interestFloating) {
+                                interestFloating.toggle()
+                                if interestFloating { interestReducing = false }
+                            }
+                            interestTypeButton("Reducing", isSelected: interestReducing) {
+                                interestReducing.toggle()
+                                if interestReducing {
+                                    interestFixed = false
+                                    interestFloating = false
+                                }
+                            }
                         }
                     }
                     
@@ -499,10 +530,10 @@ struct CreateProductSheet: View {
                     sectionHeader("Fees & Penalties", icon: "banknote.fill")
                     
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Processing Fee (%)", placeholder: "1.50", text: $processingFee, keyboardType: .decimalPad)
-                        StaffFormField(label: "Prepayment Penalty (%)", placeholder: "2.00", text: $prepaymentPenalty, keyboardType: .decimalPad)
+                        StaffFormField(label: "Processing Fee (%)", placeholder: "e.g. 1.00", text: $processingFee, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Prepayment Penalty (%)", placeholder: "e.g. 2.00", text: $prepaymentPenalty, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
-                    StaffFormField(label: "Late Penalty (% per month)", placeholder: "2.00", text: $latePenalty, keyboardType: .decimalPad)
+                    StaffFormField(label: "Late Penalty (% per month)", placeholder: "e.g. 1.50", text: $latePenalty, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     
                     Divider().background(Color.staffBorder)
                     
@@ -531,14 +562,14 @@ struct CreateProductSheet: View {
                     sectionHeader("Eligibility Criteria", icon: "checkmark.shield.fill")
                     
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Monthly Income (₹)", placeholder: "25000", text: $minIncome, keyboardType: .numberPad)
-                        StaffFormField(label: "Min Credit Score", placeholder: "650", text: $minCreditScore, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Monthly Income (₹)", placeholder: "e.g. 30,000", text: $minIncome, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Min Credit Score", placeholder: "e.g. 700", text: $minCreditScore, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Age (Years)", placeholder: "21", text: $minAge, keyboardType: .numberPad)
-                        StaffFormField(label: "Max Age (Years)", placeholder: "58", text: $maxAge, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Age (Years)", placeholder: "e.g. 21", text: $minAge, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Age (Years)", placeholder: "e.g. 65", text: $maxAge, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
-                    StaffFormField(label: "Min Business Years (if applicable)", placeholder: "3", text: $minBusinessYears, keyboardType: .numberPad)
+                    StaffFormField(label: "Min Business Years (if applicable)", placeholder: "e.g. 2", text: $minBusinessYears, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     
                     Divider().background(Color.staffBorder)
                     
@@ -546,7 +577,7 @@ struct CreateProductSheet: View {
                     sectionHeader("Required Documents Checklist", icon: "doc.text.fill")
                     
                     HStack {
-                        TextField("Add document requirement...", text: $newDocText)
+                        TextField("Enter document name", text: $newDocText)
                             .padding(12)
                             .background(Color.staffSurfaceMuted)
                             .cornerRadius(StaffCorner.md)
@@ -582,40 +613,30 @@ struct CreateProductSheet: View {
                         .padding(.vertical, 4)
                     }
                     
-                    if let error = validationError {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.staffRed)
-                            Text(error)
-                                .font(.staffCaption)
-                                .foregroundColor(.staffRed)
-                        }
-                    }
                 }
-                .padding(StaffSpacing.xxl)
+                .padding(.horizontal, StaffSpacing.xl)
+                
+                StaffButton(title: "Create Product", style: .primary, icon: "plus.circle.fill", isLoading: isCreating) {
+                    createProduct()
+                }
+                .disabled(isCreating)
+                .padding(.horizontal, StaffSpacing.xl)
+                .padding(.bottom, StaffSpacing.xl)
             }
-            .background(Color.staffBackground.ignoresSafeArea())
-            .navigationTitle("Create Loan Product")
+            .background(Color.staffBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }
-                        .foregroundColor(.staffTextSecondary)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: createProduct) {
-                        if isCreating {
-                            ProgressView()
-                        } else {
-                            Text("Create Product")
-                                .fontWeight(.bold)
-                        }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
                     }
-                    .disabled(isCreating)
                     .foregroundColor(.staffAccent)
                 }
             }
         }
+        }
+        .presentationBackground(Color.staffBackground)
         .preferredColorScheme(.dark)
     }
     
@@ -624,37 +645,42 @@ struct CreateProductSheet: View {
         
         // Validation
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            validationError = "Product name is required"
+            showValidationWarning("Product name is required")
             return
         }
-        guard let minAmt = Double(minAmount), minAmt > 0 else {
-            validationError = "Enter a valid minimum amount"
+        guard let minAmt = decimalValue(minAmount), minAmt > 0 else {
+            showValidationWarning("Minimum amount must be greater than 0")
             return
         }
-        guard let maxAmt = Double(maxAmount), maxAmt > minAmt else {
-            validationError = "Maximum amount must be greater than minimum"
+        guard let maxAmt = decimalValue(maxAmount), maxAmt > minAmt else {
+            showValidationWarning("Maximum amount must be greater than minimum amount")
             return
         }
-        guard let minTen = Int(minTenure), minTen > 0 else {
-            validationError = "Enter a valid minimum tenure"
+        guard let minTen = intValue(minTenure), minTen > 0 else {
+            showValidationWarning("Minimum tenure must be greater than 0 months")
             return
         }
-        guard let maxTen = Int(maxTenure), maxTen > minTen else {
-            validationError = "Maximum tenure must be greater than minimum"
+        guard let maxTen = intValue(maxTenure), maxTen > minTen else {
+            showValidationWarning("Maximum tenure must be greater than minimum tenure")
             return
         }
-        guard let minRate = Double(minInterestRate), minRate >= 0 else {
-            validationError = "Enter a valid minimum interest rate"
+        guard let minRate = decimalValue(minInterestRate), minRate >= 0, minRate <= 100 else {
+            showValidationWarning("Minimum interest rate must be between 0 and 100")
             return
         }
-        guard let maxRate = Double(maxInterestRate), maxRate >= minRate else {
-            validationError = "Maximum rate must be ≥ minimum rate"
+        guard let maxRate = decimalValue(maxInterestRate), maxRate >= minRate, maxRate <= 100 else {
+            showValidationWarning("Maximum interest rate must be at least the minimum rate and no more than 100")
             return
         }
         guard interestFixed || interestFloating || interestReducing else {
-            validationError = "Select at least one interest type"
+            showValidationWarning("Select at least one interest type")
             return
         }
+        guard let spread = optionalPercentValue(spreadOverBase, field: "Spread over base rate") else { return }
+        guard let processing = optionalPercentValue(processingFee, field: "Processing fee") else { return }
+        guard let prepayment = optionalPercentValue(prepaymentPenalty, field: "Prepayment penalty") else { return }
+        guard let late = optionalPercentValue(latePenalty, field: "Late penalty") else { return }
+        guard validateOptionalEligibility() else { return }
         
         // Build interest types
         var types: [InterestType] = []
@@ -664,11 +690,11 @@ struct CreateProductSheet: View {
         
         // Build eligibility criteria
         var criteria: [String: Double] = [:]
-        if let v = Int(minIncome), v > 0 { criteria["min_income"] = Double(v) }
-        if let v = Int(minCreditScore), v > 0 { criteria["min_credit_score"] = Double(v) }
-        if let v = Int(minAge), v > 0 { criteria["min_age"] = Double(v) }
-        if let v = Int(maxAge), v > 0 { criteria["max_age"] = Double(v) }
-        if let v = Int(minBusinessYears), v > 0 { criteria["min_business_years"] = Double(v) }
+        if let v = intValue(minIncome), v > 0 { criteria["min_income"] = Double(v) }
+        if let v = intValue(minCreditScore), v > 0 { criteria["min_credit_score"] = Double(v) }
+        if let v = intValue(minAge), v > 0 { criteria["min_age"] = Double(v) }
+        if let v = intValue(maxAge), v > 0 { criteria["max_age"] = Double(v) }
+        if let v = intValue(minBusinessYears), v > 0 { criteria["min_business_years"] = Double(v) }
         
         isCreating = true
         
@@ -685,10 +711,10 @@ struct CreateProductSheet: View {
                 minInterestRate: minRate,
                 maxInterestRate: maxRate,
                 supportedInterestTypes: types,
-                spreadOverBase: Double(spreadOverBase) ?? 0.0,
-                processingFeePct: Double(processingFee) ?? 0.0,
-                prepaymentPenaltyPct: Double(prepaymentPenalty) ?? 0.0,
-                latePenaltyPctPerMonth: Double(latePenalty) ?? 0.0,
+                spreadOverBase: spread,
+                processingFeePct: processing,
+                prepaymentPenaltyPct: prepayment,
+                latePenaltyPctPerMonth: late,
                 requiresCollateral: requiresCollateral,
                 isActive: isActive,
                 eligibilityCriteria: criteria.isEmpty ? nil : criteria,
@@ -708,22 +734,177 @@ struct CreateProductSheet: View {
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: StaffSpacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.staffAccent)
             Text(title)
-                .font(.staffSectionTitle)
+                .font(.staffCardTitle)
                 .foregroundColor(.staffTextPrimary)
         }
     }
     
-    private func interestTypeToggle(_ label: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
+    private func interestTypeButton(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Text(label)
                 .font(.staffBody)
-                .foregroundColor(.staffTextPrimary)
+                .foregroundColor(isSelected ? .staffTextPrimary : .staffTextSecondary)
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.vertical, StaffSpacing.sm)
+                .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceMuted)
+                .clipShape(Capsule())
         }
-        .toggleStyle(.button)
-        .tint(.staffAccent)
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private var validationWarning: some View {
+        if let error = validationError {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                Text(error)
+            }
+            .font(.staffCaption)
+            .foregroundColor(.staffRed)
+            .padding(StaffSpacing.md)
+            .background(Color.staffRedBg)
+            .cornerRadius(StaffCorner.sm)
+            .padding(.horizontal, StaffSpacing.xl)
+        }
+    }
+    
+    private func positiveDecimalBinding(_ text: Binding<String>, field: String) -> Binding<String> {
+        Binding(
+            get: { text.wrappedValue },
+            set: { newValue in
+                guard isValidPositiveNumberInput(newValue, allowsDecimal: true, field: field) else { return }
+                text.wrappedValue = newValue
+            }
+        )
+    }
+    
+    private func positiveIntegerBinding(_ text: Binding<String>, field: String) -> Binding<String> {
+        Binding(
+            get: { text.wrappedValue },
+            set: { newValue in
+                guard isValidPositiveNumberInput(newValue, allowsDecimal: false, field: field) else { return }
+                text.wrappedValue = newValue
+            }
+        )
+    }
+    
+    private func isValidPositiveNumberInput(_ value: String, allowsDecimal: Bool, field: String) -> Bool {
+        guard !value.isEmpty else { return true }
+        if value.contains("-") {
+            showValidationWarning("\(field) cannot be negative")
+            return false
+        }
+        if !allowsDecimal && value.contains(".") {
+            showValidationWarning("\(field) must be a whole number")
+            return false
+        }
+        if allowsDecimal && value.filter({ $0 == "." }).count > 1 {
+            showValidationWarning("\(field) can contain only one decimal point")
+            return false
+        }
+        let allowedCharacters = allowsDecimal ? "0123456789,." : "0123456789,"
+        if value.contains(where: { !allowedCharacters.contains($0) }) {
+            showValidationWarning("Only positive numbers are allowed for \(field.lowercased())")
+            return false
+        }
+        return true
+    }
+    
+    private func sanitizePositiveDecimalInput(_ value: String) -> String {
+        sanitizePositiveNumberInput(value, allowsDecimal: true)
+    }
+    
+    private func sanitizePositiveIntegerInput(_ value: String) -> String {
+        sanitizePositiveNumberInput(value, allowsDecimal: false)
+    }
+    
+    private func sanitizePositiveNumberInput(_ value: String, allowsDecimal: Bool) -> String {
+        var result = ""
+        var hasDecimal = false
+        
+        for character in value {
+            if character.isNumber || character == "," {
+                result.append(character)
+            } else if allowsDecimal && character == "." && !hasDecimal {
+                hasDecimal = true
+                result.append(character)
+            }
+        }
+        
+        return result
+    }
+    
+    private func showInvalidNumberWarning() {
+        showValidationWarning("Enter a valid positive number")
+    }
+    
+    private func showValidationWarning(_ message: String) {
+        validationClearTask?.cancel()
+        validationError = message
+        validationClearTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if !Task.isCancelled {
+                validationError = nil
+            }
+        }
+    }
+    
+    private func cleanedNumber(_ value: String) -> String {
+        value.replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private func decimalValue(_ value: String) -> Double? {
+        Double(cleanedNumber(value))
+    }
+    
+    private func intValue(_ value: String) -> Int? {
+        Int(cleanedNumber(value))
+    }
+    
+    private func optionalPercentValue(_ value: String, field: String) -> Double? {
+        let cleaned = cleanedNumber(value)
+        guard !cleaned.isEmpty else { return 0 }
+        guard let number = Double(cleaned), number >= 0, number <= 100 else {
+            showValidationWarning("\(field) must be between 0 and 100")
+            return nil
+        }
+        return number
+    }
+    
+    private func validateOptionalEligibility() -> Bool {
+        if !cleanedNumber(minIncome).isEmpty, (intValue(minIncome) ?? -1) < 0 {
+            showValidationWarning("Minimum monthly income cannot be negative")
+            return false
+        }
+        if !cleanedNumber(minCreditScore).isEmpty {
+            guard let score = intValue(minCreditScore), (300...900).contains(score) else {
+                showValidationWarning("Minimum credit score must be between 300 and 900")
+                return false
+            }
+        }
+        let minAgeValue = intValue(minAge)
+        let maxAgeValue = intValue(maxAge)
+        if !cleanedNumber(minAge).isEmpty, !(18...75).contains(minAgeValue ?? -1) {
+            showValidationWarning("Minimum age must be between 18 and 75")
+            return false
+        }
+        if !cleanedNumber(maxAge).isEmpty, !(18...75).contains(maxAgeValue ?? -1) {
+            showValidationWarning("Maximum age must be between 18 and 75")
+            return false
+        }
+        if let minAgeValue, let maxAgeValue, maxAgeValue < minAgeValue {
+            showValidationWarning("Maximum age must be greater than or equal to minimum age")
+            return false
+        }
+        if !cleanedNumber(minBusinessYears).isEmpty, (intValue(minBusinessYears) ?? -1) < 0 {
+            showValidationWarning("Minimum business years cannot be negative")
+            return false
+        }
+        return true
     }
 }
 
@@ -761,6 +942,7 @@ struct EditProductSheet: View {
     @State private var documentItems: [DocumentRequirement]
     @State private var newDocText = ""
     @State private var validationError: String?
+    @State private var validationClearTask: Task<Void, Never>?
     @State private var isSaving = false
     
     init(product: LoanProduct, vm: LoanProductViewModel, isPresented: Binding<Bool>, selectedProduct: Binding<LoanProduct?>) {
@@ -800,86 +982,116 @@ struct EditProductSheet: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
-                    sectionHeader("Basic Information", icon: "info.circle.fill")
-                    StaffFormField(label: "Product Name", placeholder: "Product name", text: $name)
-                    VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                        Text("Product Type")
-                            .font(.staffLabel)
-                            .foregroundColor(.staffTextSecondary)
-                        
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: StaffSpacing.sm),
-                            GridItem(.flexible(), spacing: StaffSpacing.sm),
-                            GridItem(.flexible(), spacing: StaffSpacing.sm)
-                        ], spacing: StaffSpacing.sm) {
-                            ForEach(LoanType.allCases) { type in
-                                Button(action: {
-                                    selectedType = type
-                                }) {
-                                    HStack(spacing: StaffSpacing.xs) {
-                                        Image(systemName: type.icon)
-                                            .font(.system(size: 14))
-                                        Text(type.displayName)
-                                            .font(.staffLabel)
-                                            .lineLimit(1)
+                VStack(spacing: StaffSpacing.xl) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.staffAccent)
+                            .frame(width: 56, height: 56)
+                        Image(systemName: "scroll.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.top, StaffSpacing.xl)
+                    
+                    Text("Edit \(product.name)")
+                        .font(.staffSectionTitle)
+                        .foregroundColor(.staffTextPrimary)
+                        .multilineTextAlignment(.center)
+                    
+                    validationWarning
+                    
+                    VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
+                        sectionHeader("Basic Information", icon: "info.circle.fill")
+                        StaffFormField(label: "Product Name *", placeholder: "e.g. Personal Loan Express", text: $name, icon: "textformat")
+                        VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                            Text("Product Type")
+                                .font(.staffLabel)
+                                .foregroundColor(.staffTextSecondary)
+                            
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: StaffSpacing.sm),
+                                GridItem(.flexible(), spacing: StaffSpacing.sm),
+                                GridItem(.flexible(), spacing: StaffSpacing.sm)
+                            ], spacing: StaffSpacing.sm) {
+                                ForEach(LoanType.allCases) { type in
+                                    Button(action: {
+                                        selectedType = type
+                                    }) {
+                                        HStack(spacing: StaffSpacing.xs) {
+                                            Image(systemName: type.icon)
+                                                .font(.system(size: 14))
+                                            Text(type.displayName)
+                                                .font(.staffLabel)
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, StaffSpacing.sm)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
+                                        .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
+                                        .cornerRadius(StaffCorner.sm)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: StaffCorner.sm)
+                                                .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
+                                        )
                                     }
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, StaffSpacing.sm)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selectedType == type ? Color.staffGreen : Color.staffSurfaceMuted)
-                                    .foregroundColor(selectedType == type ? .white : .staffTextPrimary)
-                                    .cornerRadius(StaffCorner.sm)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: StaffCorner.sm)
-                                            .stroke(selectedType == type ? Color.staffGreen : Color.staffBorder, lineWidth: 1)
-                                    )
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                                .buttonStyle(PlainButtonStyle())
                             }
                         }
-                    }
-                    StaffTextEditor(label: "Description", placeholder: "Product description...", text: $description, minHeight: 80)
+                        StaffTextEditor(label: "Description", placeholder: "Product description...", text: $description, minHeight: 80)
                     
                     Divider().background(Color.staffBorder)
                     sectionHeader("Amount Limits (₹)", icon: "indianrupeesign.circle.fill")
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Minimum Amount", placeholder: "50000", text: $minAmount, keyboardType: .decimalPad)
-                        StaffFormField(label: "Maximum Amount", placeholder: "2500000", text: $maxAmount, keyboardType: .decimalPad)
+                        StaffFormField(label: "Minimum Amount", placeholder: "e.g. 50,000", text: $minAmount, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Maximum Amount", placeholder: "e.g. 25,00,000", text: $maxAmount, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     
                     Divider().background(Color.staffBorder)
                     sectionHeader("Tenure Range (Months)", icon: "calendar.circle.fill")
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Tenure", placeholder: "6", text: $minTenure, keyboardType: .numberPad)
-                        StaffFormField(label: "Max Tenure", placeholder: "60", text: $maxTenure, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Tenure", placeholder: "e.g. 12", text: $minTenure, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Tenure", placeholder: "e.g. 84", text: $maxTenure, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     
                     Divider().background(Color.staffBorder)
                     sectionHeader("Interest Configuration", icon: "percent")
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Interest Rate (%)", placeholder: "8.50", text: $minInterestRate, keyboardType: .decimalPad)
-                        StaffFormField(label: "Max Interest Rate (%)", placeholder: "14.50", text: $maxInterestRate, keyboardType: .decimalPad)
+                        StaffFormField(label: "Min Interest Rate (%)", placeholder: "e.g. 9.50", text: $minInterestRate, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Interest Rate (%)", placeholder: "e.g. 16.00", text: $maxInterestRate, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
-                    StaffFormField(label: "Spread Over Base Rate (%)", placeholder: "2.00", text: $spreadOverBase, keyboardType: .decimalPad)
+                    StaffFormField(label: "Spread Over Base Rate (%)", placeholder: "e.g. 2.25", text: $spreadOverBase, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                         Text("Supported Interest Types")
                             .font(.staffLabel)
                             .foregroundColor(.staffTextSecondary)
                         HStack(spacing: StaffSpacing.lg) {
-                            interestTypeToggle("Fixed", isOn: $interestFixed)
-                            interestTypeToggle("Floating", isOn: $interestFloating)
-                            interestTypeToggle("Reducing", isOn: $interestReducing)
+                            interestTypeButton("Fixed", isSelected: interestFixed) {
+                                interestFixed.toggle()
+                                if interestFixed { interestReducing = false }
+                            }
+                            interestTypeButton("Floating", isSelected: interestFloating) {
+                                interestFloating.toggle()
+                                if interestFloating { interestReducing = false }
+                            }
+                            interestTypeButton("Reducing", isSelected: interestReducing) {
+                                interestReducing.toggle()
+                                if interestReducing {
+                                    interestFixed = false
+                                    interestFloating = false
+                                }
+                            }
                         }
                     }
                     
                     Divider().background(Color.staffBorder)
                     sectionHeader("Fees & Penalties", icon: "banknote.fill")
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Processing Fee (%)", placeholder: "1.50", text: $processingFee, keyboardType: .decimalPad)
-                        StaffFormField(label: "Prepayment Penalty (%)", placeholder: "2.00", text: $prepaymentPenalty, keyboardType: .decimalPad)
+                        StaffFormField(label: "Processing Fee (%)", placeholder: "e.g. 1.00", text: $processingFee, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Prepayment Penalty (%)", placeholder: "e.g. 2.00", text: $prepaymentPenalty, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     }
-                    StaffFormField(label: "Late Penalty (% per month)", placeholder: "2.00", text: $latePenalty, keyboardType: .decimalPad)
+                    StaffFormField(label: "Late Penalty (% per month)", placeholder: "e.g. 1.50", text: $latePenalty, keyboardType: .decimalPad, inputSanitizer: sanitizePositiveDecimalInput, onInvalidInput: showInvalidNumberWarning)
                     
                     Divider().background(Color.staffBorder)
                     sectionHeader("Product Configuration", icon: "gearshape.fill")
@@ -895,19 +1107,19 @@ struct EditProductSheet: View {
                     Divider().background(Color.staffBorder)
                     sectionHeader("Eligibility Criteria", icon: "checkmark.shield.fill")
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Monthly Income (₹)", placeholder: "25000", text: $minIncome, keyboardType: .numberPad)
-                        StaffFormField(label: "Min Credit Score", placeholder: "650", text: $minCreditScore, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Monthly Income (₹)", placeholder: "e.g. 30,000", text: $minIncome, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Min Credit Score", placeholder: "e.g. 700", text: $minCreditScore, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
                     HStack(spacing: StaffSpacing.lg) {
-                        StaffFormField(label: "Min Age", placeholder: "21", text: $minAge, keyboardType: .numberPad)
-                        StaffFormField(label: "Max Age", placeholder: "58", text: $maxAge, keyboardType: .numberPad)
+                        StaffFormField(label: "Min Age (Years)", placeholder: "e.g. 21", text: $minAge, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
+                        StaffFormField(label: "Max Age (Years)", placeholder: "e.g. 65", text: $maxAge, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     }
-                    StaffFormField(label: "Min Business Years", placeholder: "3", text: $minBusinessYears, keyboardType: .numberPad)
+                    StaffFormField(label: "Min Business Years (if applicable)", placeholder: "e.g. 2", text: $minBusinessYears, keyboardType: .numberPad, inputSanitizer: sanitizePositiveIntegerInput, onInvalidInput: showInvalidNumberWarning)
                     
                     Divider().background(Color.staffBorder)
-                    sectionHeader("Required Documents", icon: "doc.text.fill")
+                    sectionHeader("Required Documents Checklist", icon: "doc.text.fill")
                     HStack {
-                        TextField("Add document...", text: $newDocText)
+                        TextField("Enter document name", text: $newDocText)
                             .padding(12)
                             .background(Color.staffSurfaceMuted)
                             .cornerRadius(StaffCorner.md)
@@ -931,45 +1143,48 @@ struct EditProductSheet: View {
                             }
                         }.padding(.vertical, 4)
                     }
-                    
-                    if let error = validationError {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.staffRed)
-                            Text(error).font(.staffCaption).foregroundColor(.staffRed)
-                        }
-                    }
                 }
-                .padding(StaffSpacing.xxl)
+                .padding(.horizontal, StaffSpacing.xl)
+                
+                StaffButton(title: "Save Changes", style: .primary, icon: "checkmark.circle.fill", isLoading: isSaving) {
+                    saveProduct()
+                }
+                .disabled(isSaving)
+                .padding(.horizontal, StaffSpacing.xl)
+                .padding(.bottom, StaffSpacing.xl)
             }
-            .background(Color.staffBackground.ignoresSafeArea())
-            .navigationTitle("Edit \(product.name)")
+            .background(Color.staffBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }.foregroundColor(.staffTextSecondary)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: saveProduct) {
-                        if isSaving { ProgressView() } else { Text("Save Changes").fontWeight(.bold) }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
                     }
-                    .disabled(isSaving)
                     .foregroundColor(.staffAccent)
                 }
             }
         }
+        }
+        .presentationBackground(Color.staffBackground)
         .preferredColorScheme(.dark)
     }
     
     private func saveProduct() {
         validationError = nil
-        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { validationError = "Product name is required"; return }
-        guard let minAmt = Double(minAmount), minAmt > 0 else { validationError = "Enter a valid minimum amount"; return }
-        guard let maxAmt = Double(maxAmount), maxAmt > minAmt else { validationError = "Max amount must be > min amount"; return }
-        guard let minTen = Int(minTenure), minTen > 0 else { validationError = "Enter a valid min tenure"; return }
-        guard let maxTen = Int(maxTenure), maxTen > minTen else { validationError = "Max tenure must be > min tenure"; return }
-        guard let minRate = Double(minInterestRate), minRate >= 0 else { validationError = "Enter valid min rate"; return }
-        guard let maxRate = Double(maxInterestRate), maxRate >= minRate else { validationError = "Max rate must be ≥ min rate"; return }
-        guard interestFixed || interestFloating || interestReducing else { validationError = "Select at least one interest type"; return }
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { showValidationWarning("Product name is required"); return }
+        guard let minAmt = decimalValue(minAmount), minAmt > 0 else { showValidationWarning("Minimum amount must be greater than 0"); return }
+        guard let maxAmt = decimalValue(maxAmount), maxAmt > minAmt else { showValidationWarning("Maximum amount must be greater than minimum amount"); return }
+        guard let minTen = intValue(minTenure), minTen > 0 else { showValidationWarning("Minimum tenure must be greater than 0 months"); return }
+        guard let maxTen = intValue(maxTenure), maxTen > minTen else { showValidationWarning("Maximum tenure must be greater than minimum tenure"); return }
+        guard let minRate = decimalValue(minInterestRate), minRate >= 0, minRate <= 100 else { showValidationWarning("Minimum interest rate must be between 0 and 100"); return }
+        guard let maxRate = decimalValue(maxInterestRate), maxRate >= minRate, maxRate <= 100 else { showValidationWarning("Maximum interest rate must be at least the minimum rate and no more than 100"); return }
+        guard interestFixed || interestFloating || interestReducing else { showValidationWarning("Select at least one interest type"); return }
+        guard let spread = optionalPercentValue(spreadOverBase, field: "Spread over base rate") else { return }
+        guard let processing = optionalPercentValue(processingFee, field: "Processing fee") else { return }
+        guard let prepayment = optionalPercentValue(prepaymentPenalty, field: "Prepayment penalty") else { return }
+        guard let late = optionalPercentValue(latePenalty, field: "Late penalty") else { return }
+        guard validateOptionalEligibility() else { return }
         
         var types: [InterestType] = []
         if interestFixed { types.append(.fixed) }
@@ -977,11 +1192,11 @@ struct EditProductSheet: View {
         if interestReducing { types.append(.reducing) }
         
         var criteria: [String: Double] = [:]
-        if let v = Int(minIncome), v > 0 { criteria["min_income"] = Double(v) }
-        if let v = Int(minCreditScore), v > 0 { criteria["min_credit_score"] = Double(v) }
-        if let v = Int(minAge), v > 0 { criteria["min_age"] = Double(v) }
-        if let v = Int(maxAge), v > 0 { criteria["max_age"] = Double(v) }
-        if let v = Int(minBusinessYears), v > 0 { criteria["min_business_years"] = Double(v) }
+        if let v = intValue(minIncome), v > 0 { criteria["min_income"] = Double(v) }
+        if let v = intValue(minCreditScore), v > 0 { criteria["min_credit_score"] = Double(v) }
+        if let v = intValue(minAge), v > 0 { criteria["min_age"] = Double(v) }
+        if let v = intValue(maxAge), v > 0 { criteria["max_age"] = Double(v) }
+        if let v = intValue(minBusinessYears), v > 0 { criteria["min_business_years"] = Double(v) }
         
         isSaving = true
         
@@ -996,10 +1211,10 @@ struct EditProductSheet: View {
         updated.minInterestRate = minRate
         updated.maxInterestRate = maxRate
         updated.supportedInterestTypes = types
-        updated.spreadOverBase = Double(spreadOverBase) ?? 0.0
-        updated.processingFeePct = Double(processingFee) ?? 0.0
-        updated.prepaymentPenaltyPct = Double(prepaymentPenalty) ?? 0.0
-        updated.latePenaltyPctPerMonth = Double(latePenalty) ?? 0.0
+        updated.spreadOverBase = spread
+        updated.processingFeePct = processing
+        updated.prepaymentPenaltyPct = prepayment
+        updated.latePenaltyPctPerMonth = late
         updated.requiresCollateral = requiresCollateral
         updated.isActive = isActive
         updated.eligibilityCriteria = criteria.isEmpty ? nil : criteria
@@ -1017,16 +1232,173 @@ struct EditProductSheet: View {
     
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: StaffSpacing.sm) {
-            Image(systemName: icon).font(.system(size: 16, weight: .semibold)).foregroundColor(.staffAccent)
-            Text(title).font(.staffSectionTitle).foregroundColor(.staffTextPrimary)
+            Image(systemName: icon).font(.system(size: 14, weight: .semibold)).foregroundColor(.staffAccent)
+            Text(title).font(.staffCardTitle).foregroundColor(.staffTextPrimary)
         }
     }
     
-    private func interestTypeToggle(_ label: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            Text(label).font(.staffBody).foregroundColor(.staffTextPrimary)
+    private func interestTypeButton(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.staffBody)
+                .foregroundColor(isSelected ? .staffTextPrimary : .staffTextSecondary)
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.vertical, StaffSpacing.sm)
+                .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceMuted)
+                .clipShape(Capsule())
         }
-        .toggleStyle(.button)
-        .tint(.staffAccent)
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private var validationWarning: some View {
+        if let error = validationError {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                Text(error)
+            }
+            .font(.staffCaption)
+            .foregroundColor(.staffRed)
+            .padding(StaffSpacing.md)
+            .background(Color.staffRedBg)
+            .cornerRadius(StaffCorner.sm)
+            .padding(.horizontal, StaffSpacing.xl)
+        }
+    }
+    
+    private func positiveDecimalBinding(_ text: Binding<String>, field: String) -> Binding<String> {
+        Binding(
+            get: { text.wrappedValue },
+            set: { newValue in
+                guard isValidPositiveNumberInput(newValue, allowsDecimal: true, field: field) else { return }
+                text.wrappedValue = newValue
+            }
+        )
+    }
+    
+    private func positiveIntegerBinding(_ text: Binding<String>, field: String) -> Binding<String> {
+        Binding(
+            get: { text.wrappedValue },
+            set: { newValue in
+                guard isValidPositiveNumberInput(newValue, allowsDecimal: false, field: field) else { return }
+                text.wrappedValue = newValue
+            }
+        )
+    }
+    
+    private func isValidPositiveNumberInput(_ value: String, allowsDecimal: Bool, field: String) -> Bool {
+        guard !value.isEmpty else { return true }
+        if value.contains("-") {
+            showValidationWarning("\(field) cannot be negative")
+            return false
+        }
+        if !allowsDecimal && value.contains(".") {
+            showValidationWarning("\(field) must be a whole number")
+            return false
+        }
+        if allowsDecimal && value.filter({ $0 == "." }).count > 1 {
+            showValidationWarning("\(field) can contain only one decimal point")
+            return false
+        }
+        let allowedCharacters = allowsDecimal ? "0123456789,." : "0123456789,"
+        if value.contains(where: { !allowedCharacters.contains($0) }) {
+            showValidationWarning("Only positive numbers are allowed for \(field.lowercased())")
+            return false
+        }
+        return true
+    }
+    
+    private func sanitizePositiveDecimalInput(_ value: String) -> String {
+        sanitizePositiveNumberInput(value, allowsDecimal: true)
+    }
+    
+    private func sanitizePositiveIntegerInput(_ value: String) -> String {
+        sanitizePositiveNumberInput(value, allowsDecimal: false)
+    }
+    
+    private func sanitizePositiveNumberInput(_ value: String, allowsDecimal: Bool) -> String {
+        var result = ""
+        var hasDecimal = false
+        
+        for character in value {
+            if character.isNumber || character == "," {
+                result.append(character)
+            } else if allowsDecimal && character == "." && !hasDecimal {
+                hasDecimal = true
+                result.append(character)
+            }
+        }
+        
+        return result
+    }
+    
+    private func showInvalidNumberWarning() {
+        showValidationWarning("Enter a valid positive number")
+    }
+    
+    private func showValidationWarning(_ message: String) {
+        validationClearTask?.cancel()
+        validationError = message
+        validationClearTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if !Task.isCancelled {
+                validationError = nil
+            }
+        }
+    }
+    
+    private func cleanedNumber(_ value: String) -> String {
+        value.replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private func decimalValue(_ value: String) -> Double? {
+        Double(cleanedNumber(value))
+    }
+    
+    private func intValue(_ value: String) -> Int? {
+        Int(cleanedNumber(value))
+    }
+    
+    private func optionalPercentValue(_ value: String, field: String) -> Double? {
+        let cleaned = cleanedNumber(value)
+        guard !cleaned.isEmpty else { return 0 }
+        guard let number = Double(cleaned), number >= 0, number <= 100 else {
+            showValidationWarning("\(field) must be between 0 and 100")
+            return nil
+        }
+        return number
+    }
+    
+    private func validateOptionalEligibility() -> Bool {
+        if !cleanedNumber(minIncome).isEmpty, (intValue(minIncome) ?? -1) < 0 {
+            showValidationWarning("Minimum monthly income cannot be negative")
+            return false
+        }
+        if !cleanedNumber(minCreditScore).isEmpty {
+            guard let score = intValue(minCreditScore), (300...900).contains(score) else {
+                showValidationWarning("Minimum credit score must be between 300 and 900")
+                return false
+            }
+        }
+        let minAgeValue = intValue(minAge)
+        let maxAgeValue = intValue(maxAge)
+        if !cleanedNumber(minAge).isEmpty, !(18...75).contains(minAgeValue ?? -1) {
+            showValidationWarning("Minimum age must be between 18 and 75")
+            return false
+        }
+        if !cleanedNumber(maxAge).isEmpty, !(18...75).contains(maxAgeValue ?? -1) {
+            showValidationWarning("Maximum age must be between 18 and 75")
+            return false
+        }
+        if let minAgeValue, let maxAgeValue, maxAgeValue < minAgeValue {
+            showValidationWarning("Maximum age must be greater than or equal to minimum age")
+            return false
+        }
+        if !cleanedNumber(minBusinessYears).isEmpty, (intValue(minBusinessYears) ?? -1) < 0 {
+            showValidationWarning("Minimum business years cannot be negative")
+            return false
+        }
+        return true
     }
 }

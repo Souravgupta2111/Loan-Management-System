@@ -10,8 +10,11 @@ struct StaffFormField: View {
     var keyboardType: UIKeyboardType = .default
     var autocapitalization: TextInputAutocapitalization = .never
     var icon: String? = nil
+    var inputSanitizer: ((String) -> String)? = nil
+    var onInvalidInput: (() -> Void)? = nil
 
     @State private var isPasswordVisible: Bool = false
+    @State private var isUIKitFocused: Bool = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -30,11 +33,38 @@ struct StaffFormField: View {
 
                 Group {
                     if isSecure && !isPasswordVisible {
-                        SecureField(placeholder, text: $text)
+                        ZStack(alignment: .leading) {
+                            if text.isEmpty {
+                                Text(placeholder)
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextTertiary)
+                                    .allowsHitTesting(false)
+                            }
+                            SecureField("", text: $text)
+                        }
                     } else {
-                        TextField(placeholder, text: $text)
-                            .keyboardType(keyboardType)
-                            .textInputAutocapitalization(autocapitalization)
+                        ZStack(alignment: .leading) {
+                            if text.isEmpty {
+                                Text(placeholder)
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextTertiary)
+                                    .allowsHitTesting(false)
+                            }
+                            if let inputSanitizer {
+                                SanitizedTextField(
+                                    text: $text,
+                                    keyboardType: keyboardType,
+                                    autocapitalization: autocapitalization,
+                                    sanitizer: inputSanitizer,
+                                    onInvalidInput: onInvalidInput,
+                                    isFocused: $isUIKitFocused
+                                )
+                            } else {
+                                TextField("", text: $text)
+                                    .keyboardType(keyboardType)
+                                    .textInputAutocapitalization(autocapitalization)
+                            }
+                        }
                     }
                 }
                 .font(.staffBody)
@@ -75,8 +105,86 @@ struct StaffFormField: View {
 
     private var borderColor: Color {
         if error != nil && !(error?.isEmpty ?? true) { return .staffRed }
-        if isFocused { return .staffAccent }
+        if isFocused || isUIKitFocused { return .staffAccent }
         return .staffBorder
+    }
+}
+
+private struct SanitizedTextField: UIViewRepresentable {
+    @Binding var text: String
+    let keyboardType: UIKeyboardType
+    let autocapitalization: TextInputAutocapitalization
+    let sanitizer: (String) -> String
+    let onInvalidInput: (() -> Void)?
+    @Binding var isFocused: Bool
+
+    func makeUIView(context: Context) -> UITextField {
+        let textField = UITextField()
+        textField.delegate = context.coordinator
+        textField.borderStyle = .none
+        textField.backgroundColor = .clear
+        textField.textColor = UIColor(Color.staffTextPrimary)
+        textField.tintColor = UIColor(Color.staffAccent)
+        textField.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+        textField.keyboardType = keyboardType
+        textField.autocorrectionType = .no
+        textField.autocapitalizationType = .none
+        textField.addTarget(context.coordinator, action: #selector(Coordinator.textDidChange(_:)), for: .editingChanged)
+        return textField
+    }
+
+    func updateUIView(_ textField: UITextField, context: Context) {
+        if textField.text != text {
+            textField.text = text
+        }
+        textField.keyboardType = keyboardType
+        textField.autocapitalizationType = .none
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: SanitizedTextField
+
+        init(parent: SanitizedTextField) {
+            self.parent = parent
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.isFocused = true
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFocused = false
+        }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            let current = textField.text ?? ""
+            guard let textRange = Range(range, in: current) else { return false }
+            let proposed = current.replacingCharacters(in: textRange, with: string)
+            let sanitized = parent.sanitizer(proposed)
+
+            guard sanitized == proposed else {
+                parent.onInvalidInput?()
+                textField.text = sanitized
+                parent.text = sanitized
+                return false
+            }
+
+            return true
+        }
+
+        @objc func textDidChange(_ textField: UITextField) {
+            let current = textField.text ?? ""
+            let sanitized = parent.sanitizer(current)
+            if sanitized != current {
+                parent.onInvalidInput?()
+                textField.text = sanitized
+            }
+            parent.text = sanitized
+        }
     }
 }
 

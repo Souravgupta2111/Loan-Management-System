@@ -19,8 +19,8 @@ struct BranchManagementView: View {
         HStack(spacing: 0) {
             // Left Panel — Branch List
             branchListPanel
-                .frame(width: 320)
-                .background(Color.staffSurface)
+                .frame(width: 340)
+                .background(Color.staffBackground)
 
             Divider()
                 .background(Color.staffBorder)
@@ -58,18 +58,19 @@ struct BranchManagementView: View {
             // Header
             HStack {
                 Text("Branches")
-                    .font(.staffSectionTitle)
+                    .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
 
                 Spacer()
 
                 Button(action: { showCreateSheet = true }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
+                    Image(systemName: "plus.app")
+                        .font(.system(size: 20))
                         .foregroundColor(.staffAccent)
                 }
             }
-            .padding(StaffSpacing.lg)
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.top, StaffSpacing.lg)
 
             // Search
             HStack(spacing: StaffSpacing.sm) {
@@ -1331,9 +1332,12 @@ struct CreateBranchSheet: View {
             .background(Color.staffBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.staffAccent)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
                 }
             }
         }
@@ -1440,9 +1444,12 @@ struct StaffPickerSheet: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.staffAccent)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
                 }
             }
         }
