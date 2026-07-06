@@ -68,14 +68,27 @@ class OfficerDashboardViewModel: ObservableObject {
     // MARK: - Helper calculations
     
     private func calculateStats() {
-        statsPendingCount = applications.filter { $0.application.status == .submitted || $0.application.status == .sentBack }.count
-        statsUnderReviewCount = applications.filter { $0.application.status == .underReview }.count
-        statsApprovedCount = applications.filter { $0.application.status == .approved || $0.application.status == .pendingAcceptance || $0.application.status == .pendingDisbursal || $0.application.status == .disbursed }.count
-        statsRejectedCount = applications.filter { $0.application.status == .rejected }.count
+        let activeApps = applications.filter { $0.application.status != .disbursed }
+        statsPendingCount = activeApps.filter { $0.application.status == .submitted || $0.application.status == .sentBack }.count
+        statsUnderReviewCount = activeApps.filter { $0.application.status == .underReview }.count
+        statsApprovedCount = activeApps.filter { $0.application.status == .approved || $0.application.status == .pendingAcceptance || $0.application.status == .pendingDisbursal }.count
+        statsRejectedCount = activeApps.filter { $0.application.status == .rejected }.count
+    }
+    
+    private func statusPriority(_ status: ApplicationStatus) -> Int {
+        switch status {
+        case .submitted:         return 1
+        case .sentBack:          return 2
+        case .pendingAcceptance: return 3
+        default:                 return 4
+        }
     }
     
     private func applyFilters(search: String, filter: String) {
         var result = applications
+        
+        // Exclude disbursed loans completely
+        result = result.filter { $0.application.status != .disbursed }
         
         // Apply status filter
         if filter != "All" {
@@ -92,10 +105,16 @@ class OfficerDashboardViewModel: ObservableObject {
             }
         }
         
-        // Sort by latest message
+        // Sort by status priority: submitted first, then sentBack, then pendingAcceptance, and then others
         result.sort { app1, app2 in
-            let date1 = lastMessageTimes[app1.application.id] ?? .distantPast
-            let date2 = lastMessageTimes[app2.application.id] ?? .distantPast
+            let p1 = statusPriority(app1.application.status)
+            let p2 = statusPriority(app2.application.status)
+            if p1 != p2 {
+                return p1 < p2
+            }
+            // Tie-breaker: latest message or date
+            let date1 = lastMessageTimes[app1.application.id] ?? (app1.application.createdAt ?? .distantPast)
+            let date2 = lastMessageTimes[app2.application.id] ?? (app2.application.createdAt ?? .distantPast)
             return date1 > date2
         }
         

@@ -224,6 +224,45 @@ class ManagerDashboardViewModel: ObservableObject {
                 approvedRate: interestRate
             )
             
+            // Fetch borrower and officer info to notify them
+            struct AppRecord: Decodable { 
+                let borrower_id: UUID
+                let assigned_officer_id: UUID?
+            }
+            if let record: AppRecord = try? await SupabaseManager.shared.database
+                .from("loan_applications")
+                .select("borrower_id, assigned_officer_id")
+                .eq("id", value: applicationId)
+                .single()
+                .execute()
+                .value {
+                
+                // Notify Borrower (Asked for borrower approval)
+                try? await NotificationService.shared.createNotification(
+                    userId: record.borrower_id,
+                    title: "Loan Proposal Ready",
+                    message: "Congratulations! Your loan has been approved by the manager. Please review and accept the final terms and sanction letter.",
+                    type: .loanUpdate,
+                    referenceId: applicationId,
+                    referenceType: "loan_applications"
+                )
+                
+                // Notify Officer
+                if let officerId = record.assigned_officer_id {
+                    let allStaff = try? await StaffManagementService.shared.fetchStaff()
+                    if let officerUserId = allStaff?.first(where: { $0.staff.id == officerId })?.user.id {
+                        try? await NotificationService.shared.createNotification(
+                            userId: officerUserId,
+                            title: "Application Approved by Manager",
+                            message: "The loan application you recommended has been approved by the manager.",
+                            type: .loanUpdate,
+                            referenceId: applicationId,
+                            referenceType: "loan_applications"
+                        )
+                    }
+                }
+            }
+            
             await loadDashboard()
             return true
         } catch {

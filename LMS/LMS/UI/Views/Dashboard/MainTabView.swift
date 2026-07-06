@@ -92,7 +92,12 @@ struct MainTabView: View {
             }
         .tint(.accentGreen)
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .onAppear  { NotificationService.shared.subscribeToNotifications() }
+        .onAppear {
+            Task {
+                try? await NotificationService.shared.requestPermission()
+            }
+            NotificationService.shared.subscribeToNotifications()
+        }
         .onDisappear { NotificationService.shared.unsubscribe() }
     }
 }

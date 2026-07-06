@@ -35,7 +35,7 @@ struct OfficerDashboardView: View {
                 // Mini Metric Summary Cards
                 HStack(spacing: StaffSpacing.md) {
                     MiniStatCard(title: "New", value: "\(vm.statsPendingCount)", icon: "hourglass", color: .staffAccent)
-                    MiniStatCard(title: "Reviewing", value: "\(vm.statsUnderReviewCount)", icon: "eye", color: .staffAmber)
+                    MiniStatCard(title: "In Process", value: "\(vm.statsUnderReviewCount)", icon: "eye", color: .staffAmber)
                     MiniStatCard(title: "Approved", value: "\(vm.statsApprovedCount)", icon: "checkmark.circle", color: .staffGreen)
                 }
                 .padding(StaffSpacing.lg)
@@ -47,6 +47,7 @@ struct OfficerDashboardView: View {
                         OfficerFilterChip(title: "Submitted", isSelected: vm.selectedStatusFilter == "Submitted") { vm.selectedStatusFilter = "Submitted" }
                         OfficerFilterChip(title: "Under Review", isSelected: vm.selectedStatusFilter == "Under Review") { vm.selectedStatusFilter = "Under Review" }
                         OfficerFilterChip(title: "Sent Back", isSelected: vm.selectedStatusFilter == "Sent Back") { vm.selectedStatusFilter = "Sent Back" }
+                        OfficerFilterChip(title: "Rejected", isSelected: vm.selectedStatusFilter == "Rejected") { vm.selectedStatusFilter = "Rejected" }
                     }
                     .padding(.horizontal, StaffSpacing.lg)
                 }

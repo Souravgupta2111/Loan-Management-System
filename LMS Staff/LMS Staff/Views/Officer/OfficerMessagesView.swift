@@ -112,7 +112,6 @@ struct ChatSupportConsole: View {
     @State private var messageText: String = ""
     @State private var isInternalChat: Bool
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var showDetailsSheet = false
     
     init(appWithBorrower: ApplicationWithBorrower, forceInternalOnly: Bool = false) {
         self.appWithBorrower = appWithBorrower
@@ -140,27 +139,6 @@ struct ChatSupportConsole: View {
                 }
                 
                 Spacer()
-                
-                if authViewModel.currentUser?.role == .officer {
-                    Button(action: { showDetailsSheet = true }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                            Text("View Info")
-                        }
-                        .font(.staffCaption)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.staffBackground)
-                        .foregroundColor(.staffAccent)
-                        .cornerRadius(StaffCorner.md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StaffCorner.md)
-                                .stroke(Color.staffBorder, lineWidth: 1)
-                        )
-                    }
-                    .padding(.trailing, 8)
-                }
                 
                 if !forceInternalOnly {
                     // Toggle between Borrower and Internal chat
@@ -294,12 +272,6 @@ struct ChatSupportConsole: View {
         }
         .task {
             await detailVm.loadAllDetails()
-        }
-        .sheet(isPresented: $showDetailsSheet) {
-            NavigationView {
-                ApplicationDetailView(appWithBorrower: appWithBorrower, onStatusUpdated: {})
-                    .environmentObject(authViewModel)
-            }
         }
     }
     

@@ -608,23 +608,40 @@ struct ApplicationDetailView: View {
             } else {
                     if authViewModel.currentUser?.role == .officer {
                         if vm.application.status == .submitted || vm.application.status == .sentBack {
-                            StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                                showRejectSheet = true
+                            if activeTab == .profile {
+                                StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                                    showRejectSheet = true
+                                }
+                                
+                                Spacer(minLength: 20)
+                                
+                                StaffButton(
+                                    title: "Verify Documents",
+                                    style: .primary,
+                                    icon: "doc.text.magnifyingglass"
+                                ) {
+                                    activeTab = .documents
+                                }
+                                .frame(minWidth: 240)
+                            } else {
+                                StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                                    showRejectSheet = true
+                                }
+                                
+                                Spacer(minLength: 20)
+                                
+                                let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
+                                StaffButton(
+                                    title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Escalate to Manager",
+                                    style: .primary,
+                                    icon: "hand.thumbsup.fill"
+                                ) {
+                                    showRecommendSheet = true
+                                }
+                                .frame(minWidth: 240)
+                                .disabled(!allVerified)
+                                .opacity(allVerified ? 1.0 : 0.5)
                             }
-                            
-                            Spacer(minLength: 20)
-                            
-                            let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
-                            StaffButton(
-                                title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
-                                style: .primary,
-                                icon: "hand.thumbsup.fill"
-                            ) {
-                                showRecommendSheet = true
-                            }
-                            .frame(minWidth: 240)
-                            .disabled(!allVerified)
-                            .opacity(allVerified ? 1.0 : 0.5)
                         } else if vm.application.status == .underReview {
                             Spacer()
                             Text("Escalated to Manager")
@@ -704,6 +721,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(30)
+        .frame(width: 500, height: 280)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
@@ -738,33 +756,77 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(30)
+        .frame(width: 500, height: 280)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
 
     
     private var recommendChecklistSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Officer Checklist Audit")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Verify requirements checklist before sending to manager:")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
+        VStack(spacing: 0) {
+            // Top Row for Close button
+            HStack {
+                Button(action: { showRecommendSheet = false }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.staffGreen)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(Color.white))
+                        .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 1)
+                }
+                Spacer()
+            }
+            .padding(.leading, 24)
+            .padding(.top, 24)
             
             VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                ChecklistItem(text: "KYC Details matched with original scans")
-                ChecklistItem(text: "Bank Details exist and confirmed")
-                ChecklistItem(text: "Credit score conforms to rules guidelines")
-                ChecklistItem(text: "Income verification files confirmed valid")
-            }
-            
-            HStack {
-                Button("Cancel") { showRecommendSheet = false }
-                    .foregroundColor(.staffTextSecondary)
-                Spacer()
-                Button("Confirm & Recommend") {
+                // Centered aligned Header
+                VStack(spacing: StaffSpacing.xs) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.staffGreen)
+                            .frame(width: 72, height: 72)
+                        Image(systemName: "checklist")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.bottom, StaffSpacing.xs)
+                    
+                    Text("Officer Checklist Audit")
+                        .font(.staffTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.staffTextPrimary)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Verify requirements checklist before sending to manager")
+                        .font(.staffCaption)
+                        .foregroundColor(.staffTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                
+                Spacer(minLength: StaffSpacing.md)
+                
+                // Checkpoints (centered as a block)
+                HStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                        ChecklistItem(text: "KYC Details matched with original scans")
+                        ChecklistItem(text: "Bank Details exist and confirmed")
+                        ChecklistItem(text: "Credit score conforms to rules guidelines")
+                        ChecklistItem(text: "Income verification files confirmed valid")
+                    }
+                    Spacer()
+                }
+                
+                Spacer(minLength: StaffSpacing.lg)
+                
+                // Full width Confirm & Recommend button
+                StaffButton(
+                    title: "Confirm & Recommend",
+                    style: .success,
+                    icon: "checkmark.circle.fill"
+                ) {
                     Task {
                         if await vm.recommendToManager() {
                             showRecommendSheet = false
@@ -772,13 +834,13 @@ struct ApplicationDetailView: View {
                         }
                     }
                 }
-                .foregroundColor(.staffGreen)
-                .fontWeight(.bold)
             }
-            .padding(.top, StaffSpacing.lg)
+            .padding(.horizontal, 30)
+            .padding(.bottom, 30)
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        .frame(width: 480, height: 500)
+        .background(Color.staffGreenBg.ignoresSafeArea())
+        .presentationBackground(Color.staffGreenBg)
     }
 }
 
