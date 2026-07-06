@@ -317,11 +317,11 @@ struct LoanInspectorView: View {
     
     private var timelineSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.md) {
-            Text("Complete History Trail")
+            Text("Application Pipeline")
                 .font(.staffTitle)
                 .foregroundColor(.staffTextPrimary)
             
-            StaffTimelineView(items: vm.timelineItems)
+            StaffLoanPipelineView(stages: vm.pipelineStages)
         }
     }
     

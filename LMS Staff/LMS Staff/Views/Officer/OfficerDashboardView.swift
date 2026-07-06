@@ -125,6 +125,9 @@ struct OfficerDashboardView: View {
                         Task {
                             if let staff = authViewModel.currentStaff {
                                 await vm.loadApplications(forOfficerId: staff.id)
+                                if let selected = selectedApp {
+                                    selectedApp = vm.applications.first(where: { $0.application.id == selected.application.id })
+                                }
                             }
                         }
                     }

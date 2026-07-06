@@ -136,6 +136,15 @@ struct ApplicationDetailView: View {
         .task {
             await vm.loadAllDetails()
         }
+        .onChange(of: appWithBorrower) { newValue in
+            vm.application = newValue.application
+            vm.borrower = newValue.borrower
+            vm.borrowerProfile = newValue.profile
+            vm.product = newValue.product
+            Task {
+                await vm.loadAllDetails()
+            }
+        }
         .navigationBarHidden(false)
         // MODALS/SHEETS LIST
         .sheet(isPresented: $showRejectSheet) {
@@ -578,11 +587,11 @@ struct ApplicationDetailView: View {
     
     private var timelineSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.md) {
-            Text("Decision History Trail")
+            Text("Application Pipeline")
                 .font(.staffTitle)
                 .foregroundColor(.staffTextPrimary)
             
-            StaffTimelineView(items: vm.timelineItems)
+            StaffLoanPipelineView(stages: vm.pipelineStages)
         }
     }
     
@@ -618,7 +627,7 @@ struct ApplicationDetailView: View {
                             .opacity(allVerified ? 1.0 : 0.5)
                         } else if vm.application.status == .underReview {
                             Spacer()
-                            Text("Pending Manager Approval")
+                            Text("Escalated to Manager")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffAmber)
                             Spacer()
