@@ -392,7 +392,7 @@ struct EMIRow: View {
                 
                 if emi.status == .overdue {
                     Text(statusText)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)

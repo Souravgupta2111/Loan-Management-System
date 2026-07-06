@@ -192,7 +192,7 @@ struct ApplicationDetailView: View {
                             Text("Message Loan Officer")
                             if unreadCount > 0 {
                                 Text("\(unreadCount)")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundColor(.accentGreen)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
@@ -246,7 +246,7 @@ struct ApplicationDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "person.badge.shield.checkmark.fill")
-                    .font(.system(size: 20))
+                    .font(.title3)
                     .foregroundColor(.accentGreen)
                 Text("Your Loan Officer")
                     .font(.cardTitle)
@@ -269,7 +269,7 @@ struct ApplicationDetailView: View {
                             .fill(Color.accentGreen.opacity(0.15))
                             .frame(width: 44, height: 44)
                         Text(String(info.officerName.prefix(1)).uppercased())
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.headline.weight(.bold))
                             .foregroundColor(.accentGreen)
                     }
                     
@@ -289,7 +289,7 @@ struct ApplicationDetailView: View {
                 HStack {
                     Image(systemName: "building.2.fill")
                         .foregroundColor(.textSecondary)
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(info.branchName)
                             .font(.bodyRegular)

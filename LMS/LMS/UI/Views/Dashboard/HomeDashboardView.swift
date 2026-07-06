@@ -10,6 +10,7 @@ struct HomeDashboardView: View {
     @State private var showProfile = false
     @State private var showChatHint = false
     @State private var showAllTransactions = false
+    @State private var showAIChat = false
 
     // UI control flags to hide elements
     private let showChatButton = true
@@ -17,30 +18,54 @@ struct HomeDashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    headerSection
+            ZStack(alignment: .bottomTrailing) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        headerSection
 
-                    if loans.isEmpty && hasLoaded {
-                        applyLoanPromoCard
-                        quickActionsSection
-                        emptyState
-                    } else if !loans.isEmpty {
-                        heroLoanCarousel
-                            .padding(.horizontal, -16) // offset the ScrollView padding
 
-                        quickActionsSection
 
-                        transactionHistorySection
-                    } else {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 48)
+                        if loans.isEmpty && hasLoaded {
+                            applyLoanPromoCard
+                            quickActionsSection
+                            emptyState
+                        } else if !loans.isEmpty {
+                            heroLoanCarousel
+                                .padding(.horizontal, -16) // offset the ScrollView padding
+
+                            quickActionsSection
+
+                            transactionHistorySection
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 48)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 6)
+                    .padding(.bottom, 100)
+                }
+                
+                // Floating AI Chat Button
+                Button {
+                    showAIChat = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#1A1A1A"))
+                            .frame(width: 60, height: 60)
+                        
+                        Image(systemName: "sparkles")
+                            .font(.title2.weight(.semibold))
+                            .foregroundColor(Color(hex: "#2D8B4E"))
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 100)
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                .accessibilityLabel("Open AI Financial Advisor")
+                .accessibilityHint("Double tap to chat with your personal AI assistant")
             }
             .background(
                 LinearGradient(
@@ -55,6 +80,9 @@ struct HomeDashboardView: View {
             .sheet(isPresented: $showProfile) {
                 ProfileView()
                     .environmentObject(authViewModel)
+            }
+            .fullScreenCover(isPresented: $showAIChat) {
+                AIChatView()
             }
             .task { await loadData() }
             .refreshable { await loadData() }
@@ -81,10 +109,10 @@ struct HomeDashboardView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(greetingText)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                     Text(firstName)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.title2.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                 }
 
@@ -99,7 +127,7 @@ struct HomeDashboardView: View {
                                     .fill(Color(hex: "#E8F5EC"))
                                     .frame(width: 40, height: 40)
                                 Image(systemName: "bell")
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(.body.weight(.medium))
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             }
                         }
@@ -113,7 +141,7 @@ struct HomeDashboardView: View {
                                 .fill(Color(hex: "#1A1A1A"))
                                 .frame(width: 40, height: 40)
                             Image(systemName: "person.fill")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.body.weight(.medium))
                                 .foregroundColor(.white)
                         }
                     }
@@ -123,11 +151,11 @@ struct HomeDashboardView: View {
 
             if !activeLoans.isEmpty {
                 Text("You're on track!")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.title3.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
             } else if let _ = loans.first(where: { $0.status.lowercased() != "active" }) {
                 Text("We 're in Process !")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .font(.title3.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#6B6B6B"))
                     .padding(.vertical, 2)
             }
@@ -161,11 +189,11 @@ struct HomeDashboardView: View {
                         .fill(Color(hex: "#E8F5EC"))
                         .frame(width: 38, height: 38)
                     Image(systemName: primaryLoan.icon)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
                 Text(primaryLoan.name)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.headline.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
                     .lineLimit(1)
                 Spacer()
@@ -175,17 +203,17 @@ struct HomeDashboardView: View {
             VStack(alignment: .leading, spacing: 3) {
                 if primaryLoan.status.lowercased() == "active" {
                     Text("Outstanding Balance")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                     Text("₹ \(formatIndian(outstanding))")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(.title.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                 } else {
                     Text("Requested Amount")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                     Text("₹ \(formatIndian(outstanding))")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(.title.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                 }
             }
@@ -207,7 +235,7 @@ struct HomeDashboardView: View {
                         .frame(height: 6)
 
                         Text("\(Int(paidPercent * 100))% repaid")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundColor(Color(hex: "#2D8B4E"))
                             .fixedSize()
                     }
@@ -221,7 +249,7 @@ struct HomeDashboardView: View {
                         .frame(height: 6)
 
                         Text("No EMIs paid")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundColor(Color(hex: "#9E9E9E"))
                             .fixedSize()
                     }
@@ -231,10 +259,10 @@ struct HomeDashboardView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Next EMI")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.subheadline.weight(.regular))
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text("₹ \(formatIndian(primaryLoan.emiAmount)) · \(formattedNextDueDate(primaryLoan.nextDueDate))")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundColor(Color(hex: "#1A1A1A"))
                     }
 
@@ -244,7 +272,7 @@ struct HomeDashboardView: View {
                         EMIScheduleView(loanId: primaryLoan.id)
                     } label: {
                         Text("Pay Now")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.body.weight(.bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 22)
                             .padding(.vertical, 12)
@@ -258,10 +286,10 @@ struct HomeDashboardView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Application Status")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.subheadline.weight(.regular))
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(primaryLoan.status.capitalized.replacingOccurrences(of: "_", with: " "))
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundColor(Color(hex: "#2D8B4E"))
                     }
 
@@ -271,7 +299,7 @@ struct HomeDashboardView: View {
                         LoanDetailView(loan: primaryLoan)
                     } label: {
                         Text("View Updates")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.body.weight(.bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
@@ -285,6 +313,9 @@ struct HomeDashboardView: View {
         }
         .padding(18)
         .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.06)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(primaryLoan.name), \(primaryLoan.status.lowercased() == "active" ? "Outstanding Balance" : "Requested Amount") ₹ \(formatIndian(primaryLoan.remainingAmount)). \(primaryLoan.status.lowercased() == "active" ? "\(Int(primaryLoan.paidPercent * 100))% repaid" : "Status: \(primaryLoan.status)")")
+        .accessibilityHint("Double tap to view loan details")
     }
 
     // MARK: - Quick Actions
@@ -292,10 +323,10 @@ struct HomeDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "bolt.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                 Text("QUICK ACTIONS")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#6B6B6B"))
                     .tracking(0.8)
             }
@@ -342,11 +373,11 @@ struct HomeDashboardView: View {
                     .fill(Color(hex: "#E8F5EC"))
                     .frame(width: 42, height: 42)
                 Image(systemName: icon)
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
             }
             Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.subheadline.weight(.medium)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
                 .multilineTextAlignment(.center)
         }
@@ -361,10 +392,10 @@ struct HomeDashboardView: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                     Text("TRANSACTION HISTORY")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .tracking(0.8)
                 }
@@ -378,9 +409,9 @@ struct HomeDashboardView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text("See more")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.body.weight(.semibold))
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.caption.weight(.bold))
                         }
                         .foregroundColor(Color(hex: "#2D8B4E"))
                     }
@@ -392,10 +423,10 @@ struct HomeDashboardView: View {
             if transactionItems.isEmpty {
                 VStack(alignment: .center, spacing: 6) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 26))
+                        .font(.title2)
                         .foregroundColor(Color(hex: "#C8E6D0"))
                     Text("No transactions yet")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                 }
                 .frame(maxWidth: .infinity, minHeight: 290)
@@ -418,17 +449,17 @@ struct HomeDashboardView: View {
                     .fill(item.statusBg)
                     .frame(width: 34, height: 34)
                 Image(systemName: item.statusIcon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundColor(item.statusColor)
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.body.weight(.bold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
                     .lineLimit(1)
                 Text(item.subtitle)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.subheadline.weight(.regular))
                     .foregroundColor(Color(hex: "#6B6B6B"))
             }
 
@@ -436,10 +467,10 @@ struct HomeDashboardView: View {
 
             HStack(spacing: 2) {
                 Text(item.direction.sign)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.body.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(item.direction.color)
                 Text("₹\(formatIndian(abs(item.amount)))")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.body.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
             }
         }
@@ -461,21 +492,21 @@ struct HomeDashboardView: View {
                             .fill(Color(hex: "#E8F5EC"))
                             .frame(width: 48, height: 48)
                         Image(systemName: "indianrupeesign.circle.fill")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.title2.weight(.bold))
                             .foregroundColor(Color(hex: "#2D8B4E"))
                     }
                     Spacer()
                     Image(systemName: "arrow.up.right.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.title2)
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Start Your Loan Journey")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.title3.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                     Text("Apply for a new loan today. Get instant approval, competitive interest rates, and flexible tenure options customized for you.")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .lineSpacing(4)
                 }
@@ -490,13 +521,13 @@ struct HomeDashboardView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 36))
+                .font(.title)
                 .foregroundColor(Color(hex: "#C8E6D0"))
             Text("No loans yet")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.headline.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
             Text("Apply for your first loan and manage everything from one place.")
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(Color(hex: "#6B6B6B"))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
@@ -507,10 +538,10 @@ struct HomeDashboardView: View {
                 HStack {
                     Spacer()
                     Text("Apply Now")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.white)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundColor(.white)
                     Spacer()
                 }

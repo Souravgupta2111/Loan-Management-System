@@ -30,6 +30,8 @@ struct StatCard: View {
             RoundedRectangle(cornerRadius: Corner.lg)
                 .stroke(Color.border, lineWidth: 0.5)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
     }
 }
 
@@ -40,11 +42,11 @@ struct DarkStatPill: View {
     var body: some View {
         HStack(spacing: 8) {
             Text("\(count)")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(.white)
             
             Text(label.replacingOccurrences(of: "\n", with: " "))
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundColor(.white.opacity(0.85))
                 .lineLimit(1)
         }
@@ -57,5 +59,7 @@ struct DarkStatPill: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.white.opacity(0.18), lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(count)")
     }
 }

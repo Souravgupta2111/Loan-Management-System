@@ -32,7 +32,7 @@ struct IncomeVerificationView: View {
                         ProgressView()
                             .scaleEffect(1.5)
                         Text("Initiating secure connection with Account Aggregator...")
-                            .font(.system(size: 15))
+                            .font(.body)
                             .foregroundColor(.textSecondary)
                     }
                 } else if isSaving {
@@ -40,19 +40,19 @@ struct IncomeVerificationView: View {
                         ProgressView()
                             .scaleEffect(1.5)
                         Text("Saving consent...")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.title3.weight(.bold))
                             .foregroundColor(.textPrimary)
                     }
                 } else if let error = errorMessage {
                     VStack(spacing: 24) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 48))
+                            .font(.title)
                             .foregroundColor(.accentRed)
                         Text("Verification Failed")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.title3.weight(.bold))
                             .foregroundColor(.textPrimary)
                         Text(error)
-                            .font(.system(size: 15))
+                            .font(.body)
                             .foregroundColor(.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)

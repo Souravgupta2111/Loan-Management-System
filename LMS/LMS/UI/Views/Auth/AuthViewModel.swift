@@ -83,6 +83,28 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Restore Session (Biometric Login)
+    /// Called after successful biometric auth to restore an existing Supabase session.
+    /// Supabase persists sessions in Keychain, so we just re-check the stored session.
+    func restoreSession() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let session = try await supabase.auth.session
+            if session.isExpired {
+                isLoading = false
+                errorMessage = "Session expired. Please sign in with your credentials."
+                return
+            }
+            currentUser = session.user
+            await checkKYCStatus()
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = "Could not restore session. Please sign in with your credentials."
+        }
+    }
+
     // MARK: - Sign Out
     func signOut() async {
         do {

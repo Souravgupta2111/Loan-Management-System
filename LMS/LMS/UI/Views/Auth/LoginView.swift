@@ -81,14 +81,43 @@ struct LoginView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        // Sign In button
-                        PillButton(title: "Sign In", style: .primary) {
-                            Task {
-                                await authViewModel.signIn(email: email, password: password)
+                        // Sign In / Face ID Row
+                        HStack(spacing: Spacing.md) {
+                            PillButton(title: "Sign In", style: .primary) {
+                                HapticManager.shared.impact(style: .medium)
+                                Task {
+                                    await authViewModel.signIn(email: email, password: password)
+                                    if authViewModel.errorMessage == nil {
+                                        HapticManager.shared.notification(type: .success)
+                                    } else {
+                                        HapticManager.shared.notification(type: .error)
+                                    }
+                                }
+                            }
+                            .disabled(email.isEmpty || password.isEmpty || authViewModel.isLoading)
+                            .opacity(email.isEmpty || password.isEmpty ? 0.6 : 1)
+                            
+                            if BiometricAuthService.shared.canEvaluatePolicy() {
+                                Button {
+                                    HapticManager.shared.impact(style: .medium)
+                                    Task {
+                                        if await BiometricAuthService.shared.authenticate() {
+                                            HapticManager.shared.notification(type: .success)
+                                            await authViewModel.restoreSession()
+                                        } else {
+                                            HapticManager.shared.notification(type: .error)
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "faceid")
+                                        .font(.title3)
+                                        .foregroundColor(.accentGreen)
+                                        .frame(width: 48, height: 48)
+                                        .background(Color.accentGreen.opacity(0.15))
+                                        .clipShape(Circle())
+                                }
                             }
                         }
-                        .disabled(email.isEmpty || password.isEmpty || authViewModel.isLoading)
-                        .opacity(email.isEmpty || password.isEmpty ? 0.6 : 1)
 
                         if authViewModel.isLoading {
                             ProgressView()

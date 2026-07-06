@@ -21,10 +21,10 @@ struct SelectLoanTypeView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Choose Loan Type")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .font(.title3.weight(.bold)).fontDesign(.rounded)
                             .foregroundColor(.textPrimary)
                         Text("Select the product that fits your financial needs")
-                            .font(.system(size: 15, weight: .regular))
+                            .font(.body.weight(.regular))
                             .foregroundColor(.textSecondary)
                     }
 
@@ -48,10 +48,10 @@ struct SelectLoanTypeView: View {
             } label: {
                 HStack(spacing: 8) {
                     Text("NEXT")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.body.weight(.bold))
                         .tracking(1.5)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -86,7 +86,7 @@ struct SelectLoanTypeView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundColor(.accentGreen)
                     }
                     .buttonStyle(.plain)
@@ -167,14 +167,14 @@ struct SelectLoanTypeView: View {
     private func errorView(message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 28))
+                .font(.title2)
                 .foregroundColor(.textSecondary)
             Text(message)
-                .font(.system(size: 15))
+                .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
             Button("Retry") { Task { await loadLoanTypes() } }
-                .font(.system(size: 14, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundColor(Color(hex: "#2D8B4E"))
         }
         .frame(maxWidth: .infinity)
@@ -191,7 +191,7 @@ struct SelectLoanTypeView: View {
                     Circle()
                         .fill(isSelected ? Color(hex: "#89DBA6").opacity(0.20) : Color.surfaceMuted)
                     Image(systemName: loanType.icon)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.headline.weight(.semibold))
                         .foregroundColor(isSelected ? Color(hex: "#2D8B4E") : .textSecondary)
                 }
                 .frame(width: 44, height: 44)
@@ -203,7 +203,7 @@ struct SelectLoanTypeView: View {
                 }
             }
             Text(loanType.displayName)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.headline.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(.textPrimary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)

@@ -26,7 +26,7 @@ struct ChatSelectionView: View {
             } else if viewModel.loans.isEmpty {
                 VStack(spacing: Spacing.md) {
                     Image(systemName: "bubble.left.and.exclamationmark.bubble.right")
-                        .font(.system(size: 40))
+                        .font(.title)
                         .foregroundColor(.textSecondary)
                     Text("No loans available for chat")
                         .font(.bodyRegular)
@@ -79,7 +79,7 @@ struct ChatLoanCard: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(loan.name)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.body.weight(.bold))
                     .foregroundColor(.textPrimary)
                 Text(loan.loanNumber)
                     .font(.caption)

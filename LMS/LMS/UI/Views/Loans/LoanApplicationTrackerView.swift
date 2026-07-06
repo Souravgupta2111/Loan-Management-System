@@ -36,7 +36,7 @@ struct LoanApplicationTrackerView: View {
                                 
                                 if index <= currentStageIndex {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 12, weight: .bold))
+                                        .font(.caption.weight(.bold))
                                         .foregroundColor(.white)
                                 }
                             }

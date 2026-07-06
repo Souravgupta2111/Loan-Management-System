@@ -151,7 +151,7 @@ struct ProductDetailView: View {
                 // Header
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text(product.name)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.title2.weight(.bold))
                         .foregroundColor(.textPrimary)
                     
                     Text(product.description ?? "")

@@ -1,11 +1,15 @@
 -- Add unique constraints to prevent duplicate PAN and Aadhaar usage
+ALTER TABLE borrower_profiles DROP CONSTRAINT IF EXISTS unique_pan_number;
 ALTER TABLE borrower_profiles
 ADD CONSTRAINT unique_pan_number UNIQUE (pan_number);
 
+ALTER TABLE borrower_profiles DROP CONSTRAINT IF EXISTS unique_aadhaar_number;
 ALTER TABLE borrower_profiles
 ADD CONSTRAINT unique_aadhaar_number UNIQUE (aadhaar_number);
 
 -- Create a security definer function to check if identity is already in use by another user
+DROP FUNCTION IF EXISTS check_identity_in_use(TEXT, TEXT, UUID);
+
 CREATE OR REPLACE FUNCTION check_identity_in_use(p_pan TEXT, p_aadhaar TEXT, p_user_id UUID)
 RETURNS json
 LANGUAGE plpgsql

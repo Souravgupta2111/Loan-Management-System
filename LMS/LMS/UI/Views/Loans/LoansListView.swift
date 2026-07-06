@@ -185,14 +185,12 @@ struct LoansListView: View {
                         .frame(width: 40, height: 40)
 
                     Image(systemName: "indianrupeesign.circle.fill")
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
 
                 Text("Total Balance")
-                    .font(.system(size: 18,
-                                  weight: .bold,
-                                  design: .rounded))
+                    .font(.headline.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
 
                 Spacer()
@@ -202,13 +200,11 @@ struct LoansListView: View {
             VStack(alignment: .leading, spacing: 3) {
 
                 Text("Outstanding Balance")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(Color(hex: "#6B6B6B"))
 
                 Text("₹ \(formatIndian(totalOutstanding))")
-                    .font(.system(size: 30,
-                                  weight: .bold,
-                                  design: .rounded))
+                    .font(.largeTitle.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
                     .minimumScaleFactor(0.75)
                     .lineLimit(1)
@@ -229,12 +225,10 @@ struct LoansListView: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                 Text("FILTER LOANS")
-                    .font(.system(size: 13,
-                                  weight: .semibold,
-                                  design: .rounded))
+                    .font(.subheadline.weight(.semibold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#6B6B6B"))
                     .tracking(0.8)
                     .fixedSize()
@@ -316,7 +310,7 @@ struct LoansListView: View {
                     .foregroundColor(Color(hex: "#1A1A1A"))
 
                 Text("\(filteredLoans.count) of \(loans.count) loans")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(Color(hex: "#6B6B6B"))
             }
 
@@ -377,7 +371,7 @@ struct LoansListView: View {
                         .frame(width: 38, height: 38)
 
                     Image(systemName: loanIcon(for: loan.loanType))
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.headline.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
 
@@ -401,7 +395,7 @@ struct LoansListView: View {
                                     .fill(Color.accentGreen)
                                     .frame(width: 18, height: 18)
                                 Text("\(count)")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundColor(.white)
                             }
                         }
@@ -415,7 +409,7 @@ struct LoansListView: View {
                 VStack(alignment: .trailing, spacing: 2) {
 
                     Text("Balance")
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text("₹\(formatIndian(loan.remainingAmount))")
@@ -458,7 +452,7 @@ struct LoansListView: View {
                     .frame(height: 5)
 
                     Text("\(Int(loan.paidPercent * 100))% repaid")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                         .fixedSize()
                 }
@@ -474,7 +468,7 @@ struct LoansListView: View {
                 VStack(alignment: .leading, spacing: 2) {
 
                     Text("Monthly EMI")
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text(
@@ -482,7 +476,7 @@ struct LoansListView: View {
                         ? "₹\(formatIndian(loan.emiAmount))"
                         : "N/A"
                     )
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 }
 
@@ -491,7 +485,7 @@ struct LoansListView: View {
                 VStack(alignment: .trailing, spacing: 2) {
 
                     Text("Next Due")
-                        .font(.system(size: 13))
+                        .font(.subheadline)
                         .foregroundColor(Color(hex: "#6B6B6B"))
 
                     Text(
@@ -499,7 +493,7 @@ struct LoansListView: View {
                         ? "Paid off"
                         : formattedDate(loan.nextDueDate)
                     )
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 }
             }
@@ -583,7 +577,7 @@ struct LoansListView: View {
         }()
 
         return Text(title)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.caption.weight(.semibold))
             .foregroundColor(fg)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
@@ -598,7 +592,7 @@ struct LoansListView: View {
         VStack(spacing: 12) {
 
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 36))
+                .font(.title)
                 .foregroundColor(Color(hex: "#C8E6D0"))
 
             Text(selectedFilter == .all ? "No loans yet" : "No \(selectedFilter.rawValue.lowercased()) loans")
@@ -612,7 +606,7 @@ struct LoansListView: View {
                 .foregroundColor(Color(hex: "#1A1A1A"))
 
             Text("Try another filter to view a different loan set.")
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundColor(Color(hex: "#6B6B6B"))
                 .multilineTextAlignment(.center)
         }

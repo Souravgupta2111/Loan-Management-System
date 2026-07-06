@@ -17,7 +17,7 @@ struct ApplicationsListView: View {
                     } else if applications.isEmpty {
                         VStack(spacing: Spacing.lg) {
                             Image(systemName: "tray")
-                                .font(.system(size: 48))
+                                .font(.title)
                                 .foregroundColor(.textTertiary)
                             Text("No pending applications")
                                 .font(.bodyLarge)
@@ -70,7 +70,7 @@ struct ApplicationsListView: View {
 
                 Spacer()
 
-                StatusBadge(status: app.status)
+                AccessibleStatusBadge(status: app.status)
             }
 
             HStack {

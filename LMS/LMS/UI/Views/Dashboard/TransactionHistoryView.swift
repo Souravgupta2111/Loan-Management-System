@@ -31,16 +31,16 @@ struct TransactionHistoryView: View {
                     .fill(item.statusBg)
                     .frame(width: 40, height: 40)
                 Image(systemName: item.statusIcon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundColor(item.statusColor)
             }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.body.weight(.bold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 Text(item.subtitle)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.subheadline.weight(.regular))
                     .foregroundColor(Color(hex: "#6B6B6B"))
             }
             
@@ -48,10 +48,12 @@ struct TransactionHistoryView: View {
             
             HStack(spacing: 2) {
                 Text(item.direction.sign)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.body.weight(.bold))
+                    .fontDesign(.rounded)
                     .foregroundColor(item.direction.color)
                 Text("₹\(formatIndian(abs(item.amount)))")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.body.weight(.bold))
+                    .fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
             }
         }

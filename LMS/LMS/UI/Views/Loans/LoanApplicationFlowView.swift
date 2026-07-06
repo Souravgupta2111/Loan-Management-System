@@ -75,7 +75,7 @@ struct LoanApplicationFlowView: View {
                                 .frame(width: 34, height: 34)
                                 .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.textPrimary)
                         }
                     }
@@ -204,7 +204,7 @@ struct LoanApplicationFlowView: View {
                     }
                     .buttonStyle(.plain)
                     Text("I agree to the terms and conditions and authorize the verification of my submitted documents.")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.leading)
                 }
@@ -232,21 +232,21 @@ struct LoanApplicationFlowView: View {
                                     .fill(Color(hex: "#89DBA6").opacity(0.18))
                                     .frame(width: 52, height: 52)
                                 Image(systemName: product.type.icon)
-                                    .font(.system(size: 22, weight: .semibold))
+                                    .font(.title3.weight(.semibold))
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             }
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(product.name)
-                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .font(.title3.weight(.bold)).fontDesign(.rounded)
                                     .foregroundColor(.textPrimary)
                                 Text(product.type.displayName)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundColor(.textSecondary)
                             }
                         }
                         if let desc = product.description, !desc.isEmpty {
                             Text(desc)
-                                .font(.system(size: 14))
+                                .font(.subheadline)
                                 .foregroundColor(.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -296,11 +296,11 @@ struct LoanApplicationFlowView: View {
                             ForEach(docs, id: \.self) { doc in
                                 HStack(spacing: 10) {
                                     Image(systemName: "doc.text")
-                                        .font(.system(size: 14))
+                                        .font(.subheadline)
                                         .foregroundColor(Color(hex: "#2D8B4E"))
                                         .frame(width: 24)
                                     Text(doc)
-                                        .font(.system(size: 14))
+                                        .font(.subheadline)
                                         .foregroundColor(.textPrimary)
                                     Spacer()
                                 }
@@ -333,14 +333,14 @@ struct LoanApplicationFlowView: View {
                     if isCheckingKYC {
                         ProgressView().tint(.white)
                         Text("CHECKING...")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.body.weight(.bold))
                             .tracking(1.5)
                     } else {
                         Text("NEXT")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.body.weight(.bold))
                             .tracking(1.5)
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                     }
                 }
                 .foregroundColor(.white)
@@ -362,7 +362,7 @@ struct LoanApplicationFlowView: View {
     private func detailSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundColor(.accentGreen)
                 .tracking(1.5)
             VStack(spacing: 0) { content() }
@@ -376,15 +376,15 @@ struct LoanApplicationFlowView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(Color(hex: "#2D8B4E"))
                     .frame(width: 24)
                 Text(label)
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(.textSecondary)
                 Spacer()
                 Text(value)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(.textPrimary)
                     .multilineTextAlignment(.trailing)
             }
@@ -412,7 +412,7 @@ struct LoanApplicationFlowView: View {
                 }()
                 if hasMissingDocs {
                     Text("Please upload all required documents to proceed.")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.subheadline.weight(.semibold)).fontDesign(.rounded)
                         .foregroundColor(.accentRed)
                         .padding(.horizontal, 24)
                         .transition(.opacity)
@@ -425,7 +425,7 @@ struct LoanApplicationFlowView: View {
                         withAnimation { step -= 1 }
                     } label: {
                         Text("Back")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundColor(.textPrimary)
                             .frame(width: 90)
                             .padding(.vertical, 18)
@@ -467,10 +467,10 @@ struct LoanApplicationFlowView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Text(step == 4 ? "SUBMIT" : "NEXT")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.body.weight(.bold))
                                 .tracking(1.5)
                             Image(systemName: step == 4 ? "checkmark" : "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.subheadline.weight(.bold))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -499,7 +499,7 @@ struct LoanApplicationFlowView: View {
                         .frame(width: 24, height: 24)
                         .overlay(Circle().stroke(Color.accentGreen, lineWidth: 2))
                     if index < step {
-                        Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
+                        Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundColor(.white)
                     } else if index == step {
                         Circle().fill(Color.white).frame(width: 8, height: 8)
                     }
@@ -526,7 +526,7 @@ struct LoanApplicationFlowView: View {
 
     private func stepLabel(text: String, isActive: Bool) -> some View {
         Text(text)
-            .font(.system(size: 12, weight: isActive ? .semibold : .medium))
+            .font(.caption.weight(isActive ? .semibold : .medium))
             .foregroundColor(isActive ? .textPrimary : .textTertiary)
     }
 
@@ -536,11 +536,11 @@ struct LoanApplicationFlowView: View {
         VStack(spacing: 32) {
             ZStack {
                 Circle().fill(Color.accentGreenBg).frame(width: 120, height: 120)
-                Image(systemName: "checkmark.seal.fill").font(.system(size: 64)).foregroundColor(.accentGreen)
+                Image(systemName: "checkmark.seal.fill").font(.title).foregroundColor(.accentGreen)
             }
             VStack(spacing: 12) {
                 Text("Application Submitted!")
-                    .font(.system(size: 26, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                    .font(.title2.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                 Text("Your loan application has been successfully submitted and is under review. Our loan officer will get in touch with you shortly.")
                     .font(.bodyRegular).foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 16)
@@ -548,9 +548,9 @@ struct LoanApplicationFlowView: View {
             if let applicationNumber {
                 VStack(spacing: 4) {
                     Text("APPLICATION NUMBER")
-                        .font(.system(size: 11, weight: .semibold)).foregroundColor(.textSecondary).tracking(1.5)
+                        .font(.caption.weight(.semibold)).foregroundColor(.textSecondary).tracking(1.5)
                     Text(applicationNumber)
-                        .font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                        .font(.headline.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                         .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(Color.surfaceMuted)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -605,14 +605,14 @@ struct SelectProductStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Select Loan Product")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(.textPrimary)
 
             if isLoading {
                 ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
             } else if products.isEmpty {
                 VStack(spacing: 10) {
-                    Image(systemName: "tray").font(.system(size: 28)).foregroundColor(.textSecondary)
+                    Image(systemName: "tray").font(.title2).foregroundColor(.textSecondary)
                     Text(emptyMessage).font(.bodyLarge).foregroundColor(.textSecondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 20)
@@ -647,7 +647,7 @@ struct ProductOptionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.bodyLarge).foregroundColor(.textPrimary)
                 Text(subtitle).font(.caption).foregroundColor(.textSecondary)
-                Text(rate).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(hex: "#2D8B4E"))
+                Text(rate).font(.caption.weight(.semibold)).foregroundColor(Color(hex: "#2D8B4E"))
             }
             Spacer()
             if isSelected {
@@ -673,14 +673,14 @@ struct AmountTenureStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Text("Loan Amount & Tenure")
-                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Amount").font(.bodyLarge).foregroundColor(.textSecondary)
                     Spacer()
                     Text("₹\(formatIndian(amount))")
-                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                        .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                 }
                 Slider(value: $amount, in: product.minAmount...product.maxAmount, step: 10_000).tint(.accentGreen)
                 HStack {
@@ -693,7 +693,7 @@ struct AmountTenureStep: View {
                     Text("Tenure").font(.bodyLarge).foregroundColor(.textSecondary)
                     Spacer()
                     Text("\(Int(tenureMonths)) Months")
-                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                        .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                 }
                 Slider(value: $tenureMonths, in: Double(product.minTenureMonths)...Double(product.maxTenureMonths), step: 1).tint(.accentGreen)
                 HStack {
@@ -747,7 +747,7 @@ struct LiveCalculationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("ESTIMATED LOAN DETAILS")
-                .font(.system(size: 11, weight: .semibold)).foregroundColor(.accentGreen).tracking(1.5)
+                .font(.caption.weight(.semibold)).foregroundColor(.accentGreen).tracking(1.5)
             VStack(spacing: 8) {
                 row("Estimated EMI",           "₹\(fmt(emiDetails.emi))/mo", highlight: true)
                 Divider().background(Color.accentGreen.opacity(0.2))
@@ -764,10 +764,10 @@ struct LiveCalculationCard: View {
     }
     private func row(_ label: String, _ value: String, highlight: Bool = false) -> some View {
         HStack {
-            Text(label).font(.system(size: 13, weight: highlight ? .semibold : .regular))
+            Text(label).font(.subheadline.weight(highlight ? .semibold : .regular))
                 .foregroundColor(highlight ? .accentGreen : .textSecondary)
             Spacer()
-            Text(value).font(.system(size: 14, weight: .bold))
+            Text(value).font(.subheadline.weight(.bold))
                 .foregroundColor(highlight ? .accentGreen : .textPrimary)
         }
     }
@@ -786,7 +786,7 @@ struct DocumentUploadStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Required Documents")
-                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
             Text("Please upload the documents required for this loan product.")
                 .font(.bodyRegular).foregroundColor(.textSecondary)
             ForEach(product.requiredDocumentTitles, id: \.self) { doc in
@@ -806,7 +806,7 @@ struct ReviewSubmitStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Review Application")
-                .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
             VStack(spacing: 12) {
                 ReviewRow(label: "Product",       value: product.name)
                 Divider()

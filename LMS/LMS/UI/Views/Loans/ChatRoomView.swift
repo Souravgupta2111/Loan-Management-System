@@ -62,7 +62,7 @@ struct ChatRoomView: View {
                         Task { await viewModel.sendMessage() }
                     } label: {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 20))
+                            .font(.title3)
                             .foregroundColor(.white)
                             .frame(width: 40, height: 40)
                             .background(viewModel.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.textSecondary : Color.accentGreen)
@@ -97,7 +97,7 @@ private struct MessageBubble: View {
                     .foregroundColor(isCurrentUser ? .white : .textPrimary)
                     .padding(12)
                     .background(isCurrentUser ? Color.accentGreen : Color.surface)
-                    .clipShape(ChatBubbleShape(isCurrentUser: isCurrentUser))
+                    .clipShape(RoomChatBubbleShape(isCurrentUser: isCurrentUser))
                     .shadow(color: .black.opacity(isCurrentUser ? 0 : 0.05), radius: 2, x: 0, y: 1)
                 
                 Text(formatTime(message.sent_at))
@@ -120,7 +120,7 @@ private struct MessageBubble: View {
     }
 }
 
-private struct ChatBubbleShape: Shape {
+private struct RoomChatBubbleShape: Shape {
     let isCurrentUser: Bool
     
     func path(in rect: CGRect) -> Path {
