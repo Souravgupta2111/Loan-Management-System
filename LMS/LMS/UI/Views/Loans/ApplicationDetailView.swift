@@ -221,6 +221,8 @@ struct ApplicationDetailView: View {
             )
             .ignoresSafeArea()
         )
+        .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle(application.applicationNumber)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)

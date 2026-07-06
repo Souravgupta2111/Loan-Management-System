@@ -2,6 +2,7 @@ import SwiftUI
 import Supabase
 
 struct EMIScheduleView: View {
+    @Environment(\.dismiss) private var dismiss
     let loanId: UUID
     
     @State private var isProcessingPayment = false
@@ -12,8 +13,7 @@ struct EMIScheduleView: View {
     @State private var activeRazorpayOrder: RazorpayOrder? = nil
     
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 LinearGradient(
                     colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
                     startPoint: .top,
@@ -83,7 +83,9 @@ struct EMIScheduleView: View {
                     }
                 }
             }
+            .navigationBarBackButtonHidden(true)
             .navigationTitle("EMI Schedule")
+            .navigationBarTitleDisplayMode(.large)
             .task {
                 await fetchEMIs()
             }
@@ -107,6 +109,7 @@ struct EMIScheduleView: View {
                             activeRazorpayOrder = nil
                         }
                     )
+                    .navigationBarBackButtonHidden(true)
                     .navigationTitle("Pay EMI")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -118,7 +121,6 @@ struct EMIScheduleView: View {
                     }
                 }
             }
-        }
     }
     
     private func startPaymentFlow(for emi: EMIDetail) async {

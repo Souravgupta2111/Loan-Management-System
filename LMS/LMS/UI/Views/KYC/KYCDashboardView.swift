@@ -320,20 +320,11 @@ struct KYCDashboardView: View {
                 }
             }
             .navigationTitle("KYC Setup")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if isPresentedModally {
-                        Button(action: { dismiss() }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("Back")
-                                    .font(.system(size: 16, weight: .regular))
-                            }
-                            .foregroundColor(Color(hex: "#2D8B4E")) // match accent green
-                        }
-                    }
+                    GlassBackButton { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if allowsSkip {

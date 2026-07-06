@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TransactionHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
     let transactions: [TxItem]
     
     var body: some View {
@@ -20,6 +21,8 @@ struct TransactionHistoryView: View {
             )
             .ignoresSafeArea()
         )
+        .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle("Transaction History")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -3,14 +3,14 @@ import Supabase
 import Auth
 
 struct ApplicationsListView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var applications: [LoanService.ApplicationListItem] = []
     @State private var isLoading = true
 
     var body: some View {
-        NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: Spacing.md) {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: Spacing.md) {
                     if isLoading {
                         ProgressView()
                             .padding(.top, 80)
@@ -46,14 +46,15 @@ struct ApplicationsListView: View {
                 )
                 .ignoresSafeArea()
             )
+            .navigationBarBackButtonHidden(true)
             .navigationTitle("Applications")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar(.hidden, for: .tabBar)
             .task { await loadApplications() }
             .refreshable { await loadApplications() }
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
                 Task { await loadApplications() }
             }
-        }
     }
 
     private func applicationCard(_ app: LoanService.ApplicationListItem) -> some View {

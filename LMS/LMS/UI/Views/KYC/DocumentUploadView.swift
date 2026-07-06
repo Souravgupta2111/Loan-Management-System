@@ -4,6 +4,7 @@ import UIKit
 
 /// Document Upload View for KYC & Loan Applications
 struct DocumentUploadView: View {
+    @Environment(\.dismiss) private var dismiss
     let title: String
     let subtitle: String
     @Binding var documentData: Data?
@@ -51,7 +52,7 @@ struct DocumentUploadView: View {
                     HStack(spacing: 10) {
                         Button {
                             showPreview = true
-                        } label: {
+                         } label: {
                             Image(systemName: "eye.fill")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.accentGreen)
@@ -193,7 +194,9 @@ struct DocumentUploadView: View {
                     )
                     .ignoresSafeArea()
                 )
-                .navigationTitle(title)
+                .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
+        .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {

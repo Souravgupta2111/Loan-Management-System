@@ -104,19 +104,11 @@ struct LoanDetailView: View {
 
     private var navigationHeader: some View {
         HStack(spacing: 12) {
-            Button {
+            GlassBackButton {
                 withAnimation(.easeInOut(duration: 0.18)) {
                     dismiss()
                 }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
-                    .frame(width: 36, height: 36)
-                    .background(Color(hex: "#E8F5EC"))
-                    .clipShape(Circle())
             }
-            .buttonStyle(ScaleButtonStyle())
 
             Text(viewModel.detail.loanName)
                 .font(.system(size: 20, weight: .bold, design: .rounded))

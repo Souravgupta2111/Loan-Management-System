@@ -41,7 +41,9 @@ struct SanctionLetterPreviewView: View {
                 }
                 .background(Color.white)
             }
-            .navigationTitle("Sanction Letter")
+            .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
+        .navigationTitle("Sanction Letter")
             .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showShareSheet) {

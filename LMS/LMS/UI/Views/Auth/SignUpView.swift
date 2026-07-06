@@ -143,10 +143,7 @@ struct SignUpView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.textPrimary)
-                    }
+                    GlassBackButton { dismiss() }
                 }
             }
             .onAppear {

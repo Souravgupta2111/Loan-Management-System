@@ -36,6 +36,11 @@ struct ProfileView: View {
     @State private var draftPhone = ""
     @State private var draftAddress = ""
 
+    // Validation errors
+    @State private var nameError: String? = nil
+    @State private var emailError: String? = nil
+    @State private var phoneError: String? = nil
+
     // Address proof attachment
     @State private var addressProofItem: PhotosPickerItem? = nil
     @State private var addressProofImage: UIImage? = nil
@@ -91,6 +96,33 @@ struct ProfileView: View {
             }
             .task { await loadProfile() }
             .overlay(saveSuccessBanner, alignment: .top)
+            .onChange(of: draftName) { _, newValue in
+                if newValue.isEmpty {
+                    nameError = "Name is required"
+                } else if !validateName(newValue) {
+                    nameError = "Wrong format is being used, enter the name as correct format"
+                } else {
+                    nameError = nil
+                }
+            }
+            .onChange(of: draftEmail) { _, newValue in
+                if newValue.isEmpty {
+                    emailError = "Email is required"
+                } else if !validateEmail(newValue) {
+                    emailError = "Enter the email in correct format"
+                } else {
+                    emailError = nil
+                }
+            }
+            .onChange(of: draftPhone) { _, newValue in
+                if newValue.isEmpty {
+                    phoneError = "Phone number is required"
+                } else if !validatePhone(newValue) {
+                    phoneError = "Phone number should be of 10 digits"
+                } else {
+                    phoneError = nil
+                }
+            }
         }
     }
 
@@ -137,14 +169,19 @@ struct ProfileView: View {
                 value: userName.isEmpty ? "Not set" : userName,
                 isEditing: isEditingName,
                 draft: $draftName,
+                errorMessage: nameError,
                 onEdit: {
                     draftName = userName
+                    nameError = nil
                     isEditingName = true
                 },
                 onSave: {
                     Task { await saveName() }
                 },
-                onCancel: { isEditingName = false }
+                onCancel: { 
+                    isEditingName = false
+                    nameError = nil
+                }
             )
 
             divider
@@ -155,14 +192,19 @@ struct ProfileView: View {
                 value: userEmail.isEmpty ? "Not set" : userEmail,
                 isEditing: isEditingEmail,
                 draft: $draftEmail,
+                errorMessage: emailError,
                 onEdit: {
                     draftEmail = userEmail
+                    emailError = nil
                     isEditingEmail = true
                 },
                 onSave: {
                     Task { await saveEmail() }
                 },
-                onCancel: { isEditingEmail = false }
+                onCancel: { 
+                    isEditingEmail = false
+                    emailError = nil
+                }
             )
 
             divider
@@ -174,14 +216,19 @@ struct ProfileView: View {
                 isEditing: isEditingPhone,
                 draft: $draftPhone,
                 keyboardType: .phonePad,
+                errorMessage: phoneError,
                 onEdit: {
                     draftPhone = phone
+                    phoneError = nil
                     isEditingPhone = true
                 },
                 onSave: {
                     Task { await savePhone() }
                 },
-                onCancel: { isEditingPhone = false }
+                onCancel: { 
+                    isEditingPhone = false
+                    phoneError = nil
+                }
             )
 
             divider
@@ -198,7 +245,9 @@ struct ProfileView: View {
                     Image(systemName: "checkmark.seal.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("KYC Status").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                    Text("KYC Status")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
                 }
                 Spacer()
                 StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
@@ -217,7 +266,9 @@ struct ProfileView: View {
                         Image(systemName: "banknote.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Income Verification").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                        Text("Income Verification")
+                            .font(.bodyLarge)
+                            .foregroundColor(.textPrimary)
                     }
                     Spacer()
                     if (aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") {
@@ -242,7 +293,7 @@ struct ProfileView: View {
 
     private var addressRow: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
                     Image(systemName: "mappin.and.ellipse").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
@@ -253,7 +304,87 @@ struct ProfileView: View {
                         TextField("Enter your address", text: $draftAddress, axis: .vertical)
                             .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
-                            .lineLimit(3, reservesSpace: true)
+                            .lineLimit(1...3)
+                        
+                        // Address proof attachment nested here
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ADDRESS PROOF")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.textSecondary)
+                                .tracking(1.2)
+                                .padding(.top, 4)
+
+                            PhotosPicker(selection: $addressProofItem, matching: .images) {
+                                HStack(spacing: 10) {
+                                    if let img = addressProofImage {
+                                        Image(uiImage: img)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 60, height: 60)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        Text("Change photo")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(Color(hex: "#2D8B4E"))
+                                    } else {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
+                                                .foregroundColor(Color(hex: "#89DBA6").opacity(0.5))
+                                                .frame(width: 60, height: 60)
+                                            Image(systemName: "plus")
+                                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                        }
+                                        Text("Attach proof document")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(Color(hex: "#2D8B4E"))
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .onChange(of: addressProofItem) { _, newItem in
+                                Task {
+                                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                       let img = UIImage(data: data) {
+                                        addressProofImage = img
+                                    }
+                                }
+                            }
+
+                            HStack(spacing: Spacing.md) {
+                                Button { isEditingAddress = false } label: {
+                                    Text("Cancel")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.surfaceMuted)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    Task { await saveAddress() }
+                                } label: {
+                                    HStack {
+                                        if isSaving {
+                                            ProgressView().tint(.white)
+                                        } else {
+                                            Text("Save")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color(hex: "#2D8B4E"))
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isSaving)
+                            }
+                            .padding(.top, 4)
+                        }
+                        .transition(.opacity)
                     } else {
                         Text(address.isEmpty ? "please enter your address" : address)
                             .font(.bodyLarge)
@@ -285,91 +416,6 @@ struct ProfileView: View {
             }
             .padding(Spacing.lg)
             .contentShape(Rectangle())
-
-            // Address proof attachment (visible when editing address)
-            if isEditingAddress {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("ADDRESS PROOF")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.textSecondary)
-                        .tracking(1.2)
-                        .padding(.horizontal, Spacing.lg)
-
-                    PhotosPicker(selection: $addressProofItem, matching: .images) {
-                        HStack(spacing: 10) {
-                            if let img = addressProofImage {
-                                Image(uiImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                Text("Change photo")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
-                            } else {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                                        .foregroundColor(Color(hex: "#89DBA6").opacity(0.5))
-                                        .frame(width: 60, height: 60)
-                                    Image(systemName: "plus")
-                                        .foregroundColor(Color(hex: "#2D8B4E"))
-                                }
-                                Text("Attach proof document")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal, Spacing.lg)
-                    }
-                    .onChange(of: addressProofItem) { _, newItem in
-                        Task {
-                            if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let img = UIImage(data: data) {
-                                addressProofImage = img
-                            }
-                        }
-                    }
-
-                    HStack(spacing: Spacing.md) {
-                        Button { isEditingAddress = false } label: {
-                            Text("Cancel")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.textSecondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.surfaceMuted)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            Task { await saveAddress() }
-                        } label: {
-                            HStack {
-                                if isSaving {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Text("Save")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color(hex: "#2D8B4E"))
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isSaving)
-                    }
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.bottom, Spacing.md)
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(.easeInOut(duration: 0.2), value: isEditingAddress)
-            }
         }
     }
 
@@ -390,7 +436,7 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                     }
                     Text("Notifications")
-                        .font(.bodyRegular)
+                        .font(.bodyLarge)
                         .foregroundColor(.textPrimary)
                 }
             }
@@ -414,10 +460,10 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                     }
                     Text("Help & Support")
-                        .font(.bodyRegular)
+                        .font(.bodyLarge)
                         .foregroundColor(.textPrimary)
                     Spacer()
-                    Image(systemName: showHelpAndSupport ? "chevron.down" : "chevron.right")
+                    Image(systemName: "chevron.down")
                         .font(.caption)
                         .foregroundColor(.textTertiary)
                 }
@@ -427,9 +473,6 @@ struct ProfileView: View {
             
             if showHelpAndSupport {
                 VStack(alignment: .leading, spacing: 12) {
-                    Divider()
-                        .padding(.horizontal, Spacing.lg)
-                    
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Contact Customer Care")
                             .font(.system(size: 13, weight: .bold))
@@ -487,6 +530,7 @@ struct ProfileView: View {
         isEditing: Bool,
         draft: Binding<String>,
         keyboardType: UIKeyboardType = .default,
+        errorMessage: String? = nil,
         onEdit: @escaping () -> Void,
         onSave: @escaping () -> Void,
         onCancel: @escaping () -> Void
@@ -511,6 +555,12 @@ struct ProfileView: View {
                             .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
                             .keyboardType(keyboardType)
+                        
+                        if let errorMessage = errorMessage {
+                            Text(errorMessage)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.accentRed)
+                        }
                     } else {
                         Text(value)
                             .font(.bodyLarge)
@@ -567,11 +617,11 @@ struct ProfileView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(Color(hex: "#2D8B4E"))
+                        .background(errorMessage != nil ? Color.textTertiary : Color(hex: "#2D8B4E"))
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .disabled(isSaving)
+                    .disabled(isSaving || errorMessage != nil)
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.bottom, Spacing.md)
@@ -733,6 +783,24 @@ struct ProfileView: View {
         } catch {
             saveError = error.localizedDescription
         }
+    }
+
+    private func validateName(_ name: String) -> Bool {
+        let nameRegEx = "^[A-Za-z ]+$"
+        let namePred = NSPredicate(format:"SELF MATCHES %@", nameRegEx)
+        return namePred.evaluate(with: name)
+    }
+
+    private func validateEmail(_ email: String) -> Bool {
+        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+        return emailPred.evaluate(with: email)
+    }
+
+    private func validatePhone(_ phone: String) -> Bool {
+        let phoneRegEx = "^[0-9]{10}$"
+        let phonePred = NSPredicate(format:"SELF MATCHES %@", phoneRegEx)
+        return phonePred.evaluate(with: phone)
     }
 
     private func showSuccessBanner() {

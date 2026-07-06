@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct LoanProductsCatalogView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var products: [LoanProduct] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Color.appBackground.ignoresSafeArea()
                 
                 if isLoading {
@@ -66,13 +66,20 @@ struct LoanProductsCatalogView: View {
                         await fetchProducts()
                     }
                 }
+
             }
-            .navigationTitle("Loan Products")
+            .navigationBarBackButtonHidden(true)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    GlassBackButton { dismiss() }
+                }
+            }
+            .navigationTitle("Apply Loan")
             .navigationBarTitleDisplayMode(.large)
             .task {
                 await fetchProducts()
             }
-        }
     }
     
     private func fetchProducts() async {
@@ -144,6 +151,7 @@ struct ProductCatalogRow: View {
 
 struct ProductDetailView: View {
     let product: LoanProduct
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ScrollView {
@@ -234,6 +242,9 @@ struct ProductDetailView: View {
             .padding(Spacing.xl)
         }
         .background(Color.appBackground.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle("Product Details")
         .navigationBarTitleDisplayMode(.inline)
     }

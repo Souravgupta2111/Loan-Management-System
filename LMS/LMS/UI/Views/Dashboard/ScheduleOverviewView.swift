@@ -5,6 +5,7 @@ import Supabase
 // MARK: - ScheduleOverviewView
 
 struct ScheduleOverviewView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authViewModel: AuthViewModel
 
     // Calendar entries built from all backend EMI schedule rows.
@@ -66,8 +67,9 @@ struct ScheduleOverviewView: View {
                 )
                 .ignoresSafeArea()
             )
+            .navigationBarBackButtonHidden(true)
             .navigationTitle("EMI Schedule")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             // ── Bar button: calendar jump picker ─────────────────────────
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -596,7 +598,9 @@ private struct DateJumpSheet: View {
                 }
             }
             .background(Color(hex: "#F5F5F0").ignoresSafeArea())
-            .navigationTitle("Jump to Date")
+            .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
+        .navigationTitle("Jump to Date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

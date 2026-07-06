@@ -41,6 +41,10 @@ struct AmountDisplay: View {
     }
 
     private var formattedParts: (integer: String, decimal: String) {
+        guard !amount.isNaN, !amount.isInfinite else {
+            return ("₹0", ".00")
+        }
+        
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_IN")
         formatter.numberStyle = .decimal

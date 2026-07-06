@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ChatRoomView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: ChatViewModel
     
     init(applicationId: UUID, currentUserId: UUID, officerId: UUID) {
@@ -74,6 +75,8 @@ struct ChatRoomView: View {
             }
             .background(Color.surface)
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle("Message Officer")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)

@@ -17,30 +17,41 @@ struct HomeDashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    headerSection
+            ZStack(alignment: .top) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        headerSection
+                            .padding(.top, 4)
 
-                    if loans.isEmpty && hasLoaded {
-                        applyLoanPromoCard
-                        quickActionsSection
-                        emptyState
-                    } else if !loans.isEmpty {
-                        heroLoanCarousel
-                            .padding(.horizontal, -16) // offset the ScrollView padding
+                        if loans.isEmpty && hasLoaded {
+                            applyLoanPromoCard
+                            quickActionsSection
+                            emptyState
+                        } else if !loans.isEmpty {
+                            heroLoanCarousel
+                                .padding(.horizontal, -16) // offset the ScrollView padding
 
-                        quickActionsSection
+                            quickActionsSection
 
-                        transactionHistorySection
-                    } else {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 48)
+                            transactionHistorySection
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 48)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    // Push content below the status bar
+                    .padding(.top, 54)
+                    .padding(.bottom, 100)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 100)
+                .ignoresSafeArea(edges: .top)
+
+                // Status bar blur effect
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .frame(height: 0)
+                    .ignoresSafeArea(edges: .top)
             }
             .background(
                 LinearGradient(
@@ -50,8 +61,7 @@ struct HomeDashboardView: View {
                 )
                 .ignoresSafeArea()
             )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showProfile) {
                 ProfileView()
                     .environmentObject(authViewModel)
@@ -304,14 +314,14 @@ struct HomeDashboardView: View {
                 NavigationLink {
                     EMICalculatorView()
                 } label: {
-                    quickActionCard(icon: "plusminus", label: "Calculator")
+                    quickActionCard(icon: "plus.forwardslash.minus", label: "Calculator")
                 }
                 .buttonStyle(.plain)
 
                 NavigationLink {
                     SelectLoanTypeView()
                 } label: {
-                    quickActionCard(icon: "rays", label: "Apply")
+                    quickActionCard(icon: "pointer.arrow.rays", label: "Apply")
                 }
                 .buttonStyle(.plain)
 
@@ -398,7 +408,7 @@ struct HomeDashboardView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                 }
-                .frame(maxWidth: .infinity, minHeight: 290)
+                .frame(maxWidth: .infinity, minHeight: 150)
                 .liquidGlass(cornerRadius: 18)
             } else {
                 VStack(spacing: 8) {
