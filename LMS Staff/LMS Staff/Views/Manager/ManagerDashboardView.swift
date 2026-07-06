@@ -58,7 +58,6 @@ struct ManagerDashboardView: View {
     }
     
     // Detail sheet for inspecting an application
-    @State private var showDetailSheet: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -126,7 +125,6 @@ struct ManagerDashboardView: View {
                 List(currentQueue) { app in
                     Button {
                         selectedApp = app
-                        showDetailSheet = true
                     } label: {
                         queueListRow(app)
                     }
@@ -143,37 +141,35 @@ struct ManagerDashboardView: View {
         .onAppear {
             Task { await vm.loadDashboard() }
         }
-        .sheet(isPresented: $showDetailSheet) {
-            if let app = selectedApp {
-                NavigationStack {
-                    if selectedSegment == .pendingReview {
-                        recommendationInspectorSection(app)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Close") { showDetailSheet = false }
-                                }
+        .sheet(item: $selectedApp) { app in
+            NavigationStack {
+                if selectedSegment == .pendingReview {
+                    recommendationInspectorSection(app)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Close") { selectedApp = nil }
                             }
-                    } else {
-                        readOnlyInspectorSection(app)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Close") { showDetailSheet = false }
-                                }
+                        }
+                } else {
+                    readOnlyInspectorSection(app)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Close") { selectedApp = nil }
                             }
-                    }
+                        }
                 }
             }
-        }
-        .sheet(isPresented: $showApprovalSheet) {
-            approvalTermsSheet
-        }
-        .sheet(isPresented: $showRejectSheet) {
-            rejectionRemarksSheet
-        }
-        .sheet(isPresented: $showSendBackSheet) {
-            sendBackRemarksSheet
+            .sheet(isPresented: $showApprovalSheet) {
+                approvalTermsSheet
+            }
+            .sheet(isPresented: $showRejectSheet) {
+                rejectionRemarksSheet
+            }
+            .sheet(isPresented: $showSendBackSheet) {
+                sendBackRemarksSheet
+            }
         }
         .sheet(isPresented: $showMetricDetailSheet) {
             NavigationStack {
