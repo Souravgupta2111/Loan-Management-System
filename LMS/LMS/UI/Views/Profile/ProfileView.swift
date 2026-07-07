@@ -415,6 +415,7 @@ struct ProfileView: View {
                         }
                     }
                 }
+            }
             .padding(Spacing.lg)
             .contentShape(Rectangle())
         }
