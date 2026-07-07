@@ -53,7 +53,11 @@ struct ManagerMessagesView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(app)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedApp?.application.id == app.application.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

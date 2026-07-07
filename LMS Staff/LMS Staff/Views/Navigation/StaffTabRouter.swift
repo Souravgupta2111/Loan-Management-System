@@ -13,6 +13,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case officerPortfolio
     case officerMessages
     case officerNotifications
+    case officerReports
     case officerAIChat
     
     case managerDashboard
@@ -37,11 +38,12 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     
     var title: String {
         switch self {
-        case .officerDashboard: return "Dashboard"
-        case .officerApplications: return "My Applications"
+        case .officerDashboard: return "My Applications"
+        case .officerApplications: return "Applications Detail"
         case .officerPortfolio: return "Active Loans"
         case .officerMessages: return "Chats"
         case .officerNotifications: return "Alert Notifications"
+        case .officerReports: return "Analytics"
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
@@ -80,6 +82,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             return "sparkles"
         case .officerNotifications:
             return "bell.fill"
+        case .officerReports:
+            return "chart.bar.doc.horizontal.fill"
             
         case .managerDisbursements:
             return "banknote.fill"
@@ -184,6 +188,8 @@ struct StaffTabRouter: View {
             OfficerMessagesView()
         case .officerNotifications:
             OfficerNotificationsView()
+        case .officerReports:
+            OfficerReportsView()
         case .officerAIChat:
             StaffAIChatView()
             

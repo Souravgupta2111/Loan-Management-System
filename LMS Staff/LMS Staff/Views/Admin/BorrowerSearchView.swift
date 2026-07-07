@@ -73,7 +73,11 @@ struct BorrowerSearchView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(borrower)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedBorrower?.id == borrower.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -136,7 +140,7 @@ struct BorrowerSearchView: View {
                 Spacer()
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             ScrollView {
                 VStack(spacing: StaffSpacing.lg) {

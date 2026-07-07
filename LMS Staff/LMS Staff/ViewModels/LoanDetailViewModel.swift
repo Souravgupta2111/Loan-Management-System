@@ -253,10 +253,22 @@ class LoanDetailViewModel: ObservableObject {
         
         var list: [StaffLoanPipelineView.PipelineStage] = []
         
-        list.append(.init(title: "Applied", date: fmtDate(submitLog?.actionedAt ?? submittedAt), remarks: "Application successfully submitted.", status: .completed))
+        let appliedRemarks: String? = {
+            if let rem = submitLog?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return nil
+        }()
+        list.append(.init(title: "Applied", date: fmtDate(submitLog?.actionedAt ?? submittedAt), remarks: appliedRemarks, status: .completed))
         
         let hasOfficerReviewed = [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed, .rejected].contains(status)
-        list.append(.init(title: "Reviewed by Loan Officer", date: fmtDate(reviewLog?.actionedAt ?? escalateLog?.actionedAt), remarks: hasOfficerReviewed ? "Verification completed by credit officer." : "Under credit officer verification.", status: hasOfficerReviewed ? .completed : (status == .underReview || status == .sentBack ? .active : .pending)))
+        let officerRemarks: String? = {
+            if let rem = reviewLog?.remarks ?? escalateLog?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return hasOfficerReviewed ? nil : "Under credit officer verification."
+        }()
+        list.append(.init(title: "Reviewed by Loan Officer", date: fmtDate(reviewLog?.actionedAt ?? escalateLog?.actionedAt), remarks: officerRemarks, status: hasOfficerReviewed ? .completed : (status == .underReview || status == .sentBack ? .active : .pending)))
         
         let isOfficerSendBack = sendBackActor?.role == .officer
         if sendBackLog != nil {
@@ -266,25 +278,54 @@ class LoanDetailViewModel: ObservableObject {
         }
         
         let hasEscalated = [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed, .rejected].contains(status)
-        list.append(.init(title: "Escalated to Manager", date: fmtDate(escalateLog?.actionedAt), remarks: hasEscalated ? "Recommended for manager approval." : "", status: hasEscalated ? .completed : (status == .underReview ? .active : .pending)))
+        let escalationRemarks: String? = {
+            if let rem = escalateLog?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return nil
+        }()
+        list.append(.init(title: "Escalated to Manager", date: fmtDate(escalateLog?.actionedAt), remarks: escalationRemarks, status: hasEscalated ? .completed : (status == .underReview ? .active : .pending)))
         
-        if status == .rejected {
+        let isRejectedByBorrower = status == .rejected && application.rejectionReason?.localizedCaseInsensitiveContains("borrower") == true
+        
+        if status == .rejected && !isRejectedByBorrower {
             list.append(.init(title: "Application Rejected", date: fmtDate(rejectLog?.actionedAt), remarks: rejectLog?.remarks ?? application.rejectionReason ?? "Application did not meet credit criteria.", status: .active))
         } else if status == .sentBack && !isOfficerSendBack {
             list.append(.init(title: "Sent Back by Manager", date: fmtDate(sendBackLog?.actionedAt), remarks: sendBackLog?.remarks ?? application.sentBackReason ?? "Manager requested correction.", status: .active))
-        } else if [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed].contains(status) {
-            list.append(.init(title: "Approved by Manager", date: fmtDate(approveLog?.actionedAt), remarks: "Manager approved the credit limit.", status: .completed))
+        } else if [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed].contains(status) || isRejectedByBorrower {
+            let managerRemarks: String? = {
+                if let rem = approveLog?.remarks, !rem.isEmpty {
+                    return rem
+                }
+                return nil
+            }()
+            list.append(.init(title: "Approved by Manager", date: fmtDate(approveLog?.actionedAt), remarks: managerRemarks, status: .completed))
         } else {
             list.append(.init(title: "Manager Review", date: "", remarks: nil, status: .pending))
         }
         
         let hasAccepted = [.pendingDisbursal, .disbursed].contains(status)
-        list.append(.init(title: "Proposal Acceptance", date: "", remarks: hasAccepted ? "Borrower accepted the loan terms." : (status == .pendingAcceptance ? "Awaiting borrower's acceptance." : nil), status: hasAccepted ? .completed : (status == .pendingAcceptance ? .active : .pending)))
+        let proposalTitle = isRejectedByBorrower ? "Proposal Rejected" : "Proposal Acceptance"
+        let proposalRemarks = isRejectedByBorrower ? (application.rejectionReason ?? "Disbursement terms rejected by borrower.") : (status == .pendingAcceptance ? "Awaiting borrower's acceptance." : (hasAccepted ? "Terms accepted by borrower." : nil))
+        let proposalStatus: StaffLoanPipelineView.StageStatus = hasAccepted ? .completed : (status == .pendingAcceptance || isRejectedByBorrower ? .active : .pending)
+        list.append(.init(title: proposalTitle, date: "", remarks: proposalRemarks, status: proposalStatus))
         
         let hasDisbursed = status == .disbursed
-        list.append(.init(title: "Awaiting Disbursement", date: "", remarks: hasDisbursed ? "Disbursement processed." : (status == .pendingDisbursal ? "Processing fund transfer." : nil), status: hasDisbursed ? .completed : (status == .pendingDisbursal ? .active : .pending)))
+        let awaitingDisbRemarks: String? = {
+            if let rem = disburseLog?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return status == .pendingDisbursal ? "Processing fund transfer." : nil
+        }()
+        list.append(.init(title: "Awaiting Disbursement", date: "", remarks: awaitingDisbRemarks, status: hasDisbursed ? .completed : (status == .pendingDisbursal ? .active : .pending)))
         
-        list.append(.init(title: "Disbursed", date: fmtDate(disburseLog?.actionedAt), remarks: hasDisbursed ? "Funds disbursed to borrower's account." : nil, status: hasDisbursed ? .completed : .pending))
+        let finalDisbursedRemarks: String? = {
+            if let rem = disburseLog?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return nil
+        }()
+        list.append(.init(title: "Disbursed", date: fmtDate(disburseLog?.actionedAt), remarks: finalDisbursedRemarks, status: hasDisbursed ? .completed : .pending))
         
         return list
     }

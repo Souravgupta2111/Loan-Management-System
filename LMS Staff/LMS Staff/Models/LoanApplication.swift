@@ -36,6 +36,14 @@ enum ApplicationStatus: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var officerDisplayName: String {
+        switch self {
+        case .submitted:   return "Under Review"
+        case .underReview: return "Submitted"
+        default:           return displayName
+        }
+    }
+
     var icon: String {
         switch self {
         case .draft:       return "doc.badge.clock"

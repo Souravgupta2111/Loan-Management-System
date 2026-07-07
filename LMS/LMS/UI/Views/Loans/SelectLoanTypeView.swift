@@ -6,9 +6,15 @@ import SwiftUI
 struct SelectLoanTypeView: View {
     @Environment(\.dismiss) private var dismiss
     var isTabRoot: Bool = false
+    @Binding var path: NavigationPath
 
     @State private var selectedLoanType: LoanType? = nil
     @State private var navigateToApplication = false
+
+    init(isTabRoot: Bool = false, path: Binding<NavigationPath> = .constant(NavigationPath())) {
+        self.isTabRoot = isTabRoot
+        self._path = path
+    }
 
     /// Distinct loan types that have at least one active product in the DB.
     @State private var availableTypes: [LoanType] = []
@@ -44,7 +50,7 @@ struct SelectLoanTypeView: View {
 
 
             Button {
-                navigateToApplication = true
+                path.append(LoanNavigation.applicationFlow(selectedLoanType))
             } label: {
                 HStack(spacing: 8) {
                     Text("NEXT")
@@ -88,14 +94,8 @@ struct SelectLoanTypeView: View {
                 }
             }
         }
-        .navigationDestination(isPresented: $navigateToApplication) {
-            LoanApplicationFlowView(initialLoanType: selectedLoanType)
-        }
         .task { await loadLoanTypes() }
         .refreshable { await loadLoanTypes() }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PopToDashboard"))) { _ in
-            dismiss()
-        }
     }
 
     // MARK: - Data Fetch
