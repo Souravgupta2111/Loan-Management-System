@@ -16,8 +16,8 @@ enum ManagerDashboardMode {
 enum ManagerQueueSegment: String, CaseIterable {
     case pendingReview = "Pending Review"
     case sentBack = "Sent Back"
-    case rejected = "Rejected"
     case approved = "Approved"
+    case rejected = "Rejected"
 }
 
 struct ManagerDashboardView: View {
@@ -28,19 +28,15 @@ struct ManagerDashboardView: View {
     @State private var selectedApp: ApplicationWithBorrower?
     @State private var selectedSegment: ManagerQueueSegment = .pendingReview
     
-    struct MetricDetailPayload: Identifiable {
-        let id = UUID()
-        let title: String
-        let data: MetricDataType
-    }
+
     
-    @State private var metricDetailPayload: MetricDetailPayload?
+
     
-    // Chart expand state
-    @State private var showChartsSection: Bool = false
+    // Search
+    @State private var searchText: String = ""
     
-    // Navigation
-    @State private var navigationPath = NavigationPath()
+    // AI Analytics
+    @State private var showAIAnalytics: Bool = false
     
     var currentQueue: [ApplicationWithBorrower] {
         switch selectedSegment {
@@ -51,115 +47,167 @@ struct ManagerDashboardView: View {
         }
     }
     
-    // Detail sheet for inspecting an application
-    @State private var showDetailSheet: Bool = false
-    
-    // AI Analytics
-    @State private var showAIAnalytics: Bool = false
+    var filteredQueue: [ApplicationWithBorrower] {
+        if searchText.isEmpty {
+            return currentQueue
+        }
+        let query = searchText.lowercased()
+        return currentQueue.filter { app in
+            app.borrower.fullName.lowercased().contains(query) ||
+            (app.application.applicationNumber ?? "").lowercased().contains(query)
+        }
+    }
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(alignment: .leading, spacing: 0) {
-            Text("Manager Console")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-                .padding(.horizontal, StaffSpacing.lg)
-                .padding(.top, StaffSpacing.lg)
-            
-            VStack(spacing: StaffSpacing.sm) {
-                // KPI summary widgets
-                kpiCardsSection
-                
-                // Inline Charts
-                if showChartsSection {
-                    chartsSection
-                }
-                
-                // Charts toggle
-                Button(action: { withAnimation(.easeInOut(duration: 0.25)) { showChartsSection.toggle() } }) {
-                    HStack {
-                        Image(systemName: showChartsSection ? "chevron.up" : "chart.bar.fill")
-                        Text(showChartsSection ? "Hide Insights" : "Show Insights")
+            HStack(spacing: 0) {
+                // MARK: - Left Column: List & Stats
+                VStack(alignment: .leading, spacing: 0) {
+                    // Dashboard Title
+                    Text("Manager Console")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        .padding(.top, StaffSpacing.lg)
+                    
+                    // KPI + Charts Section
+                    VStack(spacing: StaffSpacing.sm) {
+                        // KPI summary widgets
+                        kpiCardsSection
+                        
+                        // Inline Charts
+                        chartsSection
                     }
-                    .font(.staffCaption)
-                    .foregroundColor(.staffAccent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                }
-            }
-            .padding(.horizontal, StaffSpacing.lg)
-            .padding(.top, StaffSpacing.sm)
-            
-            // Segment Control
-            Picker("Queue", selection: $selectedSegment) {
-                ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
-                    Text("\(seg.rawValue) (\(countFor(seg)))").tag(seg)
-                }
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding(.horizontal, StaffSpacing.lg)
-            .padding(.vertical, StaffSpacing.sm)
-            .onChange(of: selectedSegment) { _ in
-                selectedApp = nil
-            }
-            
-            Divider()
-                .background(Color.staffBorder)
-            
-            // Queue List
-            if vm.isLoading {
-                Spacer()
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                Spacer()
-            } else if currentQueue.isEmpty {
-                Spacer()
-                EmptyStateView(
-                    icon: emptyIcon(for: selectedSegment),
-                    title: emptyTitle(for: selectedSegment),
-                    message: emptyMessage(for: selectedSegment)
-                )
-                Spacer()
-            } else {
-                List(currentQueue) { app in
-                    Button {
-                        selectedApp = app
-                    } label: {
-                        queueListRow(app)
+                    .padding(.horizontal, StaffSpacing.lg)
+                    .padding(.top, StaffSpacing.sm)
+                    
+                    // Queue filter chips (horizontally scrollable)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: StaffSpacing.sm) {
+                            ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
+                                OfficerFilterChip(
+                                    title: "\(seg.rawValue) (\(countFor(seg)))",
+                                    isSelected: selectedSegment == seg
+                                ) {
+                                    selectedSegment = seg
+                                    selectedApp = nil
+                                }
+                            }
+                        }
+                        .padding(.horizontal, StaffSpacing.lg)
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                    .padding(.vertical, StaffSpacing.sm)
+                    
+                    // Search field
+                    TextField("Search borrower or application...", text: $searchText)
+                        .padding(12)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        .padding(.bottom, StaffSpacing.md)
+                    
+                    Divider()
+                        .background(Color.staffBorder)
+                    
+                    // Queue List
+                    if vm.isLoading {
+                        Spacer()
+                        ProgressView("Loading applications...")
+                            .progressViewStyle(CircularProgressViewStyle(tint: .staffAccent))
+                            .frame(maxWidth: .infinity)
+                        Spacer()
+                    } else if filteredQueue.isEmpty {
+                        Spacer()
+                        EmptyStateView(
+                            icon: emptyIcon(for: selectedSegment),
+                            title: emptyTitle(for: selectedSegment),
+                            message: emptyMessage(for: selectedSegment)
+                        )
+                        Spacer()
+                    } else {
+                        List(filteredQueue, id: \.application.id) { app in
+                            Button(action: {
+                                selectedApp = app
+                            }) {
+                                VStack(alignment: .leading, spacing: StaffSpacing.xs) {
+                                    HStack {
+                                        Text(app.borrower.fullName)
+                                            .font(.staffBody)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.staffTextPrimary)
+                                        Spacer()
+                                        StaffStatusBadge(status: app.application.status.displayName)
+                                    }
+                                    
+                                    HStack {
+                                        Text(app.application.applicationNumber ?? "APP-NEW")
+                                            .font(.staffCaption)
+                                            .foregroundColor(.staffTextSecondary)
+                                        Spacer()
+                                        Text("INR \(String(format: "%.2f", app.application.requestedAmount))")
+                                            .font(.staffCaption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.staffAccent)
+                                    }
+                                }
+                                .padding(.vertical, 6)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .listRowBackground(
+                                selectedApp?.application.id == app.application.id
+                                ? Color.staffAccent.opacity(0.15)
+                                : Color.staffSurface
+                            )
+                        }
+                        .listStyle(PlainListStyle())
+                        .scrollContentBackground(.hidden)
+                        .background(Color.staffBackground)
+                    }
                 }
-                .listStyle(PlainListStyle())
-                .scrollContentBackground(.hidden)
+                .frame(width: 360)
                 .background(Color.staffBackground)
-            }
+                
+                Divider()
+                    .background(Color.staffBorder)
+                
+                // MARK: - Right Column: Detail Inspector
+                if let app = selectedApp {
+                    ApplicationDetailView(
+                        appWithBorrower: app,
+                        onStatusUpdated: {
+                            Task {
+                                await vm.loadDashboard()
+                                if let selected = selectedApp {
+                                    // Try to reselect the same app if it still exists in the queue
+                                    selectedApp = currentQueue.first(where: { $0.application.id == selected.application.id })
+                                }
+                            }
+                        }
+                    )
+                    .id(app.application.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: StaffSpacing.md) {
+                        Image(systemName: "hand.tap.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        Text("Select an Application to Inspect")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.staffSurface.opacity(0.1))
+                }
             }
             .background(Color.staffBackground)
             .onAppear {
                 Task { await vm.loadDashboard() }
             }
-            .fullScreenCover(item: $selectedApp) { app in
-                NavigationStack {
-                    ApplicationDetailView(appWithBorrower: app, onStatusUpdated: {
-                        selectedApp = nil
-                        Task { await vm.loadDashboard() }
-                    })
-                    .environmentObject(authViewModel)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Close") { selectedApp = nil }
-                        }
-                    }
-                }
-            }
-            .sheet(item: $metricDetailPayload) { payload in
-                NavigationStack {
-                    MetricDetailSheet(title: payload.title, data: payload.data)
-                }
-            }
+
             .sheet(isPresented: $showAIAnalytics) {
                 NavigationStack {
                     AIAnalyticsView()
@@ -194,37 +242,16 @@ struct ManagerDashboardView: View {
     private var kpiCardsSection: some View {
         VStack(spacing: StaffSpacing.sm) {
             HStack(spacing: StaffSpacing.sm) {
-                Button(action: {
-                    metricDetailPayload = MetricDetailPayload(title: "Active Portfolio", data: .loans(vm.activeLoansList))
-                }) {
-                    MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: {
-                    metricDetailPayload = MetricDetailPayload(title: "Active Loans", data: .loans(vm.activeLoansList))
-                }) {
-                    MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
-                }
-                .buttonStyle(PlainButtonStyle())
+                MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
+                MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
             }
             HStack(spacing: StaffSpacing.sm) {
-                Button(action: {
-                    metricDetailPayload = MetricDetailPayload(title: "Collection Efficiency", data: .loans(vm.activeLoansList))
-                }) {
-                    MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: {
-                    metricDetailPayload = MetricDetailPayload(title: "NPA Ratio", data: .loans(vm.activeLoansList.filter { $0.loan.status == .npa }))
-                }) {
-                    MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
-                }
-                .buttonStyle(PlainButtonStyle())
+                MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
+                MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
             }
         }
     }
+    
     
     // MARK: - Inline Charts
     
@@ -263,146 +290,7 @@ struct ManagerDashboardView: View {
                 .background(Color.staffSurface)
                 .cornerRadius(StaffCorner.md)
             }
-            
-            HStack(spacing: StaffSpacing.sm) {
-                // Portfolio Breakdown Donut
-                if !vm.portfolioBreakdown.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Portfolio Mix")
-                            .font(.caption.weight(.bold))
-                            .foregroundColor(.staffTextSecondary)
-                        
-                        Chart(vm.portfolioBreakdown, id: \.status) { item in
-                            SectorMark(
-                                angle: .value("Amount", item.amount),
-                                innerRadius: .ratio(0.55),
-                                angularInset: 1.5
-                            )
-                            .foregroundStyle(colorForStatus(item.status))
-                            .annotation(position: .overlay) {
-                                if item.count > 0 {
-                                    Text("\(item.count)")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                        }
-                        .frame(height: 90)
-                        
-                        // Legend
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(vm.portfolioBreakdown, id: \.status) { item in
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(colorForStatus(item.status))
-                                        .frame(width: 6, height: 6)
-                                    Text("\(item.status): \(item.count)")
-                                        .font(.caption)
-                                        .foregroundColor(.staffTextSecondary)
-                                }
-                            }
-                        }
-                    }
-                    .padding(10)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                }
-                
-                // NPA Aging Bars
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("NPA Aging")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(.staffTextSecondary)
-                    
-                    let totalNPA = vm.npaAgingBuckets.reduce(0) { $0 + $1.count }
-                    
-                    if totalNPA == 0 {
-                        Text("No NPA loans")
-                            .font(.caption)
-                            .foregroundColor(.staffGreen)
-                            .frame(maxWidth: .infinity, minHeight: 90, alignment: .center)
-                    } else {
-                        Chart(vm.npaAgingBuckets, id: \.range) { item in
-                            BarMark(
-                                x: .value("Count", item.count),
-                                y: .value("Range", item.range)
-                            )
-                            .foregroundStyle(npaBarColor(item.range))
-                            .annotation(position: .trailing) {
-                                if item.count > 0 {
-                                    Text("\(item.count)")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundColor(.staffTextSecondary)
-                                }
-                            }
-                        }
-                        .frame(height: 90)
-                        .chartXAxis(.hidden)
-                        .chartYAxis {
-                            AxisMarks { _ in
-                                AxisValueLabel()
-                                    .font(.caption)
-                                    .foregroundStyle(Color.staffTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .padding(10)
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-            }
         }
-    }
-    
-    // MARK: - Queue List Row
-    
-    @ViewBuilder
-    private func queueListRow(_ app: ApplicationWithBorrower) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(app.borrower.fullName)
-                    .font(.staffBody)
-                    .fontWeight(.bold)
-                    .foregroundColor(.staffTextPrimary)
-                Spacer()
-                Text("₹\(String(format: "%.0f", app.application.requestedAmount))")
-                    .font(.staffBody)
-                    .fontWeight(.bold)
-                    .foregroundColor(.staffAccent)
-            }
-            
-            HStack {
-                Text(app.application.applicationNumber ?? "APP-NEW")
-                    .font(.staffCaption)
-                    .foregroundColor(.staffTextSecondary)
-                Spacer()
-                
-                if selectedSegment == .sentBack {
-                    Text("Sent Back")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.staffAmber)
-                } else if selectedSegment == .rejected {
-                    Text("Rejected")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.staffRed)
-                } else if selectedSegment == .approved {
-                    Text("Approved")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.staffGreen)
-                } else {
-                    Text("Tenure: \(app.application.requestedTenureMonths)m")
-                        .font(.system(size: 12))
-                        .foregroundColor(.staffTextSecondary)
-                }
-            }
-        }
-        .padding(16)
-        .background(Color.staffSurface)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.staffBorder, lineWidth: 1)
-        )
     }
     
     private func colorForStatus(_ status: String) -> Color {

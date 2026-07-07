@@ -36,6 +36,12 @@ class ManagerDashboardViewModel: ObservableObject {
     @Published var portfolioBreakdown: [(status: String, count: Int, amount: Double)] = []
     @Published var npaAgingBuckets: [(range: String, count: Int, amount: Double)] = []
     
+    @Published var applicationStageBreakdown: [(status: String, count: Int)] = []
+    @Published var disbursementTrends: [String: [(period: String, amount: Double)]] = [
+        "daily": [], "weekly": [], "monthly": [], "yearly": []
+    ]
+
+    
     @Published var availableOfficers: [StaffWithUser] = []
     
     @Published var isLoading: Bool = false
@@ -78,6 +84,9 @@ class ManagerDashboardViewModel: ObservableObject {
             
             // 6. Fetch all applications and segment them
             let allApplications = try await appService.fetchAllApplications()
+            computeApplicationStageBreakdown(allApplications)
+            computeDisbursementTrends(allLoans)
+
             self.recommendedApplications = allApplications.filter { $0.application.status == .underReview }
             self.sentBackApplications = allApplications.filter { $0.application.status == .sentBack }
             self.rejectedApplications = allApplications.filter { $0.application.status == .rejected }
@@ -146,6 +155,78 @@ class ManagerDashboardViewModel: ObservableObject {
         
         let order = ["30–60 days", "60–90 days", "90–180 days", "180+ days"]
         self.npaAgingBuckets = order.map { (range: $0, count: buckets[$0]!.count, amount: buckets[$0]!.amount) }
+    }
+    
+    private func computeApplicationStageBreakdown(_ applications: [ApplicationWithBorrower]) {
+        var statusMap: [String: Int] = [:]
+        for app in applications {
+            let key = app.application.status.displayName
+            statusMap[key, default: 0] += 1
+        }
+        self.applicationStageBreakdown = statusMap.map { (status: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+    }
+    
+    private func computeDisbursementTrends(_ allLoans: [LoanWithDetails]) {
+        let disbursedLoans = allLoans.filter { $0.loan.disbursementDate != nil }
+        
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallbackFormatter = ISO8601DateFormatter()
+        
+        let ymdFormatter = DateFormatter()
+        ymdFormatter.dateFormat = "yyyy-MM-dd"
+        ymdFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        let cal = Calendar.current
+        
+        // Groupings by start of interval
+        var daily: [Date: Double] = [:]
+        var weekly: [Date: Double] = [:]
+        var monthly: [Date: Double] = [:]
+        var yearly: [Date: Double] = [:]
+        
+        for loan in disbursedLoans {
+            guard let dateStr = loan.loan.disbursementDate,
+                  let date = isoFormatter.date(from: dateStr) ?? fallbackFormatter.date(from: dateStr) ?? ymdFormatter.date(from: dateStr) else { continue }
+            
+            let amount = loan.loan.principalAmount
+            
+            let startOfDay = cal.startOfDay(for: date)
+            let startOfWeek = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)) ?? startOfDay
+            let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: date)) ?? startOfDay
+            let startOfYear = cal.date(from: cal.dateComponents([.year], from: date)) ?? startOfDay
+            
+            daily[startOfDay, default: 0] += amount
+            weekly[startOfWeek, default: 0] += amount
+            monthly[startOfMonth, default: 0] += amount
+            yearly[startOfYear, default: 0] += amount
+        }
+        
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "MMM d"
+        let weekFormatter = DateFormatter()
+        weekFormatter.dateFormat = "MMM d, yyyy"
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMM yyyy"
+        let yearFormatter = DateFormatter()
+        yearFormatter.dateFormat = "yyyy"
+        
+        var trends: [String: [(period: String, amount: Double)]] = [:]
+        
+        trends["daily"] = daily.sorted { $0.key < $1.key }
+            .map { (period: dayFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["weekly"] = weekly.sorted { $0.key < $1.key }
+            .map { (period: "Week of " + weekFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["monthly"] = monthly.sorted { $0.key < $1.key }
+            .map { (period: monthFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["yearly"] = yearly.sorted { $0.key < $1.key }
+            .map { (period: yearFormatter.string(from: $0.key), amount: $0.value) }
+            
+        self.disbursementTrends = trends
     }
     
     // MARK: - Message Timestamps

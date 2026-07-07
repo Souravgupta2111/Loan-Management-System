@@ -189,6 +189,8 @@ struct MiniStatCard: View {
                 Text(title)
                     .font(.staffCaption)
                     .foregroundColor(.staffTextSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             Spacer()
             Text(value)

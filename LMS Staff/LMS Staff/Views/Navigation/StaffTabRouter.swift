@@ -16,7 +16,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case officerAIChat
     
     case managerDashboard
-    case managerDisbursements
+    case managerBranchLoans
     case managerPortfolio
     case managerNpa
     case managerReports
@@ -45,10 +45,10 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
-        case .managerDisbursements: return "Pending Disbursements"
+        case .managerBranchLoans: return "Branch Loans"
         case .managerPortfolio: return "Portfolio Analytics"
         case .managerNpa: return "NPA & Recoveries"
-        case .managerReports: return "Export Reports"
+        case .managerReports: return "Reports"
         case .managerMessages: return "Chats"
         case .managerAI: return "AI Analytics"
         case .managerAIChat: return "AI Assistant"
@@ -81,14 +81,14 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerNotifications:
             return "bell.fill"
             
-        case .managerDisbursements:
-            return "banknote.fill"
+        case .managerBranchLoans:
+            return "building.2.crop.circle"
         case .managerPortfolio:
             return "chart.pie.fill"
         case .managerNpa:
             return "exclamationmark.triangle.fill"
         case .managerReports:
-            return "doc.text.fill"
+            return "chart.bar.doc.horizontal.fill"
             
         case .adminStaff:
             return "person.3.fill"
@@ -166,8 +166,8 @@ struct StaffTabRouter: View {
         // MARK: - Manager Views
         case .managerDashboard:
             ManagerDashboardView()
-        case .managerDisbursements:
-            PendingDisbursementsView()
+        case .managerBranchLoans:
+            BranchLoansView()
         case .managerPortfolio:
             PortfolioDashboardView()
         case .managerNpa:
