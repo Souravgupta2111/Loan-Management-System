@@ -21,7 +21,7 @@ final class SpeechService: ObservableObject {
     @Published var speechError: String?
     
     // MARK: - Speech-to-Text (Voice Input)
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -109,9 +109,7 @@ final class SpeechService: ObservableObject {
         recognitionTask?.cancel()
         self.recognitionTask = nil
 
-        // The recognizer can be temporarily unavailable (e.g. no network for
-        // server-based recognition, or on-device model still downloading).
-        guard speechRecognizer.isAvailable else {
+        guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             throw NSError(domain: "SpeechService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer is not available right now. Check your network connection."])
         }
 
@@ -122,25 +120,16 @@ final class SpeechService: ObservableObject {
         }
 
         request.shouldReportPartialResults = true
-
-        // Only request on-device recognition when the recognizer actually
-        // supports it. Forcing it on the iOS Simulator (or unsupported
-        // devices/locales) makes the task fail with "Failed to initialize
-        // recognizer". When unsupported, fall back to server-based recognition.
+        
+        // Enforce on-device recognition only if supported to avoid simulator crashes, 
+        // matching the behavior in the B-easy project.
         if #available(iOS 13, *), speechRecognizer.supportsOnDeviceRecognition {
-            request.requiresOnDeviceRecognition = true
+            // Note: On simulators, this might still be true but fail if models aren't downloaded. 
+            // In the B-easy project, this wasn't enforced at all, which is why it worked on simulator.
+            // request.requiresOnDeviceRecognition = true 
         }
         
-        let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
-            self.recognitionRequest?.append(buffer)
-        }
-        
-        audioEngine.prepare()
-        try audioEngine.start()
-        
+        // 1. MUST create the recognition task BEFORE installing the tap and starting the engine
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
                 guard let self = self else { return }
@@ -159,6 +148,21 @@ final class SpeechService: ObservableObject {
                 }
             }
         }
+        
+        // 2. Configure audio engine and tap AFTER task is created
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        
+        // Remove any existing tap just in case
+        inputNode.removeTap(onBus: 0)
+        
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
+            self?.recognitionRequest?.append(buffer)
+        }
+        
+        // 3. Start engine
+        audioEngine.prepare()
+        try audioEngine.start()
     }
     
     // MARK: - Voice Output (Text-to-Speech)
