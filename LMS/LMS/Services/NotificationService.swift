@@ -76,6 +76,7 @@ class NotificationService {
     }
     
     private func triggerLocalPush(title: String, body: String) {
+        print("📣 [LMS Borrower] triggerLocalPush called with Title: \(title), Body: \(body)")
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

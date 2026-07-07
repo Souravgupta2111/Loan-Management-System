@@ -28,7 +28,7 @@ class OfficerDashboardViewModel: ObservableObject {
             applyFilters(search: searchText, filter: selectedStatusFilter)
         }
     }
-    @Published var selectedStatusFilter: String = "All" {
+    @Published var selectedStatusFilter: String = "Under Review" {
         didSet {
             applyFilters(search: searchText, filter: selectedStatusFilter)
         }
@@ -69,9 +69,9 @@ class OfficerDashboardViewModel: ObservableObject {
     
     private func calculateStats() {
         let activeApps = applications.filter { $0.application.status != .disbursed }
-        statsPendingCount = activeApps.filter { $0.application.status == .submitted || $0.application.status == .sentBack }.count
+        statsPendingCount = activeApps.filter { $0.application.status == .submitted }.count
         statsUnderReviewCount = activeApps.filter { $0.application.status == .underReview }.count
-        statsApprovedCount = activeApps.filter { $0.application.status == .approved || $0.application.status == .pendingAcceptance || $0.application.status == .pendingDisbursal }.count
+        statsApprovedCount = activeApps.filter { $0.application.status == .sentBack }.count
         statsRejectedCount = activeApps.filter { $0.application.status == .rejected }.count
     }
     
@@ -92,7 +92,15 @@ class OfficerDashboardViewModel: ObservableObject {
         
         // Apply status filter
         if filter != "All" {
-            result = result.filter { $0.application.status.displayName == filter }
+            result = result.filter { app in
+                if filter == "Under Review" {
+                    return app.application.status == .submitted
+                } else if filter == "Submitted" {
+                    return app.application.status == .underReview
+                } else {
+                    return app.application.status.displayName == filter
+                }
+            }
         }
         
         // Apply search query

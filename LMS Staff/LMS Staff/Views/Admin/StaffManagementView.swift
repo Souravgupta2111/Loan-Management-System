@@ -90,7 +90,11 @@ struct StaffManagementView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(item)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedStaff?.id == item.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -337,7 +341,7 @@ struct StaffProfileDetailView: View {
                 }
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             Divider().background(Color.staffBorder)
             

@@ -39,6 +39,19 @@ class MessageService {
             throw NSError(domain: "MessageService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
+        // Prevent echo notification for the message sent by us
+        await MainActor.run {
+            NotificationService.shared.recentlySentMessages.insert(content)
+        }
+        
+        // Clean it up after 15 seconds
+        Task {
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            await MainActor.run {
+                NotificationService.shared.recentlySentMessages.remove(content)
+            }
+        }
+        
         let payload: [String: AnyEncodable] = [
             "application_id": AnyEncodable(applicationId),
             "sender_id": AnyEncodable(senderId),

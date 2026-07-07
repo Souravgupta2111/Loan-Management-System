@@ -16,6 +16,9 @@ class NotificationService {
     private let supabase = SupabaseManager.shared
     private var channel: RealtimeChannelV2?
     
+    // Track recently sent message contents to prevent echo notifications
+    var recentlySentMessages: Set<String> = []
+    
     private init() {}
     
     /// Fetches notifications for the logged in staff member
@@ -107,10 +110,20 @@ class NotificationService {
 
                 for await insert in insertions {
                     let record = insert.record
-                    if let title = record["title"]?.stringValue,
-                       let body = record["body"]?.stringValue {
-                        await MainActor.run {
-                            self.triggerLocalPush(title: title, body: body)
+                    if let recordUserIdString = record["user_id"]?.stringValue,
+                       recordUserIdString.caseInsensitiveCompare(userId.uuidString) == .orderedSame {
+                        if let title = record["title"]?.stringValue,
+                           let body = record["body"]?.stringValue {
+                            
+                            // Prevent triggering local push if the message was sent by the current user
+                            if (title == "New Message" || title == "New Message from Borrower") && self.recentlySentMessages.contains(body) {
+                                print("🔔 [LMS Staff] Ignored echo notification for sent message: \(body)")
+                                continue
+                            }
+                            
+                            await MainActor.run {
+                                self.triggerLocalPush(title: title, body: body)
+                            }
                         }
                     }
                 }
@@ -121,6 +134,7 @@ class NotificationService {
     }
     
     private func triggerLocalPush(title: String, body: String) {
+        print("📣 [LMS Staff] triggerLocalPush called with Title: \(title), Body: \(body)")
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

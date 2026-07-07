@@ -17,7 +17,7 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 0) {
             // User Header
             if let user = authViewModel.currentUser, let profile = authViewModel.currentStaff {
-                VStack(alignment: .leading, spacing: StaffSpacing.xs) {
+                HStack(alignment: .center) {
                     HStack(spacing: StaffSpacing.md) {
                         Image(systemName: "person.crop.circle.fill")
                             .resizable()
@@ -35,10 +35,11 @@ struct SidebarView: View {
                                 .foregroundColor(.staffTextSecondary)
                         }
                     }
-                    .padding(.bottom, StaffSpacing.xs)
+                    
+                    Spacer()
                     
                     // Role Badge
-                    HStack {
+                    HStack(spacing: 4) {
                         Image(systemName: roleIcon(role))
                         Text(role.displayName)
                     }
@@ -123,7 +124,7 @@ struct SidebarView: View {
     private func menuItems(for role: UserRole) -> [SidebarItem] {
         switch role {
         case .officer:
-            return [.officerDashboard, .officerPortfolio, .officerMessages, .officerAIChat]
+            return [.officerDashboard, .officerPortfolio, .officerReports, .officerMessages, .officerAIChat]
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
             return [.managerDashboard, .managerDisbursements, .managerMessages, .managerAI, .managerAIChat]

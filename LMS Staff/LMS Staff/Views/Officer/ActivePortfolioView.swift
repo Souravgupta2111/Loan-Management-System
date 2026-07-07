@@ -80,7 +80,11 @@ struct ActivePortfolioView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(item)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedLoan?.id == item.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -143,10 +147,10 @@ struct ActivePortfolioView: View {
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
                 }
-                
+                Spacer()
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             Picker("Tabs", selection: $selectedTab) {
                 Text("Overview").tag(0)

@@ -84,7 +84,11 @@ struct PendingDisbursementsView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(app)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedApp?.id == app.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -146,7 +150,7 @@ struct PendingDisbursementsView: View {
                 Spacer()
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: StaffSpacing.lg) {
