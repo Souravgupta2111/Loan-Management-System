@@ -2,8 +2,6 @@
 //  SpeechService.swift
 //  LMS
 //
-//  Handles voice input (Speech-to-Text) and voice output (Text-to-Speech)
-//  using Apple's free, on-device Speech & AVFoundation frameworks.
 //
 
 import Foundation
@@ -21,7 +19,7 @@ final class SpeechService: ObservableObject {
     @Published var speechError: String?
     
     // MARK: - Speech-to-Text (Voice Input)
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
+    private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -71,7 +69,11 @@ final class SpeechService: ObservableObject {
             }
             
             do {
-                try startAudioSession()
+                // Activate the audio session off the main thread to avoid the
+                // "UI unresponsiveness if called on the main thread" warnings.
+                try await Task.detached(priority: .userInitiated) {
+                    try self.startAudioSession()
+                }.value
                 try startRecognition()
                 isListening = true
                 speechError = nil
@@ -85,29 +87,38 @@ final class SpeechService: ObservableObject {
     }
     
     func stopListening() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        guard isListening else { return } // Prevent infinite recursive stopping loop
+        isListening = false
+        
+        if audioEngine.isRunning {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            audioEngine.stop()
+        }
         
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
         recognitionTask = nil
         recognitionRequest = nil
-        isListening = false
         
-        // Deactivate audio session so TTS can use it smoothly
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+
     }
     
-    private func startAudioSession() throws {
+    nonisolated private func startAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
     }
     
     private func startRecognition() throws {
         recognitionTask?.cancel()
         self.recognitionTask = nil
+        
+        // Re-initialize the recognizer on every run. 
+        // On iOS Simulators, the background speechd daemon frequently crashes 
+        // leaving the existing instance permanently broken (Failed to initialize).
+        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
 
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             throw NSError(domain: "SpeechService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer is not available right now. Check your network connection."])
@@ -121,12 +132,9 @@ final class SpeechService: ObservableObject {
 
         request.shouldReportPartialResults = true
         
-        // Enforce on-device recognition only if supported to avoid simulator crashes, 
-        // matching the behavior in the B-easy project.
+
         if #available(iOS 13, *), speechRecognizer.supportsOnDeviceRecognition {
-            // Note: On simulators, this might still be true but fail if models aren't downloaded. 
-            // In the B-easy project, this wasn't enforced at all, which is why it worked on simulator.
-            // request.requiresOnDeviceRecognition = true 
+
         }
         
         // 1. MUST create the recognition task BEFORE installing the tap and starting the engine
@@ -135,15 +143,20 @@ final class SpeechService: ObservableObject {
                 guard let self = self else { return }
                 
                 var isFinal = false
-                
+
                 if let result = result {
                     self.transcribedText = result.bestTranscription.formattedString
                     isFinal = result.isFinal
                     print("🗣️ Transcribed so far: \(self.transcribedText)")
                 }
-                
-                if error != nil || isFinal {
-                    if let error = error { print("❌ Recognition error: \(error.localizedDescription)") }
+
+                // On error (e.g. Simulator speechd daemon crash) or final result,
+                // tear down cleanly so the mic button doesn't get stuck "on".
+                if let error = error {
+                    print("⚠️ Recognition ended: \(error.localizedDescription)")
+                    self.speechError = "Voice input is unavailable. On the Simulator, restart it (Device → Restart) or use a real device."
+                    self.stopListening()
+                } else if isFinal {
                     self.stopListening()
                 }
             }
@@ -187,8 +200,7 @@ final class SpeechService: ObservableObject {
         utterance.pitchMultiplier = 1.05
         utterance.volume = 1.0
         
-        // Ensure audio session is set for playback
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+
         try? AVAudioSession.sharedInstance().setActive(true)
         
         isSpeaking = true
