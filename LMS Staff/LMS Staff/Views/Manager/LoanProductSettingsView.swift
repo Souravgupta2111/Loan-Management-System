@@ -54,7 +54,11 @@ struct LoanProductSettingsView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(product)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedProduct?.id == product.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -111,7 +115,7 @@ struct LoanProductSettingsView: View {
                 Spacer()
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: StaffSpacing.xl) {

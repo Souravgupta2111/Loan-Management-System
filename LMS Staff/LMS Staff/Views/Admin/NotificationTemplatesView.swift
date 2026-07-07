@@ -95,7 +95,11 @@ struct NotificationTemplatesView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(template)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedTemplate?.id == template.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -211,7 +215,7 @@ struct NotificationTemplatesView: View {
                 .padding(.leading, StaffSpacing.md)
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: StaffSpacing.lg) {
