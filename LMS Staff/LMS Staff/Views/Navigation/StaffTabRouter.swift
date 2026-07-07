@@ -20,6 +20,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case managerNpa
     case managerReports
     case managerMessages
+    case managerAI
     
     case adminDashboard
     case adminStaff
@@ -46,6 +47,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .managerNpa: return "NPA & Recoveries"
         case .managerReports: return "Export Reports"
         case .managerMessages: return "Chats"
+        case .managerAI: return "AI Analytics"
         
         case .adminDashboard: return "System Overview"
         case .adminStaff: return "Staff Accounts"
@@ -68,6 +70,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             return "briefcase.fill"
         case .officerMessages, .managerMessages:
             return "bubble.left.and.bubble.right.fill"
+        case .managerAI:
+            return "sparkles"
         case .officerNotifications:
             return "bell.fill"
             
@@ -164,6 +168,8 @@ struct StaffTabRouter: View {
             ReportsView()
         case .managerMessages:
             ManagerMessagesView()
+        case .managerAI:
+            AIAnalyticsView()
             
         // MARK: - Admin Views
         case .adminDashboard:

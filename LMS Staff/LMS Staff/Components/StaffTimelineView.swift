@@ -43,7 +43,7 @@ struct StaffTimelineView: View {
                     VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                         HStack {
                             Image(systemName: item.icon)
-                                .font(.system(size: 14))
+                                .font(.subheadline)
                                 .foregroundColor(item.color)
 
                             Text(item.action)

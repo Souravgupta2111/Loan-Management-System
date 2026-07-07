@@ -23,7 +23,7 @@ struct StaffFormField: View {
             HStack(spacing: StaffSpacing.md) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 16))
+                        .font(.body)
                         .foregroundColor(isFocused ? .staffAccent : .staffTextTertiary)
                         .frame(width: 20)
                 }
@@ -64,7 +64,7 @@ struct StaffFormField: View {
             if let error = error, !error.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 12))
+                        .font(.caption)
                     Text(error)
                         .font(.staffCaption)
                 }
@@ -124,7 +124,7 @@ struct StaffTextEditor: View {
             if let error = error, !error.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 12))
+                        .font(.caption)
                     Text(error)
                         .font(.staffCaption)
                 }

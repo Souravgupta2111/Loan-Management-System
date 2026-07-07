@@ -42,7 +42,7 @@ struct SidebarView: View {
                         Image(systemName: roleIcon(role))
                         Text(role.displayName)
                     }
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundColor(roleColor(role))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -126,7 +126,7 @@ struct SidebarView: View {
             return [.officerDashboard, .officerPortfolio, .officerMessages]
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
-            return [.managerDashboard, .managerDisbursements, .managerMessages]
+            return [.managerDashboard, .managerDisbursements, .managerMessages, .managerAI]
             // Hidden: .managerPortfolio, .managerNpa, .managerReports
         case .admin:
             return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]

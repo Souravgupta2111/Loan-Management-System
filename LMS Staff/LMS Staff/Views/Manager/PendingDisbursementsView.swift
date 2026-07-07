@@ -75,7 +75,7 @@ struct PendingDisbursementsView: View {
                                     .foregroundColor(.staffTextSecondary)
                                 Spacer()
                                 Text("Awaiting Bank Details")
-                                    .font(.system(size: 10))
+                                    .font(.caption)
                                     .foregroundColor(.staffAmber)
                             }
                         }

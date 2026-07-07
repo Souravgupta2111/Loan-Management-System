@@ -122,4 +122,16 @@ class AuthViewModel: ObservableObject {
         self.authState = .unauthenticated
     }
     
+    // MARK: - Restore Session (Biometric Login)
+    /// Called after successful biometric auth to restore an existing Supabase session.
+    func restoreSession() async {
+        isLoading = true
+        errorMessage = nil
+        await checkCurrentSession()
+        if case .unauthenticated = authState {
+            errorMessage = "Session expired. Please sign in with your credentials."
+        }
+        isLoading = false
+    }
+    
 }

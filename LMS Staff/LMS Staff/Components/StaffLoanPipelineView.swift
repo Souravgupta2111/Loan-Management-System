@@ -45,18 +45,18 @@ struct StaffLoanPipelineView: View {
                     // Content
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stage.title)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(.body, design: .rounded).weight(.semibold))
                             .foregroundColor(textColor(for: stage))
                         
                         if !stage.date.isEmpty {
                             Text(stage.date)
-                                .font(.system(size: 12, weight: .regular))
+                                .font(.caption.weight(.regular))
                                 .foregroundColor(.staffTextTertiary)
                         }
                         
                         if let remarks = stage.remarks, !remarks.isEmpty {
                             Text(remarks)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.subheadline.weight(.medium))
                                 .foregroundColor(remarksColor(for: stage))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -67,11 +67,28 @@ struct StaffLoanPipelineView: View {
                     }
                     .padding(.top, 3)
                     .padding(.bottom, index == stages.count - 1 ? 0 : 20)
-                    
+
                     Spacer(minLength: 0)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel(for: stage))
             }
         }
+    }
+
+    /// Speaks the stage as one element including its status, which is otherwise
+    /// only conveyed by the node's color/shape.
+    private func accessibilityLabel(for stage: PipelineStage) -> String {
+        let statusWord: String
+        switch stage.status {
+        case .completed: statusWord = "completed"
+        case .active:    statusWord = "in progress"
+        case .pending:   statusWord = "pending"
+        }
+        var parts = ["\(stage.title), \(statusWord)"]
+        if !stage.date.isEmpty { parts.append(stage.date) }
+        if let remarks = stage.remarks, !remarks.isEmpty { parts.append(remarks) }
+        return parts.joined(separator: ". ")
     }
     
     // MARK: - Node View
@@ -85,7 +102,7 @@ struct StaffLoanPipelineView: View {
                     .fill(Color.staffGreen)
                     .frame(width: 28, height: 28)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundColor(.white)
                 
             case .active:
@@ -96,7 +113,7 @@ struct StaffLoanPipelineView: View {
                         .background(Circle().fill(Color.staffRed.opacity(0.1)))
                         .frame(width: 28, height: 28)
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(.staffRed)
                 } else if titleLower.contains("document") || titleLower.contains("back") {
                     Circle()
@@ -104,7 +121,7 @@ struct StaffLoanPipelineView: View {
                         .background(Circle().fill(Color.staffOrange.opacity(0.1)))
                         .frame(width: 28, height: 28)
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(.staffOrange)
                 } else {
                     Circle()

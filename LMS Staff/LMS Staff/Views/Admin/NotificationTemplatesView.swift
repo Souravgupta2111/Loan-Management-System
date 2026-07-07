@@ -55,7 +55,7 @@ struct NotificationTemplatesView: View {
                         showCreateSheet = true
                     }) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22))
+                            .font(.title3)
                             .foregroundColor(.staffAccent)
                     }
                 }
@@ -205,7 +205,7 @@ struct NotificationTemplatesView: View {
                     showDeleteConfirm = true
                 }) {
                     Image(systemName: "trash.fill")
-                        .font(.system(size: 16))
+                        .font(.body)
                         .foregroundColor(.staffRed)
                 }
                 .padding(.leading, StaffSpacing.md)

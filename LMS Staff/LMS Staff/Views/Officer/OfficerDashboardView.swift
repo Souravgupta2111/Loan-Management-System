@@ -80,31 +80,40 @@ struct OfficerDashboardView: View {
                     )
                     Spacer()
                 } else {
-                    List(vm.filteredApplications, selection: $selectedApp) { app in
-                        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
-                            HStack {
-                                Text(app.borrower.fullName)
-                                    .font(.staffBody)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.staffTextPrimary)
-                                Spacer()
-                                StaffStatusBadge(status: app.application.status.displayName)
+                    List(vm.filteredApplications, id: \.application.id) { app in
+                        Button(action: {
+                            selectedApp = app
+                        }) {
+                            VStack(alignment: .leading, spacing: StaffSpacing.xs) {
+                                HStack {
+                                    Text(app.borrower.fullName)
+                                        .font(.staffBody)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.staffTextPrimary)
+                                    Spacer()
+                                    StaffStatusBadge(status: app.application.status.displayName)
+                                }
+                                
+                                HStack {
+                                    Text(app.application.applicationNumber ?? "APP-NEW")
+                                        .font(.staffCaption)
+                                        .foregroundColor(.staffTextSecondary)
+                                    Spacer()
+                                    Text("INR \(String(format: "%.2f", app.application.requestedAmount))")
+                                        .font(.staffCaption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.staffAccent)
+                                }
                             }
-                            
-                            HStack {
-                                Text(app.application.applicationNumber ?? "APP-NEW")
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
-                                Spacer()
-                                Text("INR \(String(format: "%.2f", app.application.requestedAmount))")
-                                    .font(.staffCaption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.staffAccent)
-                            }
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.vertical, 6)
-                        .tag(app)
-                        .listRowBackground(Color.staffSurface)
+                        .buttonStyle(PlainButtonStyle())
+                        .listRowBackground(
+                            selectedApp?.application.id == app.application.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -174,7 +183,7 @@ struct MiniStatCard: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 20))
+                    .font(.title3)
                     .foregroundColor(color)
                 Text(title)
                     .font(.staffCaption)

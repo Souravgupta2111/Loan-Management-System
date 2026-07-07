@@ -30,11 +30,24 @@ struct ApplicationDetailView: View {
     @State private var pdfShareURL: URL? = nil
     @State private var showIncomeVerification = false
     
+    // Manager action states
+    @State private var showManagerApprovalSheet: Bool = false
+    @State private var showManagerRejectSheet: Bool = false
+    @State private var showManagerSendBackSheet: Bool = false
+    @State private var mgrApprovedAmount: Double = 0.0
+    @State private var mgrApprovedTenure: Int = 12
+    @State private var mgrApprovedRate: Double = 10.0
+    @State private var mgrRemarks: String = ""
+    
+    // AI Copilot State
+    @State private var showCopilot: Bool = false
+    
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
         case documents = "Documents"
         case chat = "Chat History"
         case timeline = "Timeline Log"
+        case emiSchedule = "EMI Schedule"
     }
     
     init(appWithBorrower: ApplicationWithBorrower, onStatusUpdated: @escaping () -> Void) {
@@ -51,8 +64,9 @@ struct ApplicationDetailView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header Info Bar
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                // Header Info Bar
             HStack(spacing: StaffSpacing.lg) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -76,6 +90,23 @@ struct ApplicationDetailView: View {
                     DetailMetric(label: "Requested Amount", value: "INR \(String(format: "%.2f", vm.application.requestedAmount))")
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
+                    
+                    // AI Copilot Toggle
+                    Button {
+                        withAnimation(.spring()) {
+                            showCopilot.toggle()
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(showCopilot ? Color(hex: "#2D8B4E") : Color(hex: "#E8F5EC"))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "sparkles")
+                                .font(.title3.weight(.semibold))
+                                .foregroundColor(showCopilot ? .white : Color(hex: "#2D8B4E"))
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(StaffSpacing.lg)
@@ -83,7 +114,12 @@ struct ApplicationDetailView: View {
             
             // Tab Selector bar
             HStack(spacing: 0) {
-                ForEach(InspectorTab.allCases, id: \.self) { tab in
+                ForEach(InspectorTab.allCases.filter { tab in
+                    if tab == .emiSchedule {
+                        return vm.application.status == .disbursed || vm.application.status == .pendingDisbursal || vm.activeLoan != nil
+                    }
+                    return true
+                }, id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
                         VStack(spacing: 8) {
                             Text(tab.rawValue)
@@ -121,6 +157,8 @@ struct ApplicationDetailView: View {
                             .clipped()
                     case .timeline:
                         timelineSection
+                    case .emiSchedule:
+                        emiScheduleSection
                     }
                 }
                 .padding(StaffSpacing.lg)
@@ -133,53 +171,85 @@ struct ApplicationDetailView: View {
                 actionButtonBar
             }
         }
-        .task {
-            await vm.loadAllDetails()
-        }
-        .onChange(of: appWithBorrower) { newValue in
-            vm.application = newValue.application
-            vm.borrower = newValue.borrower
-            vm.borrowerProfile = newValue.profile
-            vm.product = newValue.product
-            Task {
-                await vm.loadAllDetails()
-            }
-        }
-        .navigationBarHidden(false)
-        // MODALS/SHEETS LIST
-        .sheet(isPresented: $showRejectSheet) {
-            rejectionRemarksSheet
-        }
-        .sheet(isPresented: $showRecommendSheet) {
-            recommendChecklistSheet
-        }
-        .sheet(isPresented: $showSendBackSheet) {
-            sendBackRemarksSheet
-        }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = pdfShareURL {
-                ShareSheet(activityItems: [url])
-            }
-        }
-        .alert("Error", isPresented: Binding(
-            get: { vm.errorMessage != nil },
-            set: { isPresented in if !isPresented { vm.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(vm.errorMessage ?? "An unknown error occurred.")
-        }
-        .sheet(isPresented: $showIncomeVerification) {
-            IncomeVerificationView(
-                consentId: vm.borrowerProfile?.aaConsentId,
-                consentStatus: vm.borrowerProfile?.aaConsentStatus,
-                onVerificationComplete: { analyzedData in
-                    Task {
-                        await vm.saveVerifiedIncome(analyzedData)
+        
+        // AI Copilot Panel Overlay
+        if showCopilot {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        showCopilot = false
                     }
                 }
-            )
+                
+            AICopilotPanel(application: appWithBorrower) { text in
+                self.remarks = text
+                self.mgrRemarks = text
+                withAnimation(.spring()) {
+                    showCopilot = false
+                }
+            }
+            .frame(maxHeight: 500)
+            .transition(.move(edge: .bottom))
         }
+    }
+    .task {
+        await vm.loadAllDetails()
+    }
+    .onChange(of: appWithBorrower) { newValue in
+        vm.application = newValue.application
+        vm.borrower = newValue.borrower
+        vm.borrowerProfile = newValue.profile
+        vm.product = newValue.product
+        Task {
+            await vm.loadAllDetails()
+        }
+    }
+    .navigationBarHidden(false)
+    // MODALS/SHEETS LIST
+    .sheet(isPresented: $showRejectSheet) {
+        rejectionRemarksSheet
+    }
+    .sheet(isPresented: $showRecommendSheet) {
+        recommendChecklistSheet
+    }
+    .sheet(isPresented: $showSendBackSheet) {
+        sendBackRemarksSheet
+    }
+    .sheet(isPresented: $showShareSheet) {
+        if let url = pdfShareURL {
+            ShareSheet(activityItems: [url])
+        }
+    }
+    .alert("Error", isPresented: Binding(
+        get: { vm.errorMessage != nil },
+        set: { isPresented in if !isPresented { vm.errorMessage = nil } }
+    )) {
+        Button("OK", role: .cancel) {}
+    } message: {
+        Text(vm.errorMessage ?? "An unknown error occurred.")
+    }
+    .sheet(isPresented: $showIncomeVerification) {
+        IncomeVerificationView(
+            consentId: vm.borrowerProfile?.aaConsentId,
+            consentStatus: vm.borrowerProfile?.aaConsentStatus,
+            onVerificationComplete: { analyzedData in
+                Task {
+                    await vm.saveVerifiedIncome(analyzedData)
+                }
+            }
+        )
+    }
+    // Manager Action Sheets
+    .sheet(isPresented: $showManagerApprovalSheet) {
+        managerApprovalTermsSheet
+    }
+    .sheet(isPresented: $showManagerRejectSheet) {
+        managerRejectionSheet
+    }
+    .sheet(isPresented: $showManagerSendBackSheet) {
+        managerSendBackSheet
+    }
     }
     
     // MARK: - Subviews
@@ -279,15 +349,51 @@ struct ApplicationDetailView: View {
                         
                         Divider()
                         
+                        // Eligibility Checklist (shown for all roles)
+                        VStack(spacing: 16) {
+                            eligibilityCheckRow(title: "Account Aggregator Income Verification", isPassed: suggestion.incomeVerified)
+                            eligibilityCheckRow(title: "Credit Bureau Minimum Score Requirement", isPassed: (vm.borrowerProfile?.creditScore ?? 0) >= 600)
+                            eligibilityCheckRow(title: "FOIR (Debt-to-Income) Capacity Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("FOIR") }))
+                            eligibilityCheckRow(title: "Product Minimum Limit Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("product minimum") }))
+                            
+                            Divider()
+                                .padding(.vertical, 4)
+                            
+                            HStack {
+                                Text("Overall System Decision")
+                                    .font(.body.weight(.bold))
+                                    .foregroundColor(.staffTextPrimary)
+                                Spacer()
+                                HStack(spacing: 6) {
+                                    Image(systemName: suggestion.isEligible ? "checkmark.seal.fill" : "xmark.seal.fill")
+                                    Text(suggestion.isEligible ? "ELIGIBLE" : "NOT ELIGIBLE")
+                                }
+                                .font(.subheadline.weight(.heavy))
+                                .foregroundColor(suggestion.isEligible ? .staffGreen : .staffRed)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(suggestion.isEligible ? Color.staffGreen.opacity(0.15) : Color.staffRed.opacity(0.15))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        
+                        // Financial Predictions (Manager & Admin only)
                         if authViewModel.currentUser?.role == .manager || authViewModel.currentUser?.role == .admin {
-                            // Manager View: Detailed Numbers
+                            Divider()
+                            
+                            Text("Financial Analysis & Recommendations")
+                                .font(.body.weight(.bold))
+                                .foregroundColor(.staffTextPrimary)
+                                .padding(.top, 4)
+                            
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Max Eligible")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.maxEligibleAmount))")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(.body.weight(.semibold))
                                         .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -297,10 +403,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Suggested")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.suggestedAmount))")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(.body.weight(.semibold))
                                         .foregroundColor(.staffGreen)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -310,10 +416,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Rate / Tenure")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.suggestedInterestRate))% / \(suggestion.suggestedTenureMonths)m")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(.body.weight(.semibold))
                                         .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -323,11 +429,24 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("FOIR Ratio")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.foirRatio * 100))%")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(.body.weight(.semibold))
                                         .foregroundColor(suggestion.foirRatio > 0.5 ? .staffAmber : .staffTextPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
+                                
+                                Spacer(minLength: 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Monthly EMI")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundColor(.staffTextSecondary)
+                                    Text("INR \(String(format: "%.0f", suggestion.monthlyEMI))")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
                                 }
@@ -336,44 +455,37 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .trailing, spacing: 4) {
                                     Text("Risk Grade")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text(suggestion.riskGrade)
-                                        .font(.system(size: 20, weight: .heavy))
+                                        .font(.title3.weight(.heavy))
                                         .foregroundColor(gradeColor(for: suggestion.riskGrade))
                                 }
                             }
                             .padding(.vertical, 8)
                             .padding(.top, 4)
-                        } else {
-                            // Officer View: Checklist only
-                            VStack(spacing: 16) {
-                                eligibilityCheckRow(title: "Account Aggregator Income Verification", isPassed: suggestion.incomeVerified)
-                                eligibilityCheckRow(title: "Credit Bureau Minimum Score Requirement", isPassed: (vm.borrowerProfile?.creditScore ?? 0) >= 600)
-                                eligibilityCheckRow(title: "FOIR (Debt-to-Income) Capacity Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("FOIR") }))
-                                eligibilityCheckRow(title: "Product Minimum Limit Check", isPassed: !suggestion.rejectionReasons.contains(where: { $0.contains("product minimum") }))
-                                
-                                Divider()
-                                    .padding(.vertical, 4)
-                                
-                                HStack {
-                                    Text("Overall System Decision")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.staffTextPrimary)
-                                    Spacer()
-                                    HStack(spacing: 6) {
-                                        Image(systemName: suggestion.isEligible ? "checkmark.seal.fill" : "xmark.seal.fill")
-                                        Text(suggestion.isEligible ? "ELIGIBLE" : "NOT ELIGIBLE")
+                            
+                            // Rejection reasons if any
+                            if !suggestion.rejectionReasons.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Risk Flags")
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundColor(.staffRed)
+                                    ForEach(suggestion.rejectionReasons, id: \.self) { reason in
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                .font(.caption)
+                                                .foregroundColor(.staffAmber)
+                                            Text(reason)
+                                                .font(.subheadline)
+                                                .foregroundColor(.staffTextSecondary)
+                                        }
                                     }
-                                    .font(.system(size: 14, weight: .heavy))
-                                    .foregroundColor(suggestion.isEligible ? .staffGreen : .staffRed)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(suggestion.isEligible ? Color.staffGreen.opacity(0.15) : Color.staffRed.opacity(0.15))
-                                    .cornerRadius(8)
                                 }
+                                .padding(12)
+                                .background(Color.staffRed.opacity(0.05))
+                                .cornerRadius(8)
                             }
-                            .padding(.vertical, 8)
                         }
                     }
                 }
@@ -385,16 +497,16 @@ struct ApplicationDetailView: View {
         HStack(spacing: 12) {
             Image(systemName: isPassed ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(isPassed ? .staffGreen : .staffRed)
-                .font(.system(size: 18))
+                .font(.headline)
             
             Text(title)
-                .font(.system(size: 15, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundColor(.staffTextPrimary)
             
             Spacer()
             
             Text(isPassed ? "Passed" : "Failed")
-                .font(.system(size: 13, weight: .bold))
+                .font(.subheadline.weight(.bold))
                 .foregroundColor(isPassed ? .staffGreen : .staffRed)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
@@ -634,11 +746,29 @@ struct ApplicationDetailView: View {
                         }
                     } else if authViewModel.currentUser?.role == .manager {
                         if vm.application.status == .underReview {
+                            StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
+                                showManagerSendBackSheet = true
+                            }
+                            
+                            StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                                showManagerRejectSheet = true
+                            }
+                            
                             Spacer()
-                            Text("Under Review")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffAmber)
-                            Spacer()
+                            
+                            StaffButton(title: "Verify & Approve", style: .success, icon: "checkmark.seal.fill") {
+                                if let suggestion = vm.underwritingSuggestion {
+                                    mgrApprovedAmount = max(vm.product.minAmount, min(suggestion.suggestedAmount > 0 ? suggestion.suggestedAmount : vm.application.requestedAmount, vm.product.maxAmount))
+                                    mgrApprovedTenure = max(vm.product.minTenureMonths, min(suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : vm.application.requestedTenureMonths, vm.product.maxTenureMonths))
+                                    mgrApprovedRate = max(vm.product.minInterestRate, min(suggestion.suggestedInterestRate > 0 ? suggestion.suggestedInterestRate : vm.product.minInterestRate, vm.product.maxInterestRate))
+                                } else {
+                                    mgrApprovedAmount = vm.application.requestedAmount
+                                    mgrApprovedTenure = vm.application.requestedTenureMonths
+                                    mgrApprovedRate = vm.product.minInterestRate
+                                }
+                                showManagerApprovalSheet = true
+                            }
+                            .frame(width: 240)
                         }
                     }
                 }
@@ -668,6 +798,113 @@ struct ApplicationDetailView: View {
             self.showShareSheet = true
         } catch {
             print("Failed to save PDF: \(error)")
+        }
+    }
+    
+    private var emiScheduleSection: some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+            Text("EMI Repayment Schedule")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            if vm.emiSchedule.isEmpty {
+                EmptyStateView(
+                    icon: "clock.badge.exclamationmark",
+                    title: "No Schedule Found",
+                    message: "The EMI schedule has not been generated for this loan yet."
+                )
+            } else {
+                StaffCard {
+                    VStack(spacing: 0) {
+                        // Header row
+                        HStack {
+                            Text("Month")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(width: 50, alignment: .leading)
+                            
+                            Text("Principal")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            
+                            Text("Interest")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            
+                            Text("Total EMI")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            
+                            Text("Status")
+                                .font(.staffCaption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.staffTextSecondary)
+                                .frame(width: 75, alignment: .trailing)
+                        }
+                        .padding(.vertical, StaffSpacing.md)
+                        .padding(.horizontal, StaffSpacing.md)
+                        .background(Color.staffBackground)
+                        
+                        // Schedule rows
+                        ForEach(vm.emiSchedule.sorted(by: { $0.installmentNumber < $1.installmentNumber })) { emi in
+                            Divider()
+                            
+                            HStack {
+                                Text("\(emi.installmentNumber)")
+                                    .font(.staffBody)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .frame(width: 50, alignment: .leading)
+                                
+                                Text("₹\(String(format: "%.0f", emi.principalComponent))")
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                
+                                Text("₹\(String(format: "%.0f", emi.interestComponent))")
+                                    .font(.staffBody)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                
+                                Text("₹\(String(format: "%.0f", emi.totalEmi))")
+                                    .font(.staffBody)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                
+                                Text(emi.status.displayName)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundColor(emiStatusColor(emi.status))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(emiStatusColor(emi.status).opacity(0.1))
+                                    .cornerRadius(4)
+                                    .frame(width: 75, alignment: .trailing)
+                            }
+                            .padding(.vertical, StaffSpacing.md)
+                            .padding(.horizontal, StaffSpacing.md)
+                            .background(emi.status == .paid ? Color.staffGreen.opacity(0.05) : (emi.status == .overdue ? Color.staffRed.opacity(0.05) : Color.clear))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func emiStatusColor(_ status: EMIStatus) -> Color {
+        switch status {
+        case .upcoming: return .staffAccent
+        case .due: return .staffOrange
+        case .paid: return .staffGreen
+        case .overdue: return .staffRed
+        case .partiallyPaid: return .staffAmber
         }
     }
     
@@ -778,6 +1015,145 @@ struct ApplicationDetailView: View {
             .padding(.top, StaffSpacing.lg)
         }
         .padding(30)
+        .background(Color.staffBackground.ignoresSafeArea())
+    }
+    
+    // MARK: - Manager Action Sheets
+    
+    private var managerApprovalTermsSheet: some View {
+        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+            Text("Sanction Terms Configuration")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+                VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                    Text("Approved Amount: ₹\(String(format: "%.2f", mgrApprovedAmount))")
+                        .font(.staffBody)
+                        .fontWeight(.medium)
+                        .foregroundColor(.staffTextPrimary)
+                    Slider(value: $mgrApprovedAmount, in: vm.product.minAmount...vm.product.maxAmount, step: 10000)
+                        .tint(.staffAccent)
+                }
+                
+                Divider().background(Color.staffBorder)
+                
+                VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                    Text("Approved Tenure: \(mgrApprovedTenure) Months")
+                        .font(.staffBody)
+                        .fontWeight(.medium)
+                        .foregroundColor(.staffTextPrimary)
+                    Stepper("\(mgrApprovedTenure) Months", value: $mgrApprovedTenure, in: vm.product.minTenureMonths...vm.product.maxTenureMonths, step: 1)
+                        .foregroundColor(.staffTextSecondary)
+                }
+                
+                Divider().background(Color.staffBorder)
+                
+                VStack(alignment: .leading, spacing: StaffSpacing.sm) {
+                    Text("Approved Interest Rate: \(String(format: "%.2f", mgrApprovedRate))% Per Annum")
+                        .font(.staffBody)
+                        .fontWeight(.medium)
+                        .foregroundColor(.staffTextPrimary)
+                    Slider(value: $mgrApprovedRate, in: vm.product.minInterestRate...vm.product.maxInterestRate, step: 0.25)
+                        .tint(.staffAccent)
+                }
+            }
+            .padding(StaffSpacing.lg)
+            
+            HStack(spacing: StaffSpacing.md) {
+                StaffButton(title: "Cancel", style: .outline, icon: "xmark", isFullWidth: false) {
+                    showManagerApprovalSheet = false
+                }
+                
+                Spacer()
+                
+                StaffButton(title: "Sanction Approval", style: .primary, icon: "checkmark.seal.fill", isFullWidth: true) {
+                    Task {
+                        if await vm.managerApprove(approvedAmount: mgrApprovedAmount, tenureMonths: mgrApprovedTenure, interestRate: mgrApprovedRate) {
+                            showManagerApprovalSheet = false
+                            onStatusUpdated()
+                        }
+                    }
+                }
+            }
+        }
+        .padding(StaffSpacing.xl)
+        .background(Color.staffBackground.ignoresSafeArea())
+    }
+    
+    private var managerRejectionSheet: some View {
+        VStack(spacing: StaffSpacing.lg) {
+            Text("Rejection Reason")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            TextEditor(text: $mgrRemarks)
+                .frame(height: 120)
+                .padding(8)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+                .foregroundColor(.staffTextPrimary)
+            
+            HStack {
+                Button("Cancel") {
+                    showManagerRejectSheet = false
+                    mgrRemarks = ""
+                }
+                .foregroundColor(.staffTextSecondary)
+                Spacer()
+                Button("Reject Proposal") {
+                    Task {
+                        if await vm.managerReject(reason: mgrRemarks) {
+                            showManagerRejectSheet = false
+                            mgrRemarks = ""
+                            onStatusUpdated()
+                        }
+                    }
+                }
+                .foregroundColor(.staffRed)
+                .fontWeight(.bold)
+                .disabled(mgrRemarks.isEmpty)
+            }
+        }
+        .padding(StaffSpacing.xl)
+        .background(Color.staffBackground.ignoresSafeArea())
+    }
+    
+    private var managerSendBackSheet: some View {
+        VStack(spacing: StaffSpacing.lg) {
+            Text("Send Back Remarks")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            TextEditor(text: $mgrRemarks)
+                .frame(height: 120)
+                .padding(8)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+                .foregroundColor(.staffTextPrimary)
+            
+            HStack {
+                Button("Cancel") {
+                    showManagerSendBackSheet = false
+                    mgrRemarks = ""
+                }
+                .foregroundColor(.staffTextSecondary)
+                Spacer()
+                Button("Send Back to Officer") {
+                    Task {
+                        if await vm.managerSendBack(remarks: mgrRemarks) {
+                            showManagerSendBackSheet = false
+                            mgrRemarks = ""
+                            onStatusUpdated()
+                        }
+                    }
+                }
+                .foregroundColor(.staffAmber)
+                .fontWeight(.bold)
+                .disabled(mgrRemarks.isEmpty)
+            }
+        }
+        .padding(StaffSpacing.xl)
         .background(Color.staffBackground.ignoresSafeArea())
     }
 }

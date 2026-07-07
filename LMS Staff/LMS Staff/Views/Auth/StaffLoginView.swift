@@ -43,7 +43,7 @@ struct StaffLoginView: View {
                         .foregroundColor(.staffAccent)
                     
                     Text("LMS Enterprise Portal")
-                        .font(.system(size: 40, weight: .bold))
+                        .font(.title.weight(.bold))
                         .foregroundColor(.staffTextPrimary)
                     
                     Text("Internal dashboard for Loan Officers, Managers, and System Administrators. Please log in using your pre-provisioned employee credentials.")
@@ -109,17 +109,46 @@ struct StaffLoginView: View {
                     }
                     
                     VStack(spacing: StaffSpacing.md) {
-                        StaffButton(
-                            title: "Log In",
-                            style: .primary,
-                            icon: "lock.fill",
-                            isLoading: authViewModel.isLoading
-                        ) {
-                            Task {
-                                await authViewModel.login(employeeId: employeeId, password: password)
+                        HStack(spacing: StaffSpacing.md) {
+                            StaffButton(
+                                title: "Log In",
+                                style: .primary,
+                                icon: "lock.fill",
+                                isLoading: authViewModel.isLoading
+                            ) {
+                                HapticManager.shared.impact(style: .medium)
+                                Task {
+                                    await authViewModel.login(employeeId: employeeId, password: password)
+                                    if authViewModel.errorMessage == nil {
+                                        HapticManager.shared.notification(type: .success)
+                                    } else {
+                                        HapticManager.shared.notification(type: .error)
+                                    }
+                                }
+                            }
+                            .disabled(employeeId.isEmpty || password.isEmpty)
+                            
+                            if BiometricAuthService.shared.canEvaluatePolicy() {
+                                Button {
+                                    HapticManager.shared.impact(style: .medium)
+                                    Task {
+                                        if await BiometricAuthService.shared.authenticate() {
+                                            HapticManager.shared.notification(type: .success)
+                                            await authViewModel.restoreSession()
+                                        } else {
+                                            HapticManager.shared.notification(type: .error)
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "faceid")
+                                        .font(.title3)
+                                        .foregroundColor(.staffAccent)
+                                        .frame(width: 48, height: 48)
+                                        .background(Color.staffAccent.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
                             }
                         }
-                        .disabled(employeeId.isEmpty || password.isEmpty)
                         
                         Button(action: {
                             let cleanId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

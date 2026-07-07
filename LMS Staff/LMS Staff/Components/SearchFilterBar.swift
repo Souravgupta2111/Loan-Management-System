@@ -24,7 +24,7 @@ struct SearchFilterBar: View {
             // Search bar
             HStack(spacing: StaffSpacing.md) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundColor(.staffTextTertiary)
 
                 TextField(placeholder, text: $searchText)
@@ -38,7 +38,7 @@ struct SearchFilterBar: View {
                         searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
+                            .font(.body)
                             .foregroundColor(.staffTextTertiary)
                     }
                 }
@@ -91,7 +91,7 @@ struct FilterChip: View {
             HStack(spacing: 4) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 12))
+                        .font(.caption)
                 }
                 Text(label)
                     .font(.staffBadge)

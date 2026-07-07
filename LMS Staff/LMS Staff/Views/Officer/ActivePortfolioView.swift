@@ -163,7 +163,7 @@ struct ActivePortfolioView: View {
                             StaffCard {
                                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                                     Text("Outstanding Summary")
-                                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
                                         .foregroundColor(.staffTextPrimary)
                                     
                                     Divider()
@@ -180,7 +180,7 @@ struct ActivePortfolioView: View {
                             StaffCard {
                                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                                     Text("Repayment Tracking")
-                                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
                                         .foregroundColor(.staffTextPrimary)
                                     
                                     Divider()
@@ -242,7 +242,7 @@ struct ActivePortfolioView: View {
                                     
                                     Text(emi.status.displayName)
                                         .frame(width: 100, alignment: .trailing)
-                                        .font(.system(size: 11, weight: .bold))
+                                        .font(.caption.weight(.bold))
                                         .foregroundColor(emiStatusColor(emi.status))
                                 }
                                 .font(.staffCaption)
@@ -292,11 +292,11 @@ struct InfoRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(.staffTextSecondary)
             Spacer(minLength: 8)
             Text(value)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(.body, design: .rounded).weight(.bold))
                 .foregroundColor(isUrgent ? .staffRed : .staffTextPrimary)
                 .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)

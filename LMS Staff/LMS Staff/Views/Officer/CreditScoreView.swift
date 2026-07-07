@@ -33,7 +33,7 @@ struct CreditScoreGauge: View {
                 
                 VStack(spacing: 2) {
                     Text("\(score)")
-                        .font(.system(size: 44, weight: .bold))
+                        .font(.title.weight(.bold))
                         .foregroundColor(.staffTextPrimary)
                     
                     Text(riskLabel(score))
