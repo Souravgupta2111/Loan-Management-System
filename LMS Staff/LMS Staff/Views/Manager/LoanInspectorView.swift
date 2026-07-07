@@ -82,6 +82,12 @@ struct LoanInspectorView: View {
                 
                 // Primary Application metrics
                 HStack(spacing: StaffSpacing.xl) {
+                    if let app = vm.application {
+                        DetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
+                    } else {
+                        DetailMetric(label: "Asked", value: "INR --")
+                    }
+                    DetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
                     DetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
                     if vm.loanWithDetails.loan.status == .npa {
                         DetailMetric(label: "Overdue Days", value: "\(vm.loanWithDetails.loan.overdueDays)")
@@ -209,22 +215,48 @@ struct LoanInspectorView: View {
     private var kycAndCreditSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.lg) {
             HStack(alignment: .top, spacing: StaffSpacing.lg) {
-                // Personal KYC info
-                StaffCard {
-                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                        Text("Borrower Details")
-                            .font(.staffTitle)
-                            .foregroundColor(.staffTextPrimary)
-                        
-                        Divider()
-                        
-                        KYCRow(label: "Full Name", value: vm.loanWithDetails.borrower.fullName)
-                        KYCRow(label: "Email", value: vm.loanWithDetails.borrower.email ?? "N/A")
-                        KYCRow(label: "Phone", value: vm.loanWithDetails.borrower.phone ?? "N/A")
-                        KYCRow(label: "PAN ID", value: vm.borrowerProfile?.panNumber ?? "N/A")
-                        KYCRow(label: "Aadhaar Card", value: vm.borrowerProfile?.aadhaarNumber ?? "N/A")
-                        KYCRow(label: "Employment Type", value: vm.borrowerProfile?.employmentType?.displayName ?? "N/A")
-                        KYCRow(label: "Monthly Income", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
+                VStack(spacing: StaffSpacing.lg) {
+                    // Personal KYC info
+                    StaffCard {
+                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                            Text("Borrower Details")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            
+                            Divider()
+                            
+                            KYCRow(label: "Full Name", value: vm.loanWithDetails.borrower.fullName)
+                            KYCRow(label: "Email", value: vm.loanWithDetails.borrower.email ?? "N/A")
+                            KYCRow(label: "Phone", value: vm.loanWithDetails.borrower.phone ?? "N/A")
+                            KYCRow(label: "PAN ID", value: vm.borrowerProfile?.panNumber ?? "N/A")
+                            KYCRow(label: "Aadhaar Card", value: vm.borrowerProfile?.aadhaarNumber ?? "N/A")
+                            KYCRow(label: "Employment Type", value: vm.borrowerProfile?.employmentType?.displayName ?? "N/A")
+                            KYCRow(label: "Monthly Income", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
+                        }
+                    }
+                    
+                    // Loan Details Card
+                    StaffCard {
+                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                            Text("Loan Details & Terms")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                            
+                            Divider()
+                            
+                            if let app = vm.application {
+                                KYCRow(label: "Asked Amount (Requested)", value: "INR \(String(format: "%.2f", app.requestedAmount))")
+                            } else {
+                                KYCRow(label: "Asked Amount (Requested)", value: "INR --")
+                            }
+                            
+                            KYCRow(label: "Approved & Disbursed Amount", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
+                            KYCRow(label: "Interest Rate", value: String(format: "%.2f%% (Interest Type: %@)", vm.loanWithDetails.loan.interestRate, vm.loanWithDetails.loan.interestType.rawValue.capitalized))
+                            KYCRow(label: "Tenure", value: "\(vm.loanWithDetails.loan.tenureMonths) Months")
+                            KYCRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
+                            KYCRow(label: "Maturity Date", value: vm.loanWithDetails.loan.maturityDate ?? "N/A")
+                            KYCRow(label: "Repayment Mode", value: vm.loanWithDetails.loan.repaymentMode.rawValue.uppercased())
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)

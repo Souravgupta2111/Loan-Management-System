@@ -48,7 +48,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .managerBranchLoans: return "Branch Loans"
         case .managerPortfolio: return "Portfolio Analytics"
         case .managerNpa: return "NPA & Recoveries"
-        case .managerReports: return "Reports"
+        case .managerReports: return "Analytics"
         case .managerMessages: return "Chats"
         case .managerAI: return "AI Analytics"
         case .managerAIChat: return "AI Assistant"
@@ -173,7 +173,7 @@ struct StaffTabRouter: View {
         case .managerNpa:
             OverdueLoansView()
         case .managerReports:
-            ReportsView()
+            ManagerReportsView()
         case .managerMessages:
             ManagerMessagesView()
         case .managerAI:
