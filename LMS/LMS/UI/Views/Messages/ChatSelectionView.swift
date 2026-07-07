@@ -5,6 +5,7 @@ import Supabase
 import PostgREST
 
 struct ChatSelectionView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ChatSelectionViewModel()
     
@@ -54,6 +55,8 @@ struct ChatSelectionView: View {
                 .padding(Spacing.md)
             }
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle("Your Chats")
         .navigationBarTitleDisplayMode(.inline)
         .background(

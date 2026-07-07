@@ -7,7 +7,7 @@ struct SelectLoanTypeView: View {
     @Environment(\.dismiss) private var dismiss
     var isTabRoot: Bool = false
 
-    @State private var selectedLoanType: LoanType = .personal
+    @State private var selectedLoanType: LoanType? = nil
     @State private var navigateToApplication = false
 
     /// Distinct loan types that have at least one active product in the DB.
@@ -23,8 +23,8 @@ struct SelectLoanTypeView: View {
                         Text("Choose Loan Type")
                             .font(.title3.weight(.bold)).fontDesign(.rounded)
                             .foregroundColor(.textPrimary)
-                        Text("Select the product that fits your financial needs")
-                            .font(.body.weight(.regular))
+                        Text("Explore loan options and start your application in just a few taps.")
+                            .font(.system(size: 15, weight: .regular))
                             .foregroundColor(.textSecondary)
                     }
 
@@ -56,13 +56,13 @@ struct SelectLoanTypeView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                .background(isLoading || availableTypes.isEmpty
+                .background(isLoading || availableTypes.isEmpty || selectedLoanType == nil
                     ? Color(hex: "#1A1A1A").opacity(0.4)
                     : Color(hex: "#1A1A1A"))
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            .disabled(isLoading || availableTypes.isEmpty)
+            .disabled(isLoading || availableTypes.isEmpty || selectedLoanType == nil)
             .padding(.horizontal, 24)
             .padding(.top, 14)
             .padding(.bottom, 18)
@@ -84,12 +84,7 @@ struct SelectLoanTypeView: View {
         .toolbar {
             if !isTabRoot {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.body.weight(.semibold))
-                            .foregroundColor(.accentGreen)
-                    }
-                    .buttonStyle(.plain)
+                    GlassBackButton { dismiss() }
                 }
             }
         }
@@ -121,8 +116,8 @@ struct SelectLoanTypeView: View {
                 .filter { seen.insert($0).inserted }
                 .sorted { (order.firstIndex(of: $0) ?? 99) < (order.firstIndex(of: $1) ?? 99) }
 
-            if !availableTypes.isEmpty, !availableTypes.contains(selectedLoanType) {
-                selectedLoanType = availableTypes[0]
+            if let selected = selectedLoanType, !availableTypes.contains(selected) {
+                selectedLoanType = nil
             }
         } catch {
             loadError = "Couldn't load loan types. Pull to refresh."
@@ -138,7 +133,11 @@ struct SelectLoanTypeView: View {
             ForEach(availableTypes, id: \.rawValue) { loanType in
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                        selectedLoanType = loanType
+                        if selectedLoanType == loanType {
+                            selectedLoanType = nil
+                        } else {
+                            selectedLoanType = loanType
+                        }
                     }
                 } label: {
                     loanTypeCard(for: loanType)
@@ -189,7 +188,7 @@ struct SelectLoanTypeView: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(isSelected ? Color(hex: "#89DBA6").opacity(0.20) : Color.surfaceMuted)
+                        .fill(isSelected ? Color(hex: "#2D8B4E").opacity(0.20) : Color.surfaceMuted)
                     Image(systemName: loanType.icon)
                         .font(.headline.weight(.semibold))
                         .foregroundColor(isSelected ? Color(hex: "#2D8B4E") : .textSecondary)
@@ -212,7 +211,7 @@ struct SelectLoanTypeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .liquidGlass(
             cornerRadius: 18,
-            borderColor: isSelected ? Color(hex: "#89DBA6") : Color.border,
+            borderColor: isSelected ? Color(hex: "#2D8B4E") : Color.border,
             borderOpacity: isSelected ? 1.0 : 0.5,
             shadowOpacity: isSelected ? 0.1 : 0.03,
             shadowRadius: 8

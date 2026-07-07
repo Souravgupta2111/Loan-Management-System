@@ -18,33 +18,42 @@ struct HomeDashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        headerSection
+            ZStack {
+                ZStack(alignment: .top) {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 20) {
+                            headerSection
+                                .padding(.top, 4)
 
+                            if loans.isEmpty && hasLoaded {
+                                applyLoanPromoCard
+                                quickActionsSection
+                                emptyState
+                            } else if !loans.isEmpty {
+                                heroLoanCarousel
+                                    .padding(.horizontal, -16) // offset the ScrollView padding
 
+                                quickActionsSection
 
-                        if loans.isEmpty && hasLoaded {
-                            applyLoanPromoCard
-                            quickActionsSection
-                            emptyState
-                        } else if !loans.isEmpty {
-                            heroLoanCarousel
-                                .padding(.horizontal, -16) // offset the ScrollView padding
-
-                            quickActionsSection
-
-                            transactionHistorySection
-                        } else {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 48)
+                                transactionHistorySection
+                            } else {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 48)
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        // Push content below the status bar
+                        .padding(.top, 54)
+                        .padding(.bottom, 100)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
-                    .padding(.bottom, 100)
+                    .ignoresSafeArea(edges: .top)
+
+                    // Status bar blur effect
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .frame(height: 0)
+                        .ignoresSafeArea(edges: .top)
                 }
                 
                 // Floating AI Chat Button
@@ -61,6 +70,7 @@ struct HomeDashboardView: View {
                             .foregroundColor(Color(hex: "#2D8B4E"))
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(.trailing, 20)
                 .padding(.bottom, 20)
                 .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
@@ -75,8 +85,7 @@ struct HomeDashboardView: View {
                 )
                 .ignoresSafeArea()
             )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showProfile) {
                 ProfileView()
                     .environmentObject(authViewModel)
@@ -335,14 +344,14 @@ struct HomeDashboardView: View {
                 NavigationLink {
                     EMICalculatorView()
                 } label: {
-                    quickActionCard(icon: "plusminus", label: "Calculator")
+                    quickActionCard(icon: "plus.forwardslash.minus", label: "Calculator")
                 }
                 .buttonStyle(.plain)
 
                 NavigationLink {
                     SelectLoanTypeView()
                 } label: {
-                    quickActionCard(icon: "rays", label: "Apply")
+                    quickActionCard(icon: "pointer.arrow.rays", label: "Apply")
                 }
                 .buttonStyle(.plain)
 
@@ -429,7 +438,7 @@ struct HomeDashboardView: View {
                         .font(.body.weight(.medium))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                 }
-                .frame(maxWidth: .infinity, minHeight: 290)
+                .frame(maxWidth: .infinity, minHeight: 150)
                 .liquidGlass(cornerRadius: 18)
             } else {
                 VStack(spacing: 8) {

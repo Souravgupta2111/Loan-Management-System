@@ -80,7 +80,7 @@ struct IncomeVerificationView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(Color(hex: "#2D8B4E"))
                 }
             }
             .task {

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MessageView: View {
+    @Environment(\.dismiss) private var dismiss
     let applicationId: UUID
     let receiverId: UUID
     let officerName: String?
@@ -64,6 +65,8 @@ struct MessageView: View {
             .padding(.horizontal, Spacing.md)
             .padding(.bottom, Spacing.sm)
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
         .navigationTitle(officerName != nil ? "Chat with \(officerName!.split(separator: " ").first ?? "")" : "Chat with Officer")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)

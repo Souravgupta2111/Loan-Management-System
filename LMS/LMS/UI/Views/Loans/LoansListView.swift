@@ -3,6 +3,7 @@ import Supabase
 import Auth
 
 struct LoansListView: View {
+    @Environment(\.dismiss) private var dismiss
 
     @EnvironmentObject var authViewModel: AuthViewModel
 
@@ -143,8 +144,9 @@ struct LoansListView: View {
                 )
                 .ignoresSafeArea()
             )
+            .navigationBarBackButtonHidden(true)
             .navigationTitle("My Loans")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
 
             .task {
                 await loadLoans(resetFilter: false)

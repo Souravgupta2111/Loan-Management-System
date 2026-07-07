@@ -38,12 +38,16 @@ struct EMICalculatorView: View {
     @State private var isUsingGeneralCalculator = false
     @State private var showAmortizationSchedule = false
 
-    
     // Text field state
     @State private var amountText: String = "10000"
     @State private var tenureText: String = "6"
     @State private var interestRateText: String = "5.00"
     @FocusState private var activeField: InputField?
+    
+    // Validation error states
+    @State private var amountError: String? = nil
+    @State private var tenureError: String? = nil
+    @State private var interestRateError: String? = nil
     
     enum InputField: Hashable {
         case amount, tenure, interest
@@ -60,12 +64,18 @@ struct EMICalculatorView: View {
             VStack(spacing: 0) {
                 // MARK: - Custom Header
                 HStack {
-                    Button(action: {
+                    Button {
                         dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3.weight(.semibold))
-                            .foregroundColor(.accentGreen)
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 44, height: 44)
+                                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                        }
                     }
                     .buttonStyle(.plain)
 
@@ -75,9 +85,9 @@ struct EMICalculatorView: View {
                         .foregroundColor(.textPrimary)
                     Spacer()
                     // Spacer balancing the left button
-                    Image(systemName: "chevron.left")
-                        .font(.title3)
-                        .foregroundColor(.clear)
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 44, height: 44)
                 }
                 .padding(.horizontal, Spacing.xl)
                 .padding(.top, 16)
@@ -151,10 +161,11 @@ struct EMICalculatorView: View {
                         .keyboardType(.numberPad)
                         .focused($activeField, equals: .amount)
                         .onChange(of: amountText) { _, newValue in
-                            let digits = newValue.filter { $0.isNumber }
+                            let digits = newValue.filter { $0.isNumber || $0 == "-" }
                             if digits.count > 10 {
                                 amountText = String(digits.prefix(10))
                             }
+                            validateFields()
                         }
                         .onSubmit { commitFields() }
                 }
@@ -162,6 +173,17 @@ struct EMICalculatorView: View {
                 .padding(.vertical, 14)
                 .background(Color.black.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Corner.md)
+                        .stroke(amountError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                )
+
+                if let amountError = amountError {
+                    Text(amountError)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.accentRed)
+                        .padding(.horizontal, Spacing.xs)
+                }
             }
 
             // Tenure & Interest Rate — side by side
@@ -181,14 +203,27 @@ struct EMICalculatorView: View {
                         .padding(.vertical, 14)
                         .background(Color.black.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Corner.md)
+                                .stroke(tenureError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                        )
                         .onChange(of: tenureText) { _, newValue in
-                            let digits = newValue.filter { $0.isNumber }
+                            let digits = newValue.filter { $0.isNumber || $0 == "-" }
                             if digits.count > 4 {
                                 tenureText = String(digits.prefix(4))
                             }
+                            validateFields()
                         }
                         .onSubmit { commitFields() }
+
+                    if let tenureError = tenureError {
+                        Text(tenureError)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.accentRed)
+                            .padding(.horizontal, Spacing.xs)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Interest Rate (%)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -203,10 +238,11 @@ struct EMICalculatorView: View {
                             .keyboardType(.decimalPad)
                             .focused($activeField, equals: .interest)
                             .onChange(of: interestRateText) { _, newValue in
-                                let filtered = newValue.filter { $0.isNumber || $0 == "." }
+                                let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "-" }
                                 if filtered.count > 6 {
                                     interestRateText = String(filtered.prefix(6))
                                 }
+                                validateFields()
                             }
                             .onSubmit { commitFields() }
                         Text("%")
@@ -217,38 +253,110 @@ struct EMICalculatorView: View {
                     .padding(.vertical, 14)
                     .background(Color.black.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Corner.md)
+                            .stroke(interestRateError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                    )
+
+                    if let interestRateError = interestRateError {
+                        Text(interestRateError)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.accentRed)
+                            .padding(.horizontal, Spacing.xs)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(Spacing.xl)
         .liquidGlass()
     }
     
-    /// Parses all text fields, clamps to allowed ranges, updates the calculation Doubles, and syncs text back.
+    /// Parses all text fields, validates them against allowed ranges, updates the calculation Doubles, and formats input if valid.
     private func commitFields() {
-        // Amount
-        if let val = Double(amountText.filter { $0.isNumber }) {
-            amount = clamp(val, to: amountRange)
-        }
-        amountText = String(Int(amount))
+        validateFields()
         
-        // Tenure
-        if let val = Double(tenureText.filter { $0.isNumber }) {
-            tenureMonths = clamp(val, to: tenureRange)
+        // Format the text fields if they are valid, otherwise keep user input
+        if amountError == nil, let val = Double(amountText.filter { $0.isNumber || $0 == "-" }) {
+            amountText = String(Int(val))
         }
-        tenureText = String(Int(tenureMonths))
         
-        // Interest Rate
-        if let val = Double(interestRateText) {
-            interestRate = clamp(val, to: interestRateRange)
+        if tenureError == nil, let val = Double(tenureText.filter { $0.isNumber || $0 == "-" }) {
+            tenureText = String(Int(val))
         }
-        interestRateText = String(format: "%.2f", interestRate)
+        
+        if interestRateError == nil, let val = Double(interestRateText) {
+            interestRateText = String(format: "%.2f", val)
+        }
+    }
+
+    private func validateFields() {
+        // Amount validation
+        let cleanAmount = amountText.filter { $0.isNumber || $0 == "-" }
+        if cleanAmount.isEmpty {
+            amountError = "Amount is required"
+            amount = 0
+        } else if let val = Double(cleanAmount) {
+            amount = val
+            if val < 0 {
+                amountError = "Amount cannot be negative"
+            } else if val < amountRange.lowerBound || val > amountRange.upperBound {
+                amountError = "Amount must be between ₹\(formatIndian(amountRange.lowerBound)) and ₹\(formatIndian(amountRange.upperBound))"
+            } else {
+                amountError = nil
+            }
+        } else {
+            amountError = "Invalid amount"
+            amount = 0
+        }
+
+        // Tenure validation
+        let cleanTenure = tenureText.filter { $0.isNumber || $0 == "-" }
+        if cleanTenure.isEmpty {
+            tenureError = "Tenure is required"
+            tenureMonths = 0
+        } else if let val = Double(cleanTenure) {
+            tenureMonths = val
+            if val < 0 {
+                tenureError = "Tenure cannot be negative"
+            } else if val < tenureRange.lowerBound || val > tenureRange.upperBound {
+                tenureError = "Tenure must be between \(Int(tenureRange.lowerBound)) and \(Int(tenureRange.upperBound)) months"
+            } else {
+                tenureError = nil
+            }
+        } else {
+            tenureError = "Invalid tenure"
+            tenureMonths = 0
+        }
+
+        // Interest Rate validation
+        let cleanRate = interestRateText.filter { $0.isNumber || $0 == "." || $0 == "-" }
+        if cleanRate.isEmpty {
+            interestRateError = "Rate is required"
+            interestRate = 0
+        } else if let val = Double(cleanRate) {
+            interestRate = val
+            if val < 0 {
+                interestRateError = "Rate cannot be negative"
+            } else if val < interestRateRange.lowerBound || val > interestRateRange.upperBound {
+                interestRateError = "Rate must be between \(String(format: "%.1f", interestRateRange.lowerBound))% and \(String(format: "%.1f", interestRateRange.upperBound))%"
+            } else {
+                interestRateError = nil
+            }
+        } else {
+            interestRateError = "Invalid rate"
+            interestRate = 0
+        }
+    }
+    
+    private var hasErrors: Bool {
+        amountError != nil || tenureError != nil || interestRateError != nil
     }
 
     private var loanTypeSelector: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Loan Type")
-                .font(.body.weight(.regular))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundColor(.textSecondary)
 
             Menu {
@@ -256,7 +364,7 @@ struct EMICalculatorView: View {
             } label: {
                 HStack {
                     Text(loanTypeTitle)
-                        .font(.body.weight(.regular))
+                        .font(.system(size: 17, weight: .medium))
                         .foregroundColor(selectedProduct == nil && !isUsingGeneralCalculator ? .textSecondary : .textPrimary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -333,23 +441,26 @@ struct EMICalculatorView: View {
                 .padding(.bottom, Spacing.xs)
 
             breakdownRow("Principal", value: formatIndian(amount), color: .accentGreen)
-            breakdownRow("Total Interest", value: formatIndian(calculateTotalInterest()), color: .accentAmber)
-            breakdownRow("Total Payable", value: formatIndian(amount + calculateTotalInterest()), color: Color(hex: "#D1D1D6"))
+            breakdownRow("Total Interest", value: formatIndian(calculateTotalInterest()), color: .red)
+            breakdownRow("Total Payable", value: formatIndian(amount + calculateTotalInterest()), color: .gray)
 
             Button(action: {
-                showAmortizationSchedule = true
+                if !hasErrors {
+                    showAmortizationSchedule = true
+                }
             }) {
                 HStack {
                     Text("View Amortization Schedule")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(.accentGreen)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(hasErrors ? .textSecondary : .accentGreen)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundColor(.accentGreen)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(hasErrors ? .textSecondary : .accentGreen)
                 }
             }
             .buttonStyle(.plain)
+            .disabled(hasErrors)
             .padding(.top, Spacing.xs)
 
         }
@@ -395,6 +506,10 @@ struct EMICalculatorView: View {
         amountText = String(Int(product.minAmount))
         tenureText = String(product.minTenureMonths)
         interestRateText = String(format: "%.2f", product.minInterestRate)
+        
+        amountError = nil
+        tenureError = nil
+        interestRateError = nil
     }
 
     private func useGeneralCalculator() {
@@ -406,6 +521,10 @@ struct EMICalculatorView: View {
         amountText = String(Int(fallbackAmountRange.lowerBound))
         tenureText = String(Int(fallbackTenureRange.lowerBound))
         interestRateText = String(format: "%.2f", fallbackInterestRateRange.lowerBound)
+        
+        amountError = nil
+        tenureError = nil
+        interestRateError = nil
     }
 
 
@@ -440,7 +559,9 @@ struct EMICalculatorView: View {
     }
 
     private var amountRange: ClosedRange<Double> {
-        guard let product = selectedProduct else { return fallbackAmountRange }
+        guard let product = selectedProduct else { 
+            return 1...fallbackAmountRange.upperBound 
+        }
         return product.minAmount...product.maxAmount
     }
 
@@ -459,6 +580,7 @@ struct EMICalculatorView: View {
         let r = (interestRate / 12) / 100
         let n = tenureMonths
 
+        if n <= 0 { return 0.0 }
         if r == 0 { return p / n }
         
         if interestType == "Fixed" {
@@ -476,7 +598,8 @@ struct EMICalculatorView: View {
 
     private func calculateTotalInterest() -> Double {
         let emi = calculateEMI()
-        return (emi * tenureMonths) - amount
+        let total = (emi * tenureMonths) - amount
+        return total.isNaN || total.isInfinite ? 0.0 : max(0.0, total)
     }
 
     private func formatIndian(_ value: Double) -> String {
@@ -512,10 +635,12 @@ struct CalculatorAmortizationSheet: View {
             VStack(spacing: 0) {
                 // MARK: - Custom Header
                 HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.headline.weight(.semibold))
-                            .foregroundColor(.accentGreen)
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.textSecondary)
                     }
                     Spacer()
                     Text("Amortization Schedule")
@@ -523,9 +648,9 @@ struct CalculatorAmortizationSheet: View {
                         .foregroundColor(.textPrimary)
                     Spacer()
                     // Balance spacer
-                    Image(systemName: "chevron.left")
-                        .font(.headline)
-                        .foregroundColor(.clear)
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 34, height: 34)
                 }
                 .padding(.horizontal, Spacing.xl)
                 .padding(.top, 16)

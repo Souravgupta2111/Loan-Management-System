@@ -59,27 +59,23 @@ struct LoanApplicationFlowView: View {
             } else {
                 wizardContent
             }
+            
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
-            // Single glass-circle back button — always returns to SelectLoanTypeView
             ToolbarItem(placement: .topBarLeading) {
                 if !applicationSuccess {
-                    Button { dismiss() } label: {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 34, height: 34)
-                                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-                            Image(systemName: "chevron.left")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.textPrimary)
+                    GlassBackButton { 
+                        if showProductDetail {
+                            withAnimation { showProductDetail = false }
+                        } else {
+                            dismiss()
                         }
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -108,6 +104,8 @@ struct LoanApplicationFlowView: View {
                     selectedProduct = first
                     amount = first.minAmount
                     tenureMonths = Double(first.minTenureMonths)
+                    // We intentionally do NOT auto-advance to showProductDetail here,
+                    // so the user can see the "Select Loan Product" page and choose.
                 }
             } catch {
                 isLoadingProducts = false
@@ -264,7 +262,7 @@ struct LoanApplicationFlowView: View {
 
                     // Amount & Tenure — fully backend-driven
                     detailSection(title: "Loan Amount & Tenure") {
-                        detailRow(icon: "indianrupeesign.circle", label: "Amount Range",       value: product.formattedAmountRange)
+                        detailRow(icon: "indianrupeesign.circle", label: "Amount Range",       value: product.formattedCompactAmountRange)
                         detailRow(icon: "calendar",               label: "Tenure Range",       value: product.formattedTenureRange)
                         detailRow(icon: "lock.shield",            label: "Requires Collateral", value: product.requiresCollateral ? "Yes" : "No")
                     }
@@ -280,10 +278,24 @@ struct LoanApplicationFlowView: View {
                     if let criteria = product.eligibilityCriteria, !criteria.isEmpty {
                         detailSection(title: "Eligibility Criteria") {
                             ForEach(criteria.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                                let displayValue: String = {
+                                    if key.lowercased().contains("age") {
+                                        return "\(value) years"
+                                    } else if key.lowercased().contains("income") {
+                                        if let intValue = Int(value) {
+                                            let formatter = NumberFormatter()
+                                            formatter.numberStyle = .decimal
+                                            formatter.locale = Locale(identifier: "en_IN")
+                                            return "₹\(formatter.string(from: NSNumber(value: intValue)) ?? value)"
+                                        }
+                                        return "₹\(value)"
+                                    }
+                                    return value
+                                }()
                                 detailRow(
                                     icon: "checkmark.seal",
                                     label: key.replacingOccurrences(of: "_", with: " ").capitalized,
-                                    value: value
+                                    value: displayValue
                                 )
                             }
                         }
@@ -403,21 +415,7 @@ struct LoanApplicationFlowView: View {
                     .foregroundColor(.accentRed)
                     .padding(.horizontal, 24)
             }
-            if step == 3 {
-                let hasMissingDocs = {
-                    if let product = selectedProduct {
-                        return !product.requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
-                    }
-                    return true
-                }()
-                if hasMissingDocs {
-                    Text("Please upload all required documents to proceed.")
-                        .font(.subheadline.weight(.semibold)).fontDesign(.rounded)
-                        .foregroundColor(.accentRed)
-                        .padding(.horizontal, 24)
-                        .transition(.opacity)
-                }
-            }
+            
             HStack(spacing: 12) {
                 // Back button (left of NEXT) — kept as-is per requirement 4
                 if step > 1 {
@@ -493,21 +491,38 @@ struct LoanApplicationFlowView: View {
     private var stepIndicator: some View {
         HStack(spacing: 0) {
             ForEach(1...4, id: \.self) { index in
+                let isCompleted = (index < step) || (index == 1 && step == 1 && showProductDetail)
+                let isActive = (index == step) && !(step == 1 && showProductDetail)
+                let isFilled = isCompleted || isActive
+
                 ZStack {
                     Circle()
-                        .fill(index <= step ? Color.accentGreen : Color.white)
+                        .fill(isFilled ? Color.accentGreen : Color.white)
                         .frame(width: 24, height: 24)
                         .overlay(Circle().stroke(Color.accentGreen, lineWidth: 2))
-                    if index < step {
-                        Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundColor(.white)
-                    } else if index == step {
+                    if isCompleted {
+                        Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
+                    } else if isActive {
                         Circle().fill(Color.white).frame(width: 8, height: 8)
                     }
                 }
                 if index < 4 {
-                    Rectangle()
-                        .fill(index < step ? Color.accentGreen : Color.border)
-                        .frame(height: 2).frame(maxWidth: .infinity)
+                    let fillRatio: CGFloat = {
+                        if index < step { return 1.0 }
+                        if index == 1 && step == 1 && showProductDetail { return 0.5 }
+                        return 0.0
+                    }()
+                    
+                    if fillRatio == 1.0 {
+                        Rectangle().fill(Color.accentGreen).frame(height: 2).frame(maxWidth: .infinity)
+                    } else if fillRatio == 0.5 {
+                        HStack(spacing: 0) {
+                            Rectangle().fill(Color.accentGreen).frame(height: 2).frame(maxWidth: .infinity)
+                            Rectangle().fill(Color.border).frame(height: 2).frame(maxWidth: .infinity)
+                        }
+                    } else {
+                        Rectangle().fill(Color.border).frame(height: 2).frame(maxWidth: .infinity)
+                    }
                 }
             }
         }
@@ -621,11 +636,13 @@ struct SelectProductStep: View {
                     ForEach(products) { product in
                         ProductOptionRow(
                             title: product.name,
-                            subtitle: product.formattedAmountRange,
+                            subtitle: product.formattedCompactAmountRange,
                             rate: product.formattedStartingRate,
                             isSelected: selected?.id == product.id
                         )
-                        .onTapGesture { selected = product }
+                        .onTapGesture { 
+                            selected = product 
+                        }
                     }
                 }
             }
@@ -651,15 +668,15 @@ struct ProductOptionRow: View {
             }
             Spacer()
             if isSelected {
-                Image(systemName: "checkmark.circle.fill").foregroundColor(.accentGreen).font(.title3)
+                Image(systemName: "checkmark.circle.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.title3)
             } else {
-                Circle().strokeBorder(Color.border, lineWidth: 1.5).frame(width: 22, height: 22)
+                Circle().strokeBorder(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1.5).frame(width: 22, height: 22)
             }
         }
         .padding(16)
-        .background(isSelected ? Color.accentGreenBg.opacity(0.3) : Color.clear)
+        .background(Color(hex: "#E8F5EC"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color.accentGreen : Color.border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color(hex: "#2D8B4E") : Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1.5))
     }
 }
 
@@ -672,8 +689,12 @@ struct AmountTenureStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Loan Amount & Tenure")
-                .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Loan Amount & Tenure")
+                    .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(.textPrimary)
+                Text("Enter the desired loan amount and the tenure")
+                    .font(.bodyRegular).foregroundColor(.textSecondary)
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {

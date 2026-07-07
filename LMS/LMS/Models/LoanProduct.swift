@@ -276,6 +276,18 @@ struct LoanProduct: Codable, Identifiable, Hashable {
         return "\(min) - \(max)"
     }
 
+    /// Formatted amount range in compact words (e.g., "₹10K - ₹1Cr")
+    var formattedCompactAmountRange: String {
+        let format: (Double) -> String = { v in
+            if v >= 10_000_000 { return String(format: "₹%.0fCr", v/10_000_000) }
+            if v >= 100_000    { return String(format: "₹%.0fL",  v/100_000) }
+            if v >= 1_000      { return String(format: "₹%.0fK",  v/1_000) }
+            return "₹\(Int(v))"
+        }
+        return "\(format(minAmount)) - \(format(maxAmount))"
+    }
+
+
     /// Formatted tenure range string (e.g., "3 - 360 months")
     var formattedTenureRange: String {
         "\(minTenureMonths) - \(maxTenureMonths) months"
