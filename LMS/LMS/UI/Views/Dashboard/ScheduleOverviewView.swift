@@ -551,18 +551,6 @@ private struct DateJumpSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Hint row
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
-                    Text("Pick a date to jump to")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(Color(hex: "#6B6B6B"))
-                }
-                .padding(.top, 6)
-                .padding(.bottom, 4)
-
                 // Native wheel picker — shows Day / Month / Year wheels
                 DatePicker(
                     "",
@@ -595,17 +583,12 @@ private struct DateJumpSheet: View {
                     .padding(.vertical, 16)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(hex: "#F5F5F0").ignoresSafeArea())
             .navigationBarBackButtonHidden(true)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
-        .navigationTitle("Jump to Date")
+            .navigationTitle("Jump to Date")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(Color(hex: "#2D8B4E"))
-                }
-            }
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
         .presentationDetents([.medium])
         .presentationCornerRadius(28)

@@ -339,7 +339,7 @@ struct StaffProfileDetailView: View {
                 }
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             Divider().background(Color.staffBorder)
             
@@ -531,7 +531,7 @@ struct StaffProfileDetailView: View {
         .sheet(isPresented: $showResetSheet) {
             resetPasswordSheet
         }
-        .animation(.easeInOut, value: viewModel.isLoading)
+        .accessibleAnimation(.easeInOut, value: viewModel.isLoading)
     }
     
     private func syncData() {

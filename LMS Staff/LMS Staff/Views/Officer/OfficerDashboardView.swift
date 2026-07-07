@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct OfficerDashboardView: View {
-    var preselectedFilter: String = "All"
+    var preselectedFilter: String = "Under Review"
     
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var vm = OfficerDashboardViewModel()
@@ -31,22 +31,22 @@ struct OfficerDashboardView: View {
                     .foregroundColor(.staffTextPrimary)
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
+                    .accessibilityAddTraits(.isHeader)
                 
                 // Mini Metric Summary Cards
-                HStack(spacing: StaffSpacing.md) {
+                HStack(spacing: StaffSpacing.lg) {
                     MiniStatCard(title: "New", value: "\(vm.statsPendingCount)", icon: "hourglass", color: .staffAccent)
-                    MiniStatCard(title: "In Process", value: "\(vm.statsUnderReviewCount)", icon: "eye", color: .staffAmber)
-                    MiniStatCard(title: "Approved", value: "\(vm.statsApprovedCount)", icon: "checkmark.circle", color: .staffGreen)
+                    MiniStatCard(title: "Escalated", value: "\(vm.statsUnderReviewCount)", icon: "arrow.up.right.circle", color: .staffAmber)
+                    MiniStatCard(title: "Sent Back", value: "\(vm.statsApprovedCount)", icon: "arrow.backward.circle", color: .staffRed)
                 }
                 .padding(StaffSpacing.lg)
                 
                 // Filter chips
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: StaffSpacing.sm) {
-                        OfficerFilterChip(title: "All", isSelected: vm.selectedStatusFilter == "All") { vm.selectedStatusFilter = "All" }
-                        OfficerFilterChip(title: "Submitted", isSelected: vm.selectedStatusFilter == "Submitted") { vm.selectedStatusFilter = "Submitted" }
                         OfficerFilterChip(title: "Under Review", isSelected: vm.selectedStatusFilter == "Under Review") { vm.selectedStatusFilter = "Under Review" }
                         OfficerFilterChip(title: "Sent Back", isSelected: vm.selectedStatusFilter == "Sent Back") { vm.selectedStatusFilter = "Sent Back" }
+                        OfficerFilterChip(title: "Submitted", isSelected: vm.selectedStatusFilter == "Submitted") { vm.selectedStatusFilter = "Submitted" }
                         OfficerFilterChip(title: "Rejected", isSelected: vm.selectedStatusFilter == "Rejected") { vm.selectedStatusFilter = "Rejected" }
                     }
                     .padding(.horizontal, StaffSpacing.lg)
@@ -92,7 +92,7 @@ struct OfficerDashboardView: View {
                                         .fontWeight(.bold)
                                         .foregroundColor(.staffTextPrimary)
                                     Spacer()
-                                    StaffStatusBadge(status: app.application.status.displayName)
+                                    StaffStatusBadge(status: app.application.status.officerDisplayName)
                                 }
                                 
                                 HStack {
@@ -110,6 +110,7 @@ struct OfficerDashboardView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .accessibilityHint("Opens the application to review")
                         .listRowBackground(
                             selectedApp?.application.id == app.application.id
                             ? Color.staffAccent.opacity(0.15)
@@ -161,7 +162,7 @@ struct OfficerDashboardView: View {
         }
         .background(Color.staffBackground)
         .onAppear {
-            if vm.selectedStatusFilter == "All" && preselectedFilter != "All" {
+            if vm.selectedStatusFilter == "Under Review" && preselectedFilter != "Under Review" {
                 vm.selectedStatusFilter = preselectedFilter
             }
             Task {
@@ -181,7 +182,7 @@ struct MiniStatCard: View {
     let color: Color
     
     var body: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: StaffSpacing.sm) {
                 Image(systemName: icon)
                     .font(.title3)
@@ -189,21 +190,27 @@ struct MiniStatCard: View {
                 Text(title)
                     .font(.staffCaption)
                     .foregroundColor(.staffTextSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
-            Spacer()
+            Spacer(minLength: 4)
             Text(value)
                 .font(.staffBody)
                 .fontWeight(.bold)
                 .foregroundColor(.staffTextPrimary)
+                .lineLimit(1)
         }
-        .padding(StaffSpacing.lg)
-        .frame(maxWidth: .infinity, minHeight: 85)
+        .padding(.horizontal, StaffSpacing.md)
+        .padding(.vertical, StaffSpacing.lg)
+        .frame(maxWidth: .infinity, minHeight: 95)
         .background(Color.staffSurface)
         .cornerRadius(StaffCorner.md)
         .overlay(
             RoundedRectangle(cornerRadius: StaffCorner.md)
                 .stroke(Color.staffBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 

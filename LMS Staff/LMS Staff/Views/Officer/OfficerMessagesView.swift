@@ -60,7 +60,11 @@ struct OfficerMessagesView: View {
                         }
                         .padding(.vertical, 6)
                         .tag(app)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(
+                            selectedApp?.application.id == app.application.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.staffSurface
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

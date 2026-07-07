@@ -2,6 +2,11 @@ import SwiftUI
 import Supabase
 import Auth
 
+enum LoanNavigation: Hashable {
+    case selectLoanType
+    case applicationFlow(LoanType?)
+}
+
 struct HomeDashboardView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var loans: [LoanListItem] = []
@@ -11,13 +16,14 @@ struct HomeDashboardView: View {
     @State private var showChatHint = false
     @State private var showAllTransactions = false
     @State private var showAIChat = false
+    @State private var path = NavigationPath()
 
     // UI control flags to hide elements
     private let showChatButton = true
     private let showNotificationButton = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 ZStack(alignment: .top) {
                     ScrollView(.vertical, showsIndicators: false) {
@@ -92,6 +98,14 @@ struct HomeDashboardView: View {
             }
             .fullScreenCover(isPresented: $showAIChat) {
                 AIChatView()
+            }
+            .navigationDestination(for: LoanNavigation.self) { dest in
+                switch dest {
+                case .selectLoanType:
+                    SelectLoanTypeView(path: $path)
+                case .applicationFlow(let loanType):
+                    LoanApplicationFlowView(initialLoanType: loanType, path: $path)
+                }
             }
             .task { await loadData() }
             .refreshable { await loadData() }
@@ -348,9 +362,7 @@ struct HomeDashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    SelectLoanTypeView()
-                } label: {
+                NavigationLink(value: LoanNavigation.selectLoanType) {
                     quickActionCard(icon: "pointer.arrow.rays", label: "Apply")
                 }
                 .buttonStyle(.plain)
@@ -456,13 +468,13 @@ struct HomeDashboardView: View {
             ZStack {
                 Circle()
                     .fill(item.statusBg)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 28, height: 28)
                 Image(systemName: item.statusIcon)
-                    .font(.subheadline.weight(.bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundColor(item.statusColor)
             }
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.body.weight(.bold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
@@ -484,16 +496,14 @@ struct HomeDashboardView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .liquidGlass(cornerRadius: 18)
     }
 
     // MARK: - Empty State
     
     private var applyLoanPromoCard: some View {
-        NavigationLink {
-            SelectLoanTypeView()
-        } label: {
+        NavigationLink(value: LoanNavigation.selectLoanType) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     ZStack {
@@ -541,9 +551,7 @@ struct HomeDashboardView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
 
-            NavigationLink {
-                SelectLoanTypeView()
-            } label: {
+            NavigationLink(value: LoanNavigation.selectLoanType) {
                 HStack {
                     Spacer()
                     Text("Apply Now")
@@ -657,6 +665,74 @@ struct HomeDashboardView: View {
                 if let row = users.first {
                     userName = row.fullName
                 }
+
+                // Proactive nudges: schedule local EMI reminders for active loans.
+                let reminders: [NotificationService.EMIReminder] = loans
+                    .filter { $0.status.lowercased() == "active" }
+                    .compactMap { loan in
+                        guard let raw = loan.nextDueDate,
+                              let date = LoansListView.parseDateString(raw) else { return nil }
+                        return NotificationService.EMIReminder(
+                            loanName: loan.name,
+                            amount: loan.emiAmount,
+                            dueDate: date
+                        )
+                    }
+                NotificationService.shared.scheduleEMIReminders(reminders)
+
+                // ----- Widgets: publish a rich snapshot to the shared App Group -----
+                let active = loans.filter { $0.status.lowercased() == "active" }
+
+                let loanDTOs: [WidgetLoanDTO] = active.map { loan in
+                    WidgetLoanDTO(
+                        id: loan.id.uuidString,
+                        name: loan.name,
+                        loanType: loan.loanType,
+                        outstanding: loan.remainingAmount,
+                        emiAmount: loan.emiAmount,
+                        nextDue: loan.nextDueDate.flatMap { LoansListView.parseDateString($0) },
+                        paidPercent: loan.paidPercent,
+                        status: loan.status
+                    )
+                }
+
+                // EMI calendar: merge active loans' schedules into (day, status).
+                var calendar: [WidgetEMIDayDTO] = []
+                for loan in active {
+                    for emi in loan.emiSchedule ?? [] {
+                        if let day = LoansListView.parseDateString(emi.dueDate) {
+                            calendar.append(WidgetEMIDayDTO(date: day, status: emi.status.lowercased()))
+                        }
+                    }
+                }
+
+                // An application still in progress (not yet an active loan).
+                let pendingStatuses = ["submitted", "under_review", "sent_back", "approved", "pending_acceptance", "pending_disbursal"]
+                let pendingItem = loans.first { pendingStatuses.contains($0.status.lowercased()) }
+                let appUpdated = pendingItem?.timeline?.compactMap { LoansListView.parseDateString($0.date) }.max()
+
+                // Credit score (not otherwise loaded on the dashboard).
+                var creditScore: Int? = nil
+                if let userId = authViewModel.currentUser?.id {
+                    struct ScoreRow: Decodable { let credit_score: Int? }
+                    let rows: [ScoreRow] = (try? await SupabaseManager.shared.client
+                        .from("borrower_profiles")
+                        .select("credit_score")
+                        .eq("user_id", value: userId.uuidString)
+                        .execute()
+                        .value) ?? []
+                    creditScore = rows.first?.credit_score
+                }
+
+                WidgetDataProvider.update(WidgetSnapshotDTO(
+                    loans: loanDTOs,
+                    creditScore: creditScore,
+                    applicationStage: pendingItem?.status,
+                    applicationLoanName: pendingItem?.name,
+                    applicationUpdated: appUpdated,
+                    calendar: calendar,
+                    generated: Date()
+                ))
             }
             hasLoaded = true
         } catch {

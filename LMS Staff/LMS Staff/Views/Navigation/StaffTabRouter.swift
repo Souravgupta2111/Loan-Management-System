@@ -13,6 +13,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case officerPortfolio
     case officerMessages
     case officerNotifications
+    case officerReports
     case officerAIChat
     
     case managerDashboard
@@ -37,11 +38,12 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     
     var title: String {
         switch self {
-        case .officerDashboard: return "Dashboard"
-        case .officerApplications: return "My Applications"
+        case .officerDashboard: return "My Applications"
+        case .officerApplications: return "Applications Detail"
         case .officerPortfolio: return "Active Loans"
         case .officerMessages: return "Chats"
         case .officerNotifications: return "Alert Notifications"
+        case .officerReports: return "Analytics"
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
@@ -80,6 +82,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             return "sparkles"
         case .officerNotifications:
             return "bell.fill"
+        case .officerReports:
+            return "chart.bar.doc.horizontal.fill"
             
         case .managerDisbursements:
             return "banknote.fill"
@@ -111,7 +115,24 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 struct StaffTabRouter: View {
     let role: UserRole
     @State private var selectedItem: SidebarItem?
-    
+    @StateObject private var intentRouter = StaffIntentRouter.shared
+
+    /// Maps a Siri intent's logical destination to the correct sidebar item for this role.
+    private func sidebarItem(for destination: StaffIntentRouter.Destination) -> SidebarItem {
+        switch destination {
+        case .aiChat:
+            return role == .manager ? .managerAIChat : .officerAIChat
+        case .applications:
+            return .officerApplications
+        case .portfolio:
+            return role == .manager ? .managerPortfolio : .officerPortfolio
+        case .npa:
+            return .managerNpa
+        case .disbursements:
+            return .managerDisbursements
+        }
+    }
+
     var body: some View {
         NavigationSplitView {
             SidebarView(role: role, selectedItem: $selectedItem)
@@ -135,11 +156,18 @@ struct StaffTabRouter: View {
             }
         }
         .accentColor(.staffAccent)
+        // Siri / Shortcuts intents route here.
+        .onReceive(intentRouter.$pending) { destination in
+            guard let destination else { return }
+            selectedItem = sidebarItem(for: destination)
+        }
         .onAppear {
             Task {
                 try? await NotificationService.shared.requestPermission()
             }
             NotificationService.shared.subscribeToNotifications()
+            // Publish role metrics for the home-screen widgets.
+            Task { await StaffWidgetDataProvider.refresh(role: role) }
         }
         .onDisappear {
             NotificationService.shared.unsubscribe()
@@ -160,6 +188,8 @@ struct StaffTabRouter: View {
             OfficerMessagesView()
         case .officerNotifications:
             OfficerNotificationsView()
+        case .officerReports:
+            OfficerReportsView()
         case .officerAIChat:
             StaffAIChatView()
             

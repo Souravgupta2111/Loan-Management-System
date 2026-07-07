@@ -78,6 +78,9 @@ struct LoanDetailView: View {
                             .clipShape(Capsule())
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(unreadCount > 0 ? "Message officer, \(unreadCount) unread" : "Message officer")
+                        .accessibilityHint("Opens your chat with the assigned loan officer")
                     }
                     .padding()
                 }
@@ -370,6 +373,9 @@ private struct LoanSummaryCard: View {
                         }
                     }
                     .frame(height: 6)
+                    .accessibilityElement()
+                    .accessibilityLabel("Repayment progress")
+                    .accessibilityValue("\(Int(min(max(progress, 0), 1) * 100)) percent. \(detail.progressText)")
                 }
                 .padding(.top, 12)
             } else {
@@ -521,11 +527,7 @@ private struct TimelineCard: View {
     
     @State private var animatedProgress: Double = 0.0
     
-    // Upload states
-    @State private var selectedItem: PhotosPickerItem? = nil
-    @State private var isUploading = false
-    @State private var uploadError: String? = nil
-    @State private var uploadSuccess: String? = nil
+
     
     // Action States
     @State private var isAccepting = false
@@ -588,20 +590,27 @@ private struct TimelineCard: View {
         
         // 1. Applied
         let appliedEvent = getEvent("Applied", nil)
+        let appliedRemarks: String? = (appliedEvent?.remarks != nil && !appliedEvent!.remarks!.isEmpty) ? appliedEvent?.remarks : nil
         list.append(StandardStep(
             title: "Applied",
             date: appliedEvent?.date ?? loan.disbursedDate,
-            remarks: "Application successfully submitted.",
+            remarks: appliedRemarks,
             status: .completed
         ))
         
         // 2. Reviewed by Loan Officer
         let officerReviewEvent = getEvent("Officer", "Officer") ?? getEvent("Review", nil)
         let hasOfficerReviewed = ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed", "overdue", "rejected"].contains(lowerStatus)
+        let officerRemarks: String? = {
+            if let rem = officerReviewEvent?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return hasOfficerReviewed ? nil : "Under credit officer verification."
+        }()
         list.append(StandardStep(
             title: "Reviewed by Loan Officer",
             date: officerReviewEvent?.date ?? "",
-            remarks: hasOfficerReviewed ? "Verification completed by credit officer." : "Under credit officer verification.",
+            remarks: officerRemarks,
             status: hasOfficerReviewed ? .completed : .active
         ))
         
@@ -621,10 +630,11 @@ private struct TimelineCard: View {
         // 4. Escalated to Manager
         let recommendationEvent = loan.timeline?.first { $0.title.contains("Approved by Loan Officer") }
         let hasEscalated = ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed", "overdue", "rejected"].contains(lowerStatus)
+        let escalationRemarks: String? = (recommendationEvent?.remarks != nil && !recommendationEvent!.remarks!.isEmpty) ? recommendationEvent?.remarks : nil
         list.append(StandardStep(
             title: "Escalated to Manager",
             date: recommendationEvent?.date ?? "",
-            remarks: hasEscalated ? "Recommended for manager approval." : "",
+            remarks: escalationRemarks,
             status: hasEscalated ? .completed : (lowerStatus == "under_review" ? .active : .pending)
         ))
         
@@ -636,7 +646,9 @@ private struct TimelineCard: View {
         let managerRemarks: String?
         let managerStatus: StepStatus
         
-        if lowerStatus == "rejected" {
+        let isRejectedByBorrower = lowerStatus == "rejected" && loan.rejectionReason?.localizedCaseInsensitiveContains("borrower") == true
+        
+        if lowerStatus == "rejected" && !isRejectedByBorrower {
             managerTitle = "Application Rejected"
             managerRemarks = loan.rejectionReason ?? "Application did not meet credit criteria."
             managerStatus = .active
@@ -644,9 +656,9 @@ private struct TimelineCard: View {
             managerTitle = "Sent Back by Manager"
             managerRemarks = loan.sentBackReason ?? "Manager requested correction/clarification."
             managerStatus = .active
-        } else if ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus) {
+        } else if ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus) || isRejectedByBorrower {
             managerTitle = "Approved by Manager"
-            managerRemarks = "Manager approved the credit limit."
+            managerRemarks = (managerEvent?.remarks != nil && !managerEvent!.remarks!.isEmpty) ? managerEvent?.remarks : nil
             managerStatus = .completed
         } else {
             managerTitle = "Manager Review"
@@ -664,29 +676,60 @@ private struct TimelineCard: View {
         // 6. Proposal Acceptance
         let hasAccepted = ["pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus)
         let isAcceptanceActive = lowerStatus == "pending_acceptance"
+        
+        let acceptanceTitle: String
+        let acceptanceRemarks: String?
+        let acceptanceStatus: StepStatus
+        
+        if hasAccepted {
+            acceptanceTitle = "Proposal Acceptance"
+            acceptanceRemarks = "You accepted the loan terms and interest rate."
+            acceptanceStatus = .completed
+        } else if isAcceptanceActive {
+            acceptanceTitle = "Proposal Acceptance"
+            acceptanceRemarks = "Review approved terms and accept disbursement."
+            acceptanceStatus = .active
+        } else if isRejectedByBorrower {
+            acceptanceTitle = "Proposal Rejected"
+            acceptanceRemarks = loan.rejectionReason ?? "Disbursement terms rejected by borrower."
+            acceptanceStatus = .active
+        } else {
+            acceptanceTitle = "Proposal Acceptance"
+            acceptanceRemarks = nil
+            acceptanceStatus = .pending
+        }
+        
         list.append(StandardStep(
-            title: "Proposal Acceptance",
+            title: acceptanceTitle,
             date: "",
-            remarks: hasAccepted ? "You accepted the loan terms and interest rate." : (isAcceptanceActive ? "Review approved terms and accept disbursement." : nil),
-            status: hasAccepted ? .completed : (isAcceptanceActive ? .active : .pending)
+            remarks: acceptanceRemarks,
+            status: acceptanceStatus
         ))
         
         // 7. Awaiting Disbursement
         let hasDisbursed = ["disbursed", "active", "closed"].contains(lowerStatus)
         let isDisbursalActive = lowerStatus == "pending_disbursal"
+        let disbursalEvent = getEvent("Disburse", nil)
+        let disbursalRemarks: String? = {
+            if let rem = disbursalEvent?.remarks, !rem.isEmpty {
+                return rem
+            }
+            return isDisbursalActive ? "Manager is processing the fund transfer." : nil
+        }()
         list.append(StandardStep(
             title: "Awaiting Disbursement",
             date: "",
-            remarks: hasDisbursed ? "Disbursement processed." : (isDisbursalActive ? "Manager is processing the fund transfer." : nil),
+            remarks: disbursalRemarks,
             status: hasDisbursed ? .completed : (isDisbursalActive ? .active : .pending)
         ))
         
         // 8. Disbursed
         let disbursedEvent = getEvent("Disbursed", nil)
+        let finalDisbursedRemarks: String? = (disbursedEvent?.remarks != nil && !disbursedEvent!.remarks!.isEmpty) ? disbursedEvent?.remarks : nil
         list.append(StandardStep(
             title: "Disbursed",
             date: disbursedEvent?.date ?? (hasDisbursed ? loan.disbursedDate : ""),
-            remarks: hasDisbursed ? "Funds disbursed to your bank account." : nil,
+            remarks: finalDisbursedRemarks,
             status: hasDisbursed ? .completed : .pending
         ))
         
@@ -700,11 +743,7 @@ private struct TimelineCard: View {
                     step: step,
                     isLast: index == steps.count - 1,
                     fillFraction: step.status == .completed ? 1.0 : 0.0,
-                    loan: loan,
-                    isUploading: $isUploading,
-                    uploadError: $uploadError,
-                    uploadSuccess: $uploadSuccess,
-                    selectedItem: $selectedItem
+                    loan: loan
                 )
             }
             
@@ -794,45 +833,7 @@ private struct TimelineCard: View {
                 animatedProgress = targetProgress
             }
         }
-        .onChange(of: selectedItem) { _, newItem in
-            guard let item = newItem else { return }
-            isUploading = true
-            uploadError = nil
-            uploadSuccess = nil
-            
-            Task {
-                do {
-                    guard let data = try? await item.loadTransferable(type: Data.self) else {
-                        throw NSError(domain: "ImageLoadError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to read image data"])
-                    }
-                    
-                    guard let appId = loan.applicationId else {
-                        throw NSError(domain: "AppIdError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Application ID not found"])
-                    }
-                    
-                    guard let userId = authViewModel.currentUser?.id else {
-                        throw NSError(domain: "UserIdError", code: 0, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])
-                    }
-                    
-                    try await LoanService.shared.resubmitApplication(
-                        applicationId: appId,
-                        newDocuments: ["additional_document": data],
-                        userId: userId
-                    )
-                    
-                    await MainActor.run {
-                        uploadSuccess = "Document uploaded successfully!"
-                        isUploading = false
-                        NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
-                    }
-                } catch {
-                    await MainActor.run {
-                        uploadError = error.localizedDescription
-                        isUploading = false
-                    }
-                }
-            }
-        }
+
     }
 }
 
@@ -841,11 +842,6 @@ private struct TimelineItemRow: View {
     let isLast: Bool
     let fillFraction: Double
     let loan: LoanListItem
-    
-    @Binding var isUploading: Bool
-    @Binding var uploadError: String?
-    @Binding var uploadSuccess: String?
-    @Binding var selectedItem: PhotosPickerItem?
     
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -870,7 +866,8 @@ private struct TimelineItemRow: View {
                     .minFrameHeight()
                 }
             }
-            
+            .accessibilityHidden(true) // decorative node + connector line
+
             // Text Content Column
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title)
@@ -894,45 +891,7 @@ private struct TimelineItemRow: View {
                         .padding(.top, 4)
                 }
                 
-                // If it is Document Requested or Additional Document Requested, show inline PhotosPicker
-                if (step.title == "Document Requested" || step.title == "Additional Document Requested") && step.status == .active {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if isUploading {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Uploading...")
-                                    .font(.subheadline)
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
-                            }
-                            .padding(.top, 4)
-                        } else {
-                            PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "arrow.up.doc.fill")
-                                        .font(.caption)
-                                    Text("Upload Document")
-                                        .font(.subheadline.weight(.bold))
-                                        .underline()
-                                }
-                                .foregroundColor(Color(hex: "#2D8B4E"))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.top, 4)
-                        }
-                        
-                        if let err = uploadError {
-                            Text(err)
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(.red)
-                        }
-                        if let success = uploadSuccess {
-                            Text(success)
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(Color(hex: "#2D8B4E"))
-                        }
-                    }
-                }
+
             }
             .padding(.top, 3)
             .padding(.bottom, isLast ? 0 : 20) // Spacing below content to align with line stretch
@@ -964,7 +923,7 @@ private struct TimelineItemRow: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption.weight(.bold))
                         .foregroundColor(Color(hex: "#E65100"))
-                } else if step.title == "Application Rejected" || step.title == "Rejected" {
+                } else if step.title == "Application Rejected" || step.title == "Rejected" || step.title == "Proposal Rejected" {
                     Circle()
                         .stroke(Color(hex: "#D32F2F"), lineWidth: 2)
                         .background(Circle().fill(Color(hex: "#FFEBEE")))
@@ -1266,6 +1225,7 @@ private struct EMIScheduleRowView: View {
         case .paid: return Color(hex: "#2D8B4E")
         case .overdue: return Color(hex: "#D94040")
         case .upcoming: return Color(hex: "#2D8B4E")
+        case .scheduled: return Color(hex: "#9E9E9E")
         }
     }
 
@@ -1274,6 +1234,7 @@ private struct EMIScheduleRowView: View {
         case .paid: return Color(hex: "#E8F5EC")
         case .overdue: return Color(hex: "#FDE8E8")
         case .upcoming: return Color.clear
+        case .scheduled: return Color.clear
         }
     }
 
@@ -1282,6 +1243,7 @@ private struct EMIScheduleRowView: View {
         case .paid: return Color(hex: "#2D8B4E")
         case .overdue: return Color(hex: "#D94040")
         case .upcoming: return Color(hex: "#1A1A1A")
+        case .scheduled: return Color(hex: "#9E9E9E")
         }
     }
 
@@ -1290,6 +1252,7 @@ private struct EMIScheduleRowView: View {
         case .paid: return "checkmark.circle.fill"
         case .overdue: return "exclamationmark.triangle.fill"
         case .upcoming: return "clock.fill"
+        case .scheduled: return "calendar"
         }
     }
 
@@ -1339,6 +1302,8 @@ private struct EMIScheduleRowView: View {
             shadowRadius: 10,
             shadowY: 4
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("EMI due \(emi.dueDate), \(formatCurrency(emi.amount)), \(emi.status.rawValue)")
     }
 }
 
@@ -1471,6 +1436,8 @@ private struct LoanDetailMock {
         let calendar = Calendar.current
         let today = Date()
 
+        var hasFoundFirstUpcoming = false
+
         return schedule.enumerated().compactMap { index, emi -> LoanEMIItem? in
             guard let date = LoansListView.parseDateString(emi.dueDate) else { return nil }
             let formatter = DateFormatter()
@@ -1483,7 +1450,16 @@ private struct LoanDetailMock {
             } else {
                 let dueDay = calendar.startOfDay(for: date)
                 let todayDay = calendar.startOfDay(for: today)
-                status = dueDay < todayDay ? .overdue : .upcoming
+                if dueDay < todayDay {
+                    status = .overdue
+                } else {
+                    if !hasFoundFirstUpcoming {
+                        status = .upcoming
+                        hasFoundFirstUpcoming = true
+                    } else {
+                        status = .scheduled
+                    }
+                }
             }
 
             return LoanEMIItem(dueDate: dateStr, amount: emi.amount, status: status)
@@ -1517,4 +1493,5 @@ private enum LoanEMIStatus: String {
     case paid = "Paid"
     case upcoming = "Upcoming"
     case overdue = "Overdue"
+    case scheduled = "Scheduled"
 }

@@ -139,7 +139,7 @@ struct BorrowerSearchView: View {
                 Spacer()
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.staffBackground)
             
             ScrollView {
                 VStack(spacing: StaffSpacing.lg) {

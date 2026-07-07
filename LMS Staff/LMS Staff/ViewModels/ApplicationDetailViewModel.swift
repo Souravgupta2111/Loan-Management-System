@@ -587,12 +587,14 @@ class ApplicationDetailViewModel: ObservableObject {
         ))
         
         // 5. Manager Review
+        let isRejectedByBorrower = status == .rejected && application.rejectionReason?.localizedCaseInsensitiveContains("borrower") == true
+        
         let managerTitle: String
         let managerRemarks: String?
         let managerStatus: StaffLoanPipelineView.StageStatus
         let managerDate: String
         
-        if status == .rejected {
+        if status == .rejected && !isRejectedByBorrower {
             managerTitle = "Application Rejected"
             managerRemarks = rejectLog?.remarks ?? application.rejectionReason ?? "Application did not meet credit criteria."
             managerStatus = .active
@@ -602,7 +604,7 @@ class ApplicationDetailViewModel: ObservableObject {
             managerRemarks = sendBackLog?.remarks ?? application.sentBackReason ?? "Manager requested correction/clarification."
             managerStatus = .active
             managerDate = fmtDate(sendBackLog?.actionedAt)
-        } else if [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed].contains(status) {
+        } else if [.approved, .pendingAcceptance, .pendingDisbursal, .disbursed].contains(status) || isRejectedByBorrower {
             managerTitle = "Approved by Manager"
             managerRemarks = "Manager approved the credit limit."
             managerStatus = .completed
@@ -624,11 +626,15 @@ class ApplicationDetailViewModel: ObservableObject {
         // 6. Proposal Acceptance
         let hasAccepted = [.pendingDisbursal, .disbursed].contains(status)
         let isAcceptanceActive = status == .pendingAcceptance
+        let proposalTitle = isRejectedByBorrower ? "Proposal Rejected" : "Proposal Acceptance"
+        let proposalRemarks = isRejectedByBorrower ? (application.rejectionReason ?? "Disbursement terms rejected by borrower.") : (hasAccepted ? "Borrower accepted the loan terms." : (isAcceptanceActive ? "Awaiting borrower's acceptance of approved terms." : nil))
+        let proposalStatus: StaffLoanPipelineView.StageStatus = hasAccepted ? .completed : (isAcceptanceActive || isRejectedByBorrower ? .active : .pending)
+        
         list.append(.init(
-            title: "Proposal Acceptance",
+            title: proposalTitle,
             date: "",
-            remarks: hasAccepted ? "Borrower accepted the loan terms." : (isAcceptanceActive ? "Awaiting borrower's acceptance of approved terms." : nil),
-            status: hasAccepted ? .completed : (isAcceptanceActive ? .active : .pending)
+            remarks: proposalRemarks,
+            status: proposalStatus
         ))
         
         // 7. Awaiting Disbursement
