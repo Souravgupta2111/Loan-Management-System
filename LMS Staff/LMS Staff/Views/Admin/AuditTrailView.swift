@@ -147,7 +147,7 @@ struct AuditTrailView: View {
                     .fill(actionColor(log.action).opacity(0.15))
                     .frame(width: 36, height: 36)
                 Image(systemName: actionIcon(log.action))
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundColor(actionColor(log.action))
             }
             
@@ -160,7 +160,7 @@ struct AuditTrailView: View {
                         .foregroundColor(.staffTextPrimary)
                     
                     Text(log.tableName)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundColor(.staffAccent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -179,7 +179,7 @@ struct AuditTrailView: View {
                     // Actor info
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
-                            .font(.system(size: 9))
+                            .font(.caption)
                         if let actorId = log.actorId, let name = actorNames[actorId] {
                             Text(name)
                                 .fontWeight(.medium)
@@ -187,13 +187,13 @@ struct AuditTrailView: View {
                             Text("System")
                         }
                     }
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundColor(.staffTextSecondary)
                     
                     // Role Badge
                     if let role = log.actorRole {
                         Text(role.rawValue.capitalized)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.caption.weight(.bold))
                             .foregroundColor(roleBadgeColor(role))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
@@ -206,10 +206,10 @@ struct AuditTrailView: View {
                     // Timestamp
                     HStack(spacing: 3) {
                         Image(systemName: "clock")
-                            .font(.system(size: 9))
+                            .font(.caption)
                         Text(formatTimestamp(log.createdAt))
                     }
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundColor(.staffTextSecondary)
                 }
                 .padding(.top, 2)

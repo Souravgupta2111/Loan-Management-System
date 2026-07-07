@@ -19,15 +19,14 @@ struct SanctionLetterPreviewView: View {
                 // Download button below the sanction letter
                 VStack {
                     Button(action: {
-                        let impact = UIImpactFeedbackGenerator(style: .medium)
-                        impact.impactOccurred()
+                        HapticManager.shared.impact(style: .medium)
                         showShareSheet = true
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "square.and.arrow.down.fill")
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.body.weight(.bold))
                             Text("Download Sanction Letter")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.body.weight(.semibold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 28)

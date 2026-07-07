@@ -42,7 +42,7 @@ struct SidebarView: View {
                         Image(systemName: roleIcon(role))
                         Text(role.displayName)
                     }
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundColor(roleColor(role))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -123,10 +123,10 @@ struct SidebarView: View {
     private func menuItems(for role: UserRole) -> [SidebarItem] {
         switch role {
         case .officer:
-            return [.officerDashboard, .officerPortfolio, .officerMessages]
+            return [.officerDashboard, .officerPortfolio, .officerMessages, .officerAIChat]
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
-            return [.managerDashboard, .managerDisbursements, .managerMessages]
+            return [.managerDashboard, .managerDisbursements, .managerMessages, .managerAI, .managerAIChat]
             // Hidden: .managerPortfolio, .managerNpa, .managerReports
         case .admin:
             return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]

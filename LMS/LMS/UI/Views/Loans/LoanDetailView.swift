@@ -62,7 +62,7 @@ struct LoanDetailView: View {
                                 Text("Message Officer")
                                 if unreadCount > 0 {
                                     Text("\(unreadCount)")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .font(.caption.weight(.bold))
                                         .foregroundColor(.accentGreen)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 3)
@@ -70,7 +70,7 @@ struct LoanDetailView: View {
                                         .clipShape(Circle())
                                 }
                             }
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.body.weight(.bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 14)
@@ -110,7 +110,7 @@ struct LoanDetailView: View {
                 }
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                     .frame(width: 36, height: 36)
                     .background(Color(hex: "#E8F5EC"))
@@ -119,7 +119,7 @@ struct LoanDetailView: View {
             .buttonStyle(ScaleButtonStyle())
 
             Text(viewModel.detail.loanName)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -153,13 +153,13 @@ struct LoanDetailView: View {
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.clock")
-                        .font(.system(size: 32))
+                        .font(.title)
                         .foregroundColor(Color(hex: "#C8E6D0"))
                     Text("Schedule Not Generated")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.body.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                     Text("EMI schedule will be available once your application is approved and disbursed.")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
@@ -291,13 +291,13 @@ private struct LoanSummaryCard: View {
             // Loan ID row
             HStack(alignment: .firstTextBaseline) {
                 Text("Loan ID")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
 
                 Spacer()
 
                 Text(detail.loanNumber)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.subheadline.weight(.regular))
                     .foregroundColor(Color(hex: "#9E9E9E"))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -347,20 +347,20 @@ private struct LoanSummaryCard: View {
                 // Repayment Progress
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Repayment Progress")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .textCase(.uppercase)
                         .tracking(0.5)
 
                     HStack(alignment: .firstTextBaseline) {
                         Text(detail.remainingEMIText)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundColor(Color(hex: "#1A1A1A"))
 
                         Spacer()
 
                         Text(detail.progressText)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundColor(Color(hex: "#2D8B4E"))
                     }
 
@@ -394,10 +394,10 @@ private struct LoanSummaryCard: View {
                     
                     VStack(alignment: .trailing, spacing: 3) {
                         Text("Status")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(detail.loanStatus.capitalized.replacingOccurrences(of: "_", with: " "))
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .font(.title3.weight(.bold)).fontDesign(.rounded)
                             .foregroundColor(Color(hex: "#2D8B4E"))
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -438,11 +438,11 @@ private struct LoanAmountColumn<Subtitle: View>: View {
     var body: some View {
         VStack(alignment: alignment, spacing: 3) {
             Text(title)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundColor(Color(hex: "#6B6B6B"))
 
             Text(formatCurrency(amount))
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -462,13 +462,13 @@ private struct LoanInfoColumn: View {
     var body: some View {
         VStack(alignment: alignment, spacing: 3) {
             Text(title)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundColor(Color(hex: "#2D8B4E"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
             Text(value)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundColor(Color(hex: "#1A1A1A"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -500,7 +500,7 @@ private struct CustomLoanSegmentedControl: View {
                     }
                 } label: {
                     Text(tab.title)
-                        .font(.system(size: 14, weight: selection == tab ? .semibold : .medium))
+                        .font(.subheadline.weight(selection == tab ? .semibold : .medium))
                         .foregroundColor(selection == tab ? Color(hex: "#2D8B4E") : Color(hex: "#6B6B6B"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -721,7 +721,7 @@ private struct TimelineCard: View {
                     
                     if let error = actionError {
                         Text(error)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundColor(.red)
                             .multilineTextAlignment(.center)
                     }
@@ -748,7 +748,7 @@ private struct TimelineCard: View {
                                 }
                             }) {
                                 Text(isRejecting ? "Wait..." : "Reject Terms")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.subheadline.weight(.bold))
                                     .foregroundColor(.red)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -777,7 +777,7 @@ private struct TimelineCard: View {
                                 }
                             }) {
                                 Text(isAccepting ? "Wait..." : "Accept Disbursement")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.subheadline.weight(.bold))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -881,18 +881,18 @@ private struct TimelineItemRow: View {
             // Text Content Column
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(.body.weight(.semibold)).fontDesign(.rounded)
                     .foregroundColor(textColor)
                 
                 if !step.date.isEmpty {
                     Text(step.date)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.caption.weight(.regular))
                         .foregroundColor(Color(hex: "#9E9E9E"))
                 }
                 
                 if let remarks = step.remarks, !remarks.isEmpty {
                     Text(remarks)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundColor(remarksColor)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -909,7 +909,7 @@ private struct TimelineItemRow: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                                 Text("Uploading...")
-                                    .font(.system(size: 13))
+                                    .font(.subheadline)
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             }
                             .padding(.top, 4)
@@ -917,9 +917,9 @@ private struct TimelineItemRow: View {
                             PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "arrow.up.doc.fill")
-                                        .font(.system(size: 12))
+                                        .font(.caption)
                                     Text("Upload Document")
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(.subheadline.weight(.bold))
                                         .underline()
                                 }
                                 .foregroundColor(Color(hex: "#2D8B4E"))
@@ -930,12 +930,12 @@ private struct TimelineItemRow: View {
                         
                         if let err = uploadError {
                             Text(err)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundColor(.red)
                         }
                         if let success = uploadSuccess {
                             Text(success)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundColor(Color(hex: "#2D8B4E"))
                         }
                     }
@@ -958,7 +958,7 @@ private struct TimelineItemRow: View {
                     .frame(width: 28, height: 28)
                 
                 Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundColor(.white)
                 
             case .active:
@@ -969,7 +969,7 @@ private struct TimelineItemRow: View {
                         .frame(width: 28, height: 28)
                     
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(Color(hex: "#E65100"))
                 } else if step.title == "Application Rejected" || step.title == "Rejected" {
                     Circle()
@@ -978,7 +978,7 @@ private struct TimelineItemRow: View {
                         .frame(width: 28, height: 28)
                     
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(Color(hex: "#D32F2F"))
                 } else {
                     Circle()
@@ -1070,7 +1070,7 @@ private struct DocumentsList: View {
             if loan.status.lowercased() == "active" || loan.status.lowercased() == "disbursed" {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Official Documents")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                         .textCase(.uppercase)
                         .padding(.horizontal, 4)
@@ -1101,23 +1101,23 @@ private struct DocumentsList: View {
                                     .fill(Color(hex: "#E8F5EC"))
                                     .frame(width: 34, height: 34)
                                 Image(systemName: "doc.richtext.fill")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Sanction Letter")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundColor(Color(hex: "#1A1A1A"))
                                 Text("Generated Automatically")
-                                    .font(.system(size: 11))
+                                    .font(.caption)
                                     .foregroundColor(Color(hex: "#9E9E9E"))
                             }
 
                             Spacer()
 
                             Image(systemName: "chevron.right.circle.fill")
-                                .font(.system(size: 20))
+                                .font(.title3)
                                 .foregroundColor(Color(hex: "#2D8B4E"))
                         }
                         .padding(.horizontal, 14)
@@ -1133,7 +1133,7 @@ private struct DocumentsList: View {
             // Uploaded Documents
             VStack(alignment: .leading, spacing: 8) {
                 Text("Uploaded Documents")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#6B6B6B"))
                     .textCase(.uppercase)
                     .padding(.horizontal, 4)
@@ -1178,7 +1178,7 @@ private struct DocumentsList: View {
                                 Image(systemName: "plus.circle.fill")
                                 Text(customDocumentName.isEmpty ? "Enter Name to Upload" : "Upload \(customDocumentName)")
                             }
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -1223,23 +1223,23 @@ private struct LoanDocumentRowView: View {
                     .fill(Color(hex: "#E8F5EC"))
                     .frame(width: 34, height: 34)
                 Image(systemName: document.icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(document.title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 Text(document.uploadDate)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(Color(hex: "#9E9E9E"))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right.circle.fill")
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundColor(Color(hex: "#2D8B4E"))
         }
         .padding(.horizontal, 14)
@@ -1310,10 +1310,10 @@ private struct EMIScheduleRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Due Date")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(Color(hex: "#9E9E9E"))
                 Text(emi.dueDate)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
             }
 
@@ -1321,13 +1321,13 @@ private struct EMIScheduleRowView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatCurrency(emi.amount))
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.body.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 HStack(spacing: 3) {
                     Image(systemName: statusIcon)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.caption.weight(.bold))
                     Text(emi.status.rawValue)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                 }
                 .foregroundColor(statusTextColor)
                 .padding(.horizontal, 7)
@@ -1411,7 +1411,7 @@ private struct LoanDetailMock {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(Color(hex: "#2D8B4E"))
                     Text("Fully Paid")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                 }
             )
@@ -1420,13 +1420,13 @@ private struct LoanDetailMock {
             formatter.dateFormat = "dd MMM yyyy"
             subtitleView = AnyView(
                 Text("Due \(formatter.string(from: date))")
-                    .font(.system(size: 11, weight: .regular))
+                    .font(.caption.weight(.regular))
                     .foregroundColor(Color(hex: "#9E9E9E"))
             )
         } else {
             subtitleView = AnyView(
                 Text("As per schedule")
-                    .font(.system(size: 11, weight: .regular))
+                    .font(.caption.weight(.regular))
                     .foregroundColor(Color(hex: "#9E9E9E"))
             )
         }

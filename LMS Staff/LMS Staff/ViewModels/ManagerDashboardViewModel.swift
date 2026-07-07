@@ -182,6 +182,13 @@ class ManagerDashboardViewModel: ObservableObject {
                 }
             }
             
+            // Filter to only show chats with messages or escalated applications
+            self.chatApplications = self.chatApplications.filter { app in
+                let hasMessages = latestTimes[app.application.id] != nil
+                let isEscalated = app.application.status == .underReview
+                return hasMessages || isEscalated
+            }
+            
             // Sort by latest message
             self.chatApplications.sort { app1, app2 in
                 let date1 = latestTimes[app1.application.id] ?? .distantPast

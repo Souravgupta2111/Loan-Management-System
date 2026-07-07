@@ -13,7 +13,7 @@ struct EmptyStateView: View {
             Spacer()
 
             Image(systemName: icon)
-                .font(.system(size: 56, weight: .light))
+                .font(.title.weight(.light))
                 .foregroundColor(.staffTextTertiary)
                 .frame(width: 100, height: 100)
                 .background(Color.staffSurfaceLight)
@@ -80,7 +80,7 @@ struct StaffSectionHeader: View {
                         Text(actionTitle)
                             .font(.staffCaption)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                     }
                     .foregroundColor(.staffAccent)
                 }

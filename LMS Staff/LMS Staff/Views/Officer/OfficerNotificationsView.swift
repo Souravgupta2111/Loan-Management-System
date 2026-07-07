@@ -76,7 +76,7 @@ struct OfficerNotificationsView: View {
                             }
                             
                             Text(formatRelativeDate(item.sentAt))
-                                .font(.system(size: 9))
+                                .font(.caption)
                                 .foregroundColor(.staffTextSecondary.opacity(0.7))
                         }
                         

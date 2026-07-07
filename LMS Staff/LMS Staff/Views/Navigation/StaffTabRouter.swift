@@ -13,6 +13,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case officerPortfolio
     case officerMessages
     case officerNotifications
+    case officerAIChat
     
     case managerDashboard
     case managerDisbursements
@@ -20,6 +21,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case managerNpa
     case managerReports
     case managerMessages
+    case managerAI
+    case managerAIChat
     
     case adminDashboard
     case adminStaff
@@ -39,6 +42,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerPortfolio: return "Active Loans"
         case .officerMessages: return "Chats"
         case .officerNotifications: return "Alert Notifications"
+        case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
         case .managerDisbursements: return "Pending Disbursements"
@@ -46,6 +50,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .managerNpa: return "NPA & Recoveries"
         case .managerReports: return "Export Reports"
         case .managerMessages: return "Chats"
+        case .managerAI: return "AI Analytics"
+        case .managerAIChat: return "AI Assistant"
         
         case .adminDashboard: return "System Overview"
         case .adminStaff: return "Staff Accounts"
@@ -68,6 +74,10 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             return "briefcase.fill"
         case .officerMessages, .managerMessages:
             return "bubble.left.and.bubble.right.fill"
+        case .managerAI:
+            return "chart.bar.xaxis"
+        case .officerAIChat, .managerAIChat:
+            return "sparkles"
         case .officerNotifications:
             return "bell.fill"
             
@@ -150,6 +160,8 @@ struct StaffTabRouter: View {
             OfficerMessagesView()
         case .officerNotifications:
             OfficerNotificationsView()
+        case .officerAIChat:
+            StaffAIChatView()
             
         // MARK: - Manager Views
         case .managerDashboard:
@@ -164,6 +176,10 @@ struct StaffTabRouter: View {
             ReportsView()
         case .managerMessages:
             ManagerMessagesView()
+        case .managerAI:
+            AIAnalyticsView()
+        case .managerAIChat:
+            StaffAIChatView()
             
         // MARK: - Admin Views
         case .adminDashboard:

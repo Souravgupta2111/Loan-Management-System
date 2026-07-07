@@ -110,7 +110,7 @@ struct AdminDashboardView: View {
                                             Spacer()
                                             
                                             Text(formatDate(log.createdAt))
-                                                .font(.system(size: 10))
+                                                .font(.caption)
                                                 .foregroundColor(.staffTextSecondary)
                                         }
                                         .padding(.vertical, 8)
@@ -166,7 +166,7 @@ struct MetricBlockCard: View {
             }
             
             Text(value)
-                .font(.system(size: 32, weight: .bold))
+                .font(.title.weight(.bold))
                 .foregroundColor(.staffTextPrimary)
             
             Text(title)

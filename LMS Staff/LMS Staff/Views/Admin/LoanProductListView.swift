@@ -53,7 +53,7 @@ struct LoanProductListView: View {
                     List(vm.filteredProducts, selection: $selectedProduct) { product in
                         HStack(spacing: StaffSpacing.md) {
                             Image(systemName: productIcon(for: product.type))
-                                .font(.system(size: 20))
+                                .font(.title3)
                                 .foregroundColor(.staffAccent)
                                 .frame(width: 36, height: 36)
                                 .background(Color.staffAccentBg)
@@ -297,7 +297,7 @@ struct ProductDetailPanel: View {
                                 ForEach(docs, id: \.self) { doc in
                                     HStack(spacing: StaffSpacing.sm) {
                                         Image(systemName: "doc.fill")
-                                            .font(.system(size: 12))
+                                            .font(.caption)
                                             .foregroundColor(.staffAccent)
                                         Text(doc.name)
                                             .font(.staffBody)
@@ -427,7 +427,7 @@ struct CreateProductSheet: View {
                                 }) {
                                     HStack(spacing: StaffSpacing.xs) {
                                         Image(systemName: type.icon)
-                                            .font(.system(size: 14))
+                                            .font(.subheadline)
                                         Text(type.displayName)
                                             .font(.staffLabel)
                                             .lineLimit(1)
@@ -559,7 +559,7 @@ struct CreateProductSheet: View {
                             newDocText = ""
                         }) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 28))
+                                .font(.title2)
                                 .foregroundColor(.staffAccent)
                         }
                     }
@@ -708,7 +708,7 @@ struct CreateProductSheet: View {
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: StaffSpacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundColor(.staffAccent)
             Text(title)
                 .font(.staffSectionTitle)
@@ -819,7 +819,7 @@ struct EditProductSheet: View {
                                 }) {
                                     HStack(spacing: StaffSpacing.xs) {
                                         Image(systemName: type.icon)
-                                            .font(.system(size: 14))
+                                            .font(.subheadline)
                                         Text(type.displayName)
                                             .font(.staffLabel)
                                             .lineLimit(1)
@@ -918,7 +918,7 @@ struct EditProductSheet: View {
                             documentItems.append(DocumentRequirement(name: newDocText.trimmingCharacters(in: .whitespaces), isMandatory: true))
                             newDocText = ""
                         }) {
-                            Image(systemName: "plus.circle.fill").font(.system(size: 28)).foregroundColor(.staffAccent)
+                            Image(systemName: "plus.circle.fill").font(.title2).foregroundColor(.staffAccent)
                         }
                     }
                     ForEach(documentItems, id: \.self) { doc in
@@ -1017,7 +1017,7 @@ struct EditProductSheet: View {
     
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: StaffSpacing.sm) {
-            Image(systemName: icon).font(.system(size: 16, weight: .semibold)).foregroundColor(.staffAccent)
+            Image(systemName: icon).font(.body.weight(.semibold)).foregroundColor(.staffAccent)
             Text(title).font(.staffSectionTitle).foregroundColor(.staffTextPrimary)
         }
     }

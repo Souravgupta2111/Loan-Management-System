@@ -64,19 +64,19 @@ struct EMICalculatorView: View {
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.title3.weight(.semibold))
                             .foregroundColor(.accentGreen)
                     }
                     .buttonStyle(.plain)
 
                     Spacer()
                     Text("EMI Calculator")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.headline.weight(.bold))
                         .foregroundColor(.textPrimary)
                     Spacer()
                     // Spacer balancing the left button
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 20))
+                        .font(.title3)
                         .foregroundColor(.clear)
                 }
                 .padding(.horizontal, Spacing.xl)
@@ -89,7 +89,7 @@ struct EMICalculatorView: View {
                 VStack(spacing: 4) {
                     AmountDisplay(amount: calculateEMI(), style: .hero)
                     Text("Estimated Monthly EMI")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundColor(.textSecondary)
                 }
                 .padding(.bottom, 24)
@@ -138,15 +138,15 @@ struct EMICalculatorView: View {
             // Loan Amount — full width
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("Loan Amount (₹\(formatIndian(amountRange.lowerBound)) - ₹\(formatIndian(amountRange.upperBound)))")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.subheadline.weight(.regular))
                     .foregroundColor(.textSecondary)
 
                 HStack(spacing: 4) {
                     Text("₹")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.headline.weight(.medium))
                         .foregroundColor(.textPrimary)
                     TextField("Amount", text: $amountText)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.headline.weight(.medium))
                         .foregroundColor(.textPrimary)
                         .keyboardType(.numberPad)
                         .focused($activeField, equals: .amount)
@@ -169,11 +169,11 @@ struct EMICalculatorView: View {
                 // Tenure (Months)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text("Tenure (\(Int(tenureRange.lowerBound)) - \(Int(tenureRange.upperBound)) Months)")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(.textSecondary)
 
                     TextField("Months", text: $tenureText)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.headline.weight(.medium))
                         .foregroundColor(.textPrimary)
                         .keyboardType(.numberPad)
                         .focused($activeField, equals: .tenure)
@@ -193,12 +193,12 @@ struct EMICalculatorView: View {
                 // Interest Rate (%)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text("Rate (\(String(format: "%.1f", interestRateRange.lowerBound))% - \(String(format: "%.1f", interestRateRange.upperBound))%)")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.subheadline.weight(.regular))
                         .foregroundColor(.textSecondary)
 
                     HStack(spacing: 4) {
                         TextField("Rate", text: $interestRateText)
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.headline.weight(.medium))
                             .foregroundColor(.textPrimary)
                             .keyboardType(.decimalPad)
                             .focused($activeField, equals: .interest)
@@ -210,7 +210,7 @@ struct EMICalculatorView: View {
                             }
                             .onSubmit { commitFields() }
                         Text("%")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.headline.weight(.medium))
                             .foregroundColor(.textSecondary)
                     }
                     .padding(.horizontal, Spacing.lg)
@@ -248,7 +248,7 @@ struct EMICalculatorView: View {
     private var loanTypeSelector: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Loan Type")
-                .font(.system(size: 15, weight: .regular))
+                .font(.body.weight(.regular))
                 .foregroundColor(.textSecondary)
 
             Menu {
@@ -256,11 +256,11 @@ struct EMICalculatorView: View {
             } label: {
                 HStack {
                     Text(loanTypeTitle)
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.body.weight(.regular))
                         .foregroundColor(selectedProduct == nil && !isUsingGeneralCalculator ? .textSecondary : .textPrimary)
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.textSecondary)
                 }
                 .padding(.horizontal, Spacing.lg)
@@ -328,7 +328,7 @@ struct EMICalculatorView: View {
     private var breakdownCard: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             Text("Breakdown")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundColor(.textPrimary)
                 .padding(.bottom, Spacing.xs)
 
@@ -341,11 +341,11 @@ struct EMICalculatorView: View {
             }) {
                 HStack {
                     Text("View Amortization Schedule")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundColor(.accentGreen)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundColor(.accentGreen)
                 }
             }
@@ -418,12 +418,12 @@ struct EMICalculatorView: View {
                     .fill(color)
                     .frame(width: 8, height: 8)
                 Text(label)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.body.weight(.regular))
                     .foregroundColor(.textSecondary)
             }
             Spacer()
             Text("₹\(value)")
-                .font(.system(size: 17, weight: .bold))
+                .font(.headline.weight(.bold))
                 .foregroundColor(.textPrimary)
         }
     }
@@ -514,17 +514,17 @@ struct CalculatorAmortizationSheet: View {
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(.accentGreen)
                     }
                     Spacer()
                     Text("Amortization Schedule")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.headline.weight(.bold))
                         .foregroundColor(.textPrimary)
                     Spacer()
                     // Balance spacer
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18))
+                        .font(.headline)
                         .foregroundColor(.clear)
                 }
                 .padding(.horizontal, Spacing.xl)
@@ -569,27 +569,27 @@ struct CalculatorAmortizationSheet: View {
                         // MARK: - Loan Overview Card
                         VStack(alignment: .leading, spacing: Spacing.md) {
                             Text("LOAN OVERVIEW")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.caption.weight(.bold))
                                 .foregroundColor(.textSecondary)
                                 .tracking(0.5)
                             
                             HStack {
                                 Text("Total Interest")
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.body.weight(.medium))
                                     .foregroundColor(.textPrimary)
                                 Spacer()
                                 Text("₹\(formatIndian(calculateTotalInterest()))")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.body.weight(.bold))
                                     .foregroundColor(Color(hex: "#D94040"))
                             }
                             
                             HStack {
                                 Text("Total Principal")
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.body.weight(.medium))
                                     .foregroundColor(.textPrimary)
                                 Spacer()
                                 Text("₹\(formatIndian(amount))")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.body.weight(.bold))
                                     .foregroundColor(Color(hex: "#1B6B3A"))
                             }
                         }
@@ -624,7 +624,7 @@ struct CalculatorAmortizationSheet: View {
             Text("PRINCIPAL")
                 .frame(width: 100, alignment: .trailing)
         }
-        .font(.system(size: 11, weight: .bold))
+        .font(.caption.weight(.bold))
         .foregroundColor(.accentGreen)
         .tracking(0.3)
         .padding(.horizontal, Spacing.lg)
@@ -636,22 +636,22 @@ struct CalculatorAmortizationSheet: View {
     private func tableRow(item: ScheduleItem, isYearly: Bool) -> some View {
         HStack(spacing: 0) {
             Text("\(item.installmentNumber)")
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(.textPrimary)
                 .frame(width: 50, alignment: .leading)
             
             Text("₹\(formatIndian(item.openingBalance))")
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             
             Text("₹\(formatIndian(item.interestComponent))")
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(.textPrimary)
                 .frame(width: 100, alignment: .trailing)
             
             Text("₹\(formatIndian(item.principalComponent))")
-                .font(.system(size: 14, weight: .regular))
+                .font(.subheadline.weight(.regular))
                 .foregroundColor(.textPrimary)
                 .frame(width: 100, alignment: .trailing)
         }

@@ -29,7 +29,7 @@ struct KYCDashboardView: View {
                         if viewModel.kycStatus == "verified" {
                             VStack(spacing: Spacing.lg) {
                                 Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 52))
+                                    .font(.title)
                                     .foregroundColor(.accentGreen)
                                 Text("KYC Verified").font(.sectionTitle)
                                 Text("Your identity has been successfully verified. You have full access to all loan products.")
@@ -48,7 +48,7 @@ struct KYCDashboardView: View {
                         } else if viewModel.kycStatus == "submitted" {
                             VStack(spacing: Spacing.lg) {
                                 Image(systemName: "clock.badge.checkmark")
-                                    .font(.system(size: 52))
+                                    .font(.title)
                                     .foregroundColor(Color(hex: "#1A1A1A"))
                                 Text("KYC Submitted").font(.sectionTitle)
                                 Text("Your documents are awaiting officer review. This status updates automatically.")
@@ -327,9 +327,9 @@ struct KYCDashboardView: View {
                         Button(action: { dismiss() }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.body.weight(.semibold))
                                 Text("Back")
-                                    .font(.system(size: 16, weight: .regular))
+                                    .font(.body.weight(.regular))
                             }
                             .foregroundColor(Color(hex: "#2D8B4E")) // match accent green
                         }

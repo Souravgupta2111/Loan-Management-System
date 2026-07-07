@@ -4,6 +4,8 @@ import SwiftUI
 struct StaffStatusBadge: View {
     let status: String
     var size: BadgeSize = .regular
+    @StateObject private var a11yManager = AccessibilityManager.shared
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     enum BadgeSize {
         case small
@@ -11,15 +13,42 @@ struct StaffStatusBadge: View {
         case large
     }
 
+    /// Show the shape/icon fallback when either the system "Differentiate
+    /// Without Color" setting or the in-app high-contrast toggle is on (A3).
+    private var showsShape: Bool {
+        differentiateWithoutColor || a11yManager.isHighContrastEnabled
+    }
+
     var body: some View {
-        Text(displayText)
-            .font(badgeFont)
-            .fontWeight(.semibold)
-            .foregroundColor(Color.staffStatusForeground(for: status))
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
-            .background(Color.staffStatusBackground(for: status))
-            .clipShape(Capsule())
+        HStack(spacing: 4) {
+            if showsShape {
+                Image(systemName: iconName(for: status))
+                    .font(badgeFont)
+            }
+            Text(displayText)
+                .font(badgeFont)
+                .fontWeight(.semibold)
+        }
+        .foregroundColor(Color.staffStatusForeground(for: status))
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .background(Color.staffStatusBackground(for: status))
+        .clipShape(Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Status: \(displayText)")
+    }
+    
+    private func iconName(for status: String) -> String {
+        switch status.lowercased() {
+        case "approved", "disbursed", "active", "paid", "completed":
+            return "checkmark.circle.fill"
+        case "pending", "under_review", "under review":
+            return "clock.fill"
+        case "rejected", "default", "npa", "overdue", "failed":
+            return "xmark.octagon.fill"
+        default:
+            return "info.circle.fill"
+        }
     }
 
     private var displayText: String {

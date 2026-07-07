@@ -39,7 +39,7 @@ struct StaffStatCard: View {
                 HStack {
                     if let icon = icon {
                         Image(systemName: icon)
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(accentColor)
                             .frame(width: 36, height: 36)
                             .background(accentColor.opacity(0.15))
@@ -70,6 +70,18 @@ struct StaffStatCard: View {
                 }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
+        .accessibilityValue(trendAccessibilityText)
+    }
+    
+    private var trendAccessibilityText: String {
+        guard let trend = trend else { return "" }
+        switch trend {
+        case .up(let val): return "Trending up by \(val)"
+        case .down(let val): return "Trending down by \(val)"
+        case .neutral(let val): return "Neutral trend: \(val)"
+        }
     }
 
     @ViewBuilder
@@ -78,7 +90,7 @@ struct StaffStatCard: View {
         case .up(let value):
             HStack(spacing: 2) {
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption.weight(.bold))
                 Text(value)
                     .font(.staffBadge)
             }
@@ -91,7 +103,7 @@ struct StaffStatCard: View {
         case .down(let value):
             HStack(spacing: 2) {
                 Image(systemName: "arrow.down.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption.weight(.bold))
                 Text(value)
                     .font(.staffBadge)
             }

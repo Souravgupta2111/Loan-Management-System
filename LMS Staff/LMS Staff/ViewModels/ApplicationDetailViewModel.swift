@@ -26,6 +26,9 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var pipelineStages: [StaffLoanPipelineView.PipelineStage] = []
     @Published var underwritingSuggestion: UnderwritingSuggestion?
     
+    @Published var activeLoan: Loan?
+    @Published var emiSchedule: [EMIScheduleItem] = []
+    
     @Published var isLoading: Bool = false
     @Published var isActionLoading: Bool = false
     @Published var isSendingMessage: Bool = false
@@ -184,6 +187,21 @@ class ApplicationDetailViewModel: ObservableObject {
             
             // Calculate initial underwriting suggestion
             calculateSuggestion()
+            
+            // If loan is disbursed, fetch the active loan and EMI schedule
+            if application.status == .disbursed || application.status == .pendingDisbursal {
+                let loans: [Loan] = try await supabase.database
+                    .from("loans")
+                    .select()
+                    .eq("application_id", value: application.id)
+                    .execute()
+                    .value
+                
+                if let loan = loans.first {
+                    self.activeLoan = loan
+                    self.emiSchedule = try await LoanPortfolioService.shared.fetchEMISchedule(forLoanId: loan.id)
+                }
+            }
             
             // Automatically pull a mock credit score if it hasn't been fetched yet
             if let profile = self.borrowerProfile, (profile.creditScore == nil || profile.creditScore == 0) {
@@ -605,5 +623,76 @@ class ApplicationDetailViewModel: ObservableObject {
         ))
         
         return list
+    }
+    
+    // MARK: - Manager Actions
+    
+    private struct ManagerApprovalUpdate: Encodable {
+        let requested_amount: Double
+        let requested_tenure_months: Int
+        let status: String
+        let decided_at: String
+    }
+    
+    func managerApprove(approvedAmount: Double, tenureMonths: Int, interestRate: Double) async -> Bool {
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
+        do {
+            try await supabase.database
+                .from("loan_applications")
+                .update(ManagerApprovalUpdate(
+                    requested_amount: approvedAmount,
+                    requested_tenure_months: tenureMonths,
+                    status: ApplicationStatus.pendingAcceptance.rawValue,
+                    decided_at: ISO8601DateFormatter().string(from: Date())
+                ))
+                .eq("id", value: application.id)
+                .execute()
+            
+            try await appService.addApprovalHistory(
+                applicationId: application.id,
+                action: "approve",
+                toStatus: ApplicationStatus.pendingAcceptance.rawValue,
+                remarks: "Approved terms: INR \(approvedAmount), Rate: \(interestRate)%, Tenure: \(tenureMonths) months.",
+                approvedAmount: approvedAmount,
+                approvedTenure: tenureMonths,
+                approvedRate: interestRate
+            )
+            
+            application.status = .pendingAcceptance
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+    
+    func managerReject(reason: String) async -> Bool {
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
+        do {
+            try await appService.updateStatus(applicationId: application.id, status: .rejected, reason: reason)
+            application.status = .rejected
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+    
+    func managerSendBack(remarks: String) async -> Bool {
+        isActionLoading = true
+        defer { isActionLoading = false }
+        
+        do {
+            try await appService.updateStatus(applicationId: application.id, status: .sentBack, reason: remarks)
+            application.status = .sentBack
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 }

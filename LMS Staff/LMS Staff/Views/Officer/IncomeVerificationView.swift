@@ -40,7 +40,7 @@ struct IncomeVerificationView: View {
                 } else if let error = errorMessage {
                     VStack(spacing: StaffSpacing.lg) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 48))
+                            .font(.title)
                             .foregroundColor(.staffRed)
                         Text("Error")
                             .font(.staffTitle)
@@ -59,7 +59,7 @@ struct IncomeVerificationView: View {
                 } else {
                     VStack(spacing: StaffSpacing.xl) {
                         Image(systemName: "banknote.fill")
-                            .font(.system(size: 64))
+                            .font(.title)
                             .foregroundColor(.staffAccent)
                         
                         Text("Account Aggregator")

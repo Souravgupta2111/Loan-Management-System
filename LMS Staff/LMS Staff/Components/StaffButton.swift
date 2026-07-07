@@ -22,8 +22,7 @@ struct StaffButton: View {
 
     var body: some View {
         Button(action: {
-            let impact = UIImpactFeedbackGenerator(style: .medium)
-            impact.impactOccurred()
+            HapticManager.shared.impact(style: .medium)
             action()
         }) {
             HStack(spacing: 8) {
@@ -34,7 +33,7 @@ struct StaffButton: View {
                 } else {
                     if let icon = icon {
                         Image(systemName: icon)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.body.weight(.semibold))
                     }
                     Text(title)
                         .font(.staffButton)

@@ -39,7 +39,7 @@ struct StaffManagementView: View {
                         showCreateSheet = true
                     }) {
                         Image(systemName: "person.badge.plus")
-                            .font(.system(size: 20))
+                            .font(.title3)
                             .foregroundColor(.staffAccent)
                     }
                 }
@@ -296,7 +296,7 @@ struct StaffProfileDetailView: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.user.fullName)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.title2.weight(.bold))
                         .foregroundColor(.staffTextPrimary)
                     Text("\(item.staff.employeeId) | \(item.user.email ?? "No email")")
                         .font(.staffCaption)

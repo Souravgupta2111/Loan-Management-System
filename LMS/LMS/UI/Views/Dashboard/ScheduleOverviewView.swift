@@ -76,7 +76,7 @@ struct ScheduleOverviewView: View {
                         showDatePicker = true
                     } label: {
                         Image(systemName: "calendar.badge.plus")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(Color(hex: "#2D8B4E"))
                     }
                 }
@@ -168,7 +168,7 @@ struct ScheduleOverviewView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { monthOffset -= 1 }
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                     .frame(width: 34, height: 34)
                     .background(Color(hex: "#E8F5EC"))
@@ -178,7 +178,7 @@ struct ScheduleOverviewView: View {
             Spacer()
 
             Text(monthYearString(displayedMonth))
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.headline.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
 
             Spacer()
@@ -187,7 +187,7 @@ struct ScheduleOverviewView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { monthOffset += 1 }
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                     .frame(width: 34, height: 34)
                     .background(Color(hex: "#E8F5EC"))
@@ -203,7 +203,7 @@ struct ScheduleOverviewView: View {
         return HStack(spacing: 0) {
             ForEach(symbols, id: \.self) { sym in
                 Text(sym)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundColor(Color(hex: "#9E9E9E"))
                     .frame(maxWidth: .infinity)
             }
@@ -264,9 +264,7 @@ struct ScheduleOverviewView: View {
                             .frame(width: 34, height: 34)
                     }
                     Text("\(calendar.component(.day, from: date))")
-                        .font(.system(size: 15,
-                                      weight: isToday || isSelected ? .bold : .regular,
-                                      design: .rounded))
+                        .font(.body.weight(isToday || isSelected ? .bold : .regular)).fontDesign(.rounded)
                         .foregroundColor(
                             isSelected ? .white :
                             isToday    ? Color(hex: "#2D8B4E") :
@@ -306,10 +304,10 @@ struct ScheduleOverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#2D8B4E"))
                 Text(sectionDateLabel(selectedDate))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#6B6B6B"))
                     .textCase(.uppercase)
                     .tracking(0.8)
@@ -317,7 +315,7 @@ struct ScheduleOverviewView: View {
                 Text(selectedDateEMIs.isEmpty
                      ? "No EMIs"
                      : "\(selectedDateEMIs.count) EMI\(selectedDateEMIs.count > 1 ? "s" : "")")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundColor(Color(hex: "#9E9E9E"))
             }
             .padding(.horizontal, 4)
@@ -339,13 +337,13 @@ struct ScheduleOverviewView: View {
     private var emptyDateState: some View {
         VStack(spacing: 10) {
             Image(systemName: "calendar.badge.checkmark")
-                .font(.system(size: 34))
+                .font(.title)
                 .foregroundColor(Color(hex: "#C8E6D0"))
             Text("No EMIs on this date")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.body.weight(.semibold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
             Text("Tap any highlighted date to view EMI details.")
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundColor(Color(hex: "#6B6B6B"))
                 .multilineTextAlignment(.center)
         }
@@ -379,17 +377,17 @@ struct ScheduleOverviewView: View {
             ZStack {
                 Circle().fill(entry.isPaid ? Color(hex: "#E8F5EC") : entry.isOverdue ? Color(hex: "#FDE8E8") : Color(hex: "#E8F5EC")).frame(width: 42, height: 42)
                 Image(systemName: loanIcon(entry.loanType))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(accentColor)
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(entry.loanName)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .font(.body.weight(.semibold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
                     .lineLimit(1)
                 Text(entry.loanNumber)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.caption.weight(.regular))
                     .foregroundColor(Color(hex: "#9E9E9E"))
             }
 
@@ -397,11 +395,11 @@ struct ScheduleOverviewView: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 Text("₹\(formatAmount(entry.emiAmount))")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.headline.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
                 HStack(spacing: 3) {
-                    Image(systemName: statusIcon).font(.system(size: 10, weight: .bold))
-                    Text(statusText).font(.system(size: 11, weight: .semibold))
+                    Image(systemName: statusIcon).font(.caption.weight(.bold))
+                    Text(statusText).font(.caption.weight(.semibold))
                 }
                 .foregroundColor(badgeTextColor)
                 .padding(.horizontal, 8)
@@ -554,10 +552,10 @@ private struct DateJumpSheet: View {
                 // Hint row
                 HStack(spacing: 6) {
                     Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#2D8B4E"))
                     Text("Pick a date to jump to")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                 }
                 .padding(.top, 6)
@@ -582,9 +580,9 @@ private struct DateJumpSheet: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.headline.weight(.semibold))
                         Text("Go to \(shortLabel(pickerDate))")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .font(.body.weight(.semibold)).fontDesign(.rounded)
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)

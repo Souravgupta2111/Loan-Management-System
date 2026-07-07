@@ -23,21 +23,22 @@ struct DocumentUploadView: View {
                             .fill(Color.accentGreenBg)
                             .frame(width: 44, height: 44)
                         Image(systemName: "doc.text.fill")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.headline.weight(.bold))
                             .foregroundColor(.accentGreen)
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .font(.body.weight(.bold))
+                            .fontDesign(.rounded)
                             .foregroundColor(.textPrimary)
                         
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.caption.weight(.bold))
                                 .foregroundColor(.accentGreen)
                             Text("Uploaded")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundColor(.accentGreen)
                         }
                         .padding(.horizontal, 8)
@@ -53,7 +54,7 @@ struct DocumentUploadView: View {
                             showPreview = true
                         } label: {
                             Image(systemName: "eye.fill")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.accentGreen)
                                 .frame(width: 36, height: 36)
                                 .background(Color.accentGreenBg)
@@ -66,7 +67,7 @@ struct DocumentUploadView: View {
                             selectedItem = nil
                         } label: {
                             Image(systemName: "trash.fill")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.accentRed)
                                 .frame(width: 36, height: 36)
                                 .background(Color.accentRed.opacity(0.1))
@@ -92,16 +93,17 @@ struct DocumentUploadView: View {
                             .foregroundColor(.textTertiary)
                             .frame(width: 44, height: 44)
                         Image(systemName: "doc.badge.plus")
-                            .font(.system(size: 16))
+                            .font(.body)
                             .foregroundColor(.textTertiary)
                     }
                     
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .font(.body.weight(.bold))
+                            .fontDesign(.rounded)
                             .foregroundColor(.textPrimary)
                         Text(subtitle)
-                            .font(.system(size: 12))
+                            .font(.caption)
                             .foregroundColor(.textSecondary)
                     }
                     
@@ -115,9 +117,9 @@ struct DocumentUploadView: View {
                         PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.up.doc")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                 Text("Upload")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.caption.weight(.bold))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 14)
@@ -176,7 +178,7 @@ struct DocumentUploadView: View {
                     } else {
                         VStack(spacing: 12) {
                             Image(systemName: "doc.text.magnifyingglass")
-                                .font(.system(size: 44))
+                                .font(.title)
                                 .foregroundColor(.textTertiary)
                             Text("Unable to preview document")
                                 .font(.bodyLarge)
@@ -200,7 +202,7 @@ struct DocumentUploadView: View {
                         Button("Close") {
                             showPreview = false
                         }
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundColor(.accentGreen)
                     }
                 }

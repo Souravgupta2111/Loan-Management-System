@@ -21,21 +21,20 @@ struct PillButton: View {
 
     var body: some View {
         Button(action: {
-            let impact = UIImpactFeedbackGenerator(style: style == .primary ? .medium : .light)
-            impact.impactOccurred()
+            HapticManager.shared.impact(style: style == .primary ? .medium : .light)
             action()
         }) {
             HStack(spacing: 6) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                 }
                 Text(style == .primary ? title.uppercased() : title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .tracking(style == .primary ? 1 : 0)
                 if style == .primary {
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                 }
             }
             .padding(.horizontal, 28)

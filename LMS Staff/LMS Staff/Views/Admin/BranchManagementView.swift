@@ -65,7 +65,7 @@ struct BranchManagementView: View {
 
                 Button(action: { showCreateSheet = true }) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.title3)
                         .foregroundColor(.staffAccent)
                 }
             }
@@ -99,7 +99,7 @@ struct BranchManagementView: View {
                 Spacer()
                 VStack(spacing: StaffSpacing.md) {
                     Image(systemName: "building.2")
-                        .font(.system(size: 40))
+                        .font(.title)
                         .foregroundColor(.staffTextTertiary)
                     Text("No branches found")
                         .font(.staffBody)
@@ -128,7 +128,7 @@ struct BranchManagementView: View {
             HStack(spacing: StaffSpacing.md) {
                 // Icon
                 Image(systemName: "building.2.fill")
-                    .font(.system(size: 18))
+                    .font(.headline)
                     .foregroundColor(isSelected ? .staffAccent : .staffTextTertiary)
                     .frame(width: 36, height: 36)
                     .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceLight)
@@ -175,7 +175,7 @@ struct BranchManagementView: View {
     private var emptyDetailPanel: some View {
         VStack(spacing: StaffSpacing.lg) {
             Image(systemName: "building.2.fill")
-                .font(.system(size: 56, weight: .light))
+                .font(.title.weight(.light))
                 .foregroundColor(.staffTextTertiary.opacity(0.4))
 
             Text("Select a Branch")
@@ -237,7 +237,7 @@ struct BranchManagementView: View {
         HStack(spacing: StaffSpacing.lg) {
             // Branch icon
             Image(systemName: "building.2.fill")
-                .font(.system(size: 28))
+                .font(.title2)
                 .foregroundColor(.staffAccent)
                 .frame(width: 52, height: 52)
                 .background(Color.staffAccentBg)
@@ -291,7 +291,7 @@ struct BranchManagementView: View {
                     VStack(spacing: StaffSpacing.sm) {
                         HStack(spacing: StaffSpacing.xs) {
                             Image(systemName: tab.icon)
-                                .font(.system(size: 13))
+                                .font(.subheadline)
                             Text(tab.title)
                                 .font(.staffLabel)
                         }
@@ -535,7 +535,7 @@ struct BranchStaffTab: View {
                     if let manager = vm.managerUser {
                         HStack(spacing: StaffSpacing.lg) {
                             Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 40))
+                                .font(.title)
                                 .foregroundColor(.staffTeal)
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -661,7 +661,7 @@ struct BranchStaffTab: View {
                             Spacer()
                             VStack(spacing: StaffSpacing.sm) {
                                 Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 28))
+                                    .font(.title2)
                                     .foregroundColor(.staffTextTertiary)
                                 Text("No officers assigned to this branch")
                                     .font(.staffCaption)
@@ -675,7 +675,7 @@ struct BranchStaffTab: View {
                             ForEach(branchOfficers) { staffUser in
                                 HStack(spacing: StaffSpacing.md) {
                                     Image(systemName: "person.crop.circle.fill")
-                                        .font(.system(size: 28))
+                                        .font(.title2)
                                         .foregroundColor(.staffAccent)
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -901,7 +901,7 @@ struct BranchPincodesTab: View {
                             Spacer()
                             VStack(spacing: StaffSpacing.sm) {
                                 Image(systemName: "map")
-                                    .font(.system(size: 28))
+                                    .font(.title2)
                                     .foregroundColor(.staffTextTertiary)
                                 Text("No pincodes assigned yet")
                                     .font(.staffCaption)
@@ -921,7 +921,7 @@ struct BranchPincodesTab: View {
                                 HStack(spacing: StaffSpacing.sm) {
                                     Image(systemName: "mappin.circle.fill")
                                         .foregroundColor(.staffOrange)
-                                        .font(.system(size: 14))
+                                        .font(.subheadline)
 
                                     Text(bp.pincode)
                                         .font(.staffBody)
@@ -934,7 +934,7 @@ struct BranchPincodesTab: View {
                                         Task { await vm.removePincode(id: bp.id) }
                                     }) {
                                         Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 14))
+                                            .font(.subheadline)
                                             .foregroundColor(.staffRed.opacity(0.6))
                                     }
                                 }
@@ -1213,7 +1213,7 @@ struct BranchMetricsTab: View {
             } else {
                 VStack(spacing: StaffSpacing.md) {
                     Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 40))
+                        .font(.title)
                         .foregroundColor(.staffTextTertiary)
                     Text("No loan data available for this branch")
                         .font(.staffBody)
@@ -1253,7 +1253,7 @@ struct CreateBranchSheet: View {
                 VStack(spacing: StaffSpacing.xl) {
                     // Header icon
                     Image(systemName: "building.2.crop.circle.fill")
-                        .font(.system(size: 56))
+                        .font(.title)
                         .foregroundColor(.staffAccent)
                         .padding(.top, StaffSpacing.xl)
 
@@ -1378,7 +1378,7 @@ struct StaffPickerSheet: View {
                     Spacer()
                     VStack(spacing: StaffSpacing.md) {
                         Image(systemName: "person.slash")
-                            .font(.system(size: 36))
+                            .font(.title)
                             .foregroundColor(.staffTextTertiary)
                         Text("No available staff found")
                             .font(.staffBody)
@@ -1395,7 +1395,7 @@ struct StaffPickerSheet: View {
                                 }) {
                                     HStack(spacing: StaffSpacing.md) {
                                         Image(systemName: "person.crop.circle.fill")
-                                            .font(.system(size: 36))
+                                            .font(.title)
                                             .foregroundColor(Color.roleBadgeColor(for: staffUser.user.role.rawValue))
 
                                         VStack(alignment: .leading, spacing: 2) {
@@ -1421,7 +1421,7 @@ struct StaffPickerSheet: View {
                                         Spacer()
 
                                         Image(systemName: "chevron.right")
-                                            .font(.system(size: 12))
+                                            .font(.caption)
                                             .foregroundColor(.staffTextTertiary)
                                     }
                                     .padding(.horizontal, StaffSpacing.lg)

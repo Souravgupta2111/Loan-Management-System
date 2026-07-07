@@ -112,6 +112,7 @@ struct ChatSupportConsole: View {
     @State private var messageText: String = ""
     @State private var isInternalChat: Bool
     @EnvironmentObject var authViewModel: AuthViewModel
+
     
     init(appWithBorrower: ApplicationWithBorrower, forceInternalOnly: Bool = false) {
         self.appWithBorrower = appWithBorrower
@@ -139,6 +140,8 @@ struct ChatSupportConsole: View {
                 }
                 
                 Spacer()
+                
+
                 
                 if !forceInternalOnly {
                     // Toggle between Borrower and Internal chat
@@ -192,12 +195,12 @@ struct ChatSupportConsole: View {
                                         
                                         HStack(spacing: 4) {
                                             Text(formatDate(msg.sentAt))
-                                                .font(.system(size: 9))
+                                                .font(.caption)
                                                 .foregroundColor(.staffTextSecondary)
                                             
                                             if isMe {
                                                 Image(systemName: msg.isRead ? "checkmark.circle.fill" : "checkmark.circle")
-                                                    .font(.system(size: 9))
+                                                    .font(.caption)
                                                     .foregroundColor(msg.isRead ? .staffAccent : .staffTextSecondary)
                                             }
                                         }
@@ -235,6 +238,7 @@ struct ChatSupportConsole: View {
                     }
                 }
             }
+            .frame(maxHeight: .infinity)
             .background(Color.staffBackground)
             
             Divider()
@@ -273,6 +277,7 @@ struct ChatSupportConsole: View {
         .task {
             await detailVm.loadAllDetails()
         }
+
     }
     
     private func formatDate(_ date: Date?) -> String {

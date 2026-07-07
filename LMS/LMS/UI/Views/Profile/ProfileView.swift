@@ -12,6 +12,7 @@ private enum EditableField {
 /// Supports inline editing of name, phone, email, address (with address proof attachment).
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var a11yManager = AppAccessibilityManager.shared
     @Environment(\.dismiss) private var dismiss
 
     // Loaded state
@@ -30,6 +31,7 @@ struct ProfileView: View {
     @State private var isEditingAddress = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @State private var showHelpAndSupport = false
+    @State private var testNotificationScheduled = false
 
     @State private var draftName = ""
     @State private var draftEmail = ""
@@ -106,19 +108,19 @@ struct ProfileView: View {
                     .stroke(Color(hex: "#89DBA6"), lineWidth: 2)
                     .frame(width: 90, height: 90)
                 Text(initials)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.title.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#2D8B4E"))
             }
 
             Text(userName.isEmpty ? "User" : userName)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(.textPrimary)
 
             Text(userEmail)
                 .font(.bodyRegular)
                 .foregroundColor(.textSecondary)
 
-            StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
+            AccessibleStatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.xxl)
@@ -195,10 +197,10 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: "checkmark.seal.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
+                    Image(systemName: "checkmark.seal.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("KYC Status").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                    Text("KYC Status").font(.caption.weight(.medium)).foregroundColor(.textSecondary)
                 }
                 Spacer()
                 StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
@@ -214,10 +216,10 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                        Image(systemName: "banknote.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
+                        Image(systemName: "banknote.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Income Verification").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                        Text("Income Verification").font(.caption.weight(.medium)).foregroundColor(.textSecondary)
                     }
                     Spacer()
                     if (aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") {
@@ -245,10 +247,10 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: "mappin.and.ellipse").foregroundColor(Color(hex: "#2D8B4E")).font(.system(size: 14))
+                    Image(systemName: "mappin.and.ellipse").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Address").font(.system(size: 12, weight: .medium)).foregroundColor(.textSecondary)
+                    Text("Address").font(.caption.weight(.medium)).foregroundColor(.textSecondary)
                     if isEditingAddress {
                         TextField("Enter your address", text: $draftAddress, axis: .vertical)
                             .font(.bodyLarge)
@@ -277,7 +279,7 @@ struct ProfileView: View {
                                 .fill(Color(hex: "#E0E0E0"))
                                 .frame(width: 28, height: 28)
                             Image(systemName: "pencil")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.subheadline.weight(.bold))
                                 .foregroundColor(.black)
                         }
                     }
@@ -290,7 +292,7 @@ struct ProfileView: View {
             if isEditingAddress {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("ADDRESS PROOF")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundColor(.textSecondary)
                         .tracking(1.2)
                         .padding(.horizontal, Spacing.lg)
@@ -304,7 +306,7 @@ struct ProfileView: View {
                                     .frame(width: 60, height: 60)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                                 Text("Change photo")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             } else {
                                 ZStack {
@@ -316,7 +318,7 @@ struct ProfileView: View {
                                         .foregroundColor(Color(hex: "#2D8B4E"))
                                 }
                                 Text("Attach proof document")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundColor(Color(hex: "#2D8B4E"))
                             }
                             Spacer()
@@ -335,7 +337,7 @@ struct ProfileView: View {
                     HStack(spacing: Spacing.md) {
                         Button { isEditingAddress = false } label: {
                             Text("Cancel")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.textSecondary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 10)
@@ -352,7 +354,7 @@ struct ProfileView: View {
                                     ProgressView().tint(.white)
                                 } else {
                                     Text("Save")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.subheadline.weight(.semibold))
                                         .foregroundColor(.white)
                                 }
                             }
@@ -379,6 +381,51 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Settings")
             
+            Toggle(isOn: $a11yManager.isHapticsEnabled) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "hand.tap.fill")
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .font(.subheadline)
+                    }
+                    Text("Haptic Feedback")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textPrimary)
+                }
+            }
+            .tint(Color(hex: "#2D8B4E"))
+            .padding(Spacing.lg)
+            
+            divider
+            
+            Toggle(isOn: $a11yManager.isHighContrastEnabled) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "circle.lefthalf.filled")
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .font(.subheadline)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("High Contrast Mode")
+                            .font(.bodyRegular)
+                            .foregroundColor(.textPrimary)
+                        Text("Color blind safe shapes & contrast")
+                            .font(.caption2)
+                            .foregroundColor(.textSecondary)
+                    }
+                }
+            }
+            .tint(Color(hex: "#2D8B4E"))
+            .padding(Spacing.lg)
+            
+            divider
+            
             Toggle(isOn: $notificationsEnabled) {
                 HStack(spacing: 12) {
                     ZStack {
@@ -387,7 +434,7 @@ struct ProfileView: View {
                             .frame(width: 32, height: 32)
                         Image(systemName: "bell.fill")
                             .foregroundColor(Color(hex: "#2D8B4E"))
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                     }
                     Text("Notifications")
                         .font(.bodyRegular)
@@ -396,6 +443,46 @@ struct ProfileView: View {
             }
             .tint(Color(hex: "#2D8B4E"))
             .padding(Spacing.lg)
+            .onChange(of: notificationsEnabled) { _, newValue in
+                UserDefaults.standard.set(newValue, forKey: "notificationsEnabled")
+            }
+            
+            divider
+            
+            // Test Notification Row
+            Button {
+                NotificationService.shared.scheduleTestNotification(afterSeconds: 5)
+                HapticManager.shared.notification(type: .success)
+                withAnimation { testNotificationScheduled = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation { testNotificationScheduled = false }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "bell.and.waves.left.and.right")
+                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .font(.subheadline)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Test Notification")
+                            .font(.bodyRegular)
+                            .foregroundColor(.textPrimary)
+                        Text(testNotificationScheduled ? "Arriving in 5 seconds — background the app!" : "Sends a test push in 5 seconds")
+                            .font(.caption2)
+                            .foregroundColor(testNotificationScheduled ? Color(hex: "#2D8B4E") : .textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: testNotificationScheduled ? "checkmark.circle.fill" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(testNotificationScheduled ? Color(hex: "#2D8B4E") : .textTertiary)
+                }
+                .padding(Spacing.lg)
+            }
+            .buttonStyle(.plain)
             
             divider
             
@@ -411,7 +498,7 @@ struct ProfileView: View {
                             .frame(width: 32, height: 32)
                         Image(systemName: "questionmark.circle.fill")
                             .foregroundColor(Color(hex: "#2D8B4E"))
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                     }
                     Text("Help & Support")
                         .font(.bodyRegular)
@@ -432,24 +519,24 @@ struct ProfileView: View {
                     
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Contact Customer Care")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundColor(.textPrimary)
                         
                         HStack(spacing: 8) {
                             Image(systemName: "envelope.fill")
                                 .foregroundColor(Color(hex: "#2D8B4E"))
-                                .font(.system(size: 12))
+                                .font(.caption)
                             Text("support@loanmanagement.com")
-                                .font(.system(size: 13))
+                                .font(.subheadline)
                                 .foregroundColor(.textSecondary)
                         }
                         
                         HStack(spacing: 8) {
                             Image(systemName: "phone.fill")
                                 .foregroundColor(Color(hex: "#2D8B4E"))
-                                .font(.system(size: 12))
+                                .font(.caption)
                             Text("1800-200-5678 (Toll Free)")
-                                .font(.system(size: 13))
+                                .font(.subheadline)
                                 .foregroundColor(.textSecondary)
                         }
                     }
@@ -466,7 +553,7 @@ struct ProfileView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.caption.weight(.semibold))
             .foregroundColor(.textSecondary)
             .tracking(1.2)
             .padding(.horizontal, Spacing.lg)
@@ -499,12 +586,12 @@ struct ProfileView: View {
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
                         .foregroundColor(Color(hex: "#2D8B4E"))
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundColor(.textSecondary)
                     if isEditing {
                         TextField(label, text: draft)
@@ -533,7 +620,7 @@ struct ProfileView: View {
                                 .fill(Color(hex: "#E0E0E0"))
                                 .frame(width: 28, height: 28)
                             Image(systemName: "pencil")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.subheadline.weight(.bold))
                                 .foregroundColor(.black)
                         }
                     }
@@ -546,7 +633,7 @@ struct ProfileView: View {
                 HStack(spacing: Spacing.md) {
                     Button(action: onCancel) {
                         Text("Cancel")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundColor(.textSecondary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
@@ -561,7 +648,7 @@ struct ProfileView: View {
                                 ProgressView().tint(.white)
                             } else {
                                 Text("Save")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundColor(.white)
                             }
                         }
@@ -590,7 +677,7 @@ struct ProfileView: View {
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
                         .foregroundColor(Color(hex: "#2D8B4E"))
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                 }
                 Text(title)
                     .font(.bodyRegular)
@@ -609,7 +696,7 @@ struct ProfileView: View {
     private var saveSuccessBanner: some View {
         if saveSuccess {
             Text("✓ Saved successfully")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)

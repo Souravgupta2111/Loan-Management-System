@@ -3,27 +3,30 @@ import SwiftUI
 // MARK: - Typography (design.md §3)
 // Font Family: SF Pro (system default)
 
+// Every token is built on a system TextStyle so it scales with the user's
+// Dynamic Type setting (Settings ▸ Accessibility ▸ Larger Text). Weight and
+// rounded design are preserved to keep the original visual hierarchy.
 extension Font {
-    /// 48pt Bold — Dashboard total amount
-    static let heroAmount   = Font.system(size: 48, weight: .bold, design: .rounded)
-    /// 34pt Bold — Loan amount, EMI amount
-    static let largeAmount  = Font.system(size: 34, weight: .bold, design: .rounded)
-    /// 28pt Bold — Screen titles
-    static let sectionTitle = Font.system(size: 28, weight: .bold)
-    /// 22pt Semibold — Card headings
-    static let cardTitle    = Font.system(size: 22, weight: .semibold)
-    /// 17pt Medium — Primary body text
-    static let bodyLarge    = Font.system(size: 17, weight: .medium)
-    /// 15pt Regular — Standard body text
-    static let bodyRegular  = Font.system(size: 15, weight: .regular)
-    /// 13pt Medium — Form labels, captions
-    static let label        = Font.system(size: 13, weight: .medium)
-    /// 12pt Regular — Timestamps, footnotes
-    static let caption2     = Font.system(size: 12, weight: .regular)
-    /// 11pt Semibold — Status badges, tags
-    static let badge        = Font.system(size: 11, weight: .semibold)
-    /// 16pt Medium — Decimal places on amounts (superscript)
-    static let amountSuper  = Font.system(size: 16, weight: .medium)
+    /// Dashboard total amount — scales from ~large title
+    static let heroAmount   = Font.system(.largeTitle, design: .rounded).weight(.bold)
+    /// Loan amount, EMI amount
+    static let largeAmount  = Font.system(.title, design: .rounded).weight(.bold)
+    /// Screen titles
+    static let sectionTitle = Font.system(.title, design: .default).weight(.bold)
+    /// Card headings
+    static let cardTitle    = Font.system(.title2, design: .default).weight(.semibold)
+    /// Primary body text
+    static let bodyLarge    = Font.system(.body, design: .default).weight(.medium)
+    /// Standard body text
+    static let bodyRegular  = Font.system(.subheadline, design: .default).weight(.regular)
+    /// Form labels, captions
+    static let label        = Font.system(.footnote, design: .default).weight(.medium)
+    /// Timestamps, footnotes
+    static let caption2     = Font.system(.caption, design: .default).weight(.regular)
+    /// Status badges, tags
+    static let badge        = Font.system(.caption2, design: .default).weight(.semibold)
+    /// Decimal places on amounts (superscript)
+    static let amountSuper  = Font.system(.callout, design: .default).weight(.medium)
 }
 
 // MARK: - Spacing (design.md §4)

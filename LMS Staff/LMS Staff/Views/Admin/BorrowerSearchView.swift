@@ -67,7 +67,7 @@ struct BorrowerSearchView: View {
                                     .foregroundColor(.staffTextSecondary)
                                 Spacer()
                                 Text(borrower.kycStatus.displayName)
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundColor(borrower.kycStatus == .verified ? .staffGreen : .staffAmber)
                             }
                         }

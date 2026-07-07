@@ -370,7 +370,7 @@ struct LoanDetailView: View {
                                         .frame(width: 32, height: 32)
                                     
                                     Image(systemName: timelineIconName(for: item.type))
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(.subheadline.weight(.bold))
                                         .foregroundColor(timelineAccentColor(for: item.type))
                                 }
                                 
@@ -399,7 +399,7 @@ struct LoanDetailView: View {
                                     Spacer()
                                     
                                     Text(item.timestamp.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 11))
+                                        .font(.caption)
                                         .foregroundColor(.staffTextSecondary)
                                 }
                                 
@@ -413,7 +413,7 @@ struct LoanDetailView: View {
                                 
                                 if let meta = item.meta {
                                     Text(meta)
-                                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                                        .font(.system(.caption, design: .monospaced).weight(.regular))
                                         .foregroundColor(.staffTextSecondary)
                                 }
                             }

@@ -57,7 +57,7 @@ struct OverdueLoansView: View {
                         .chartXAxis {
                             AxisMarks(values: .automatic) { _ in
                                 AxisValueLabel()
-                                    .font(.system(size: 8))
+                                    .font(.caption)
                                     .foregroundStyle(Color.staffTextSecondary)
                             }
                         }
@@ -75,7 +75,7 @@ struct OverdueLoansView: View {
                         Button(action: { activeBucket = bucket }) {
                             VStack(spacing: 6) {
                                 Text(bucket.rawValue)
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundColor(activeBucket == bucket ? .staffAccent : .staffTextSecondary)
                                 Rectangle()
                                     .fill(activeBucket == bucket ? Color.staffAccent : Color.clear)
@@ -126,7 +126,7 @@ struct OverdueLoansView: View {
                                     .foregroundColor(.staffTextSecondary)
                                 Spacer()
                                 Text("O/S: INR \(String(format: "%.0f", item.loan.outstandingPrincipal))")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.caption.weight(.medium))
                                     .foregroundColor(.staffTextPrimary)
                             }
                         }
