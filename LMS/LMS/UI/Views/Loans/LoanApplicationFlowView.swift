@@ -208,6 +208,12 @@ struct LoanApplicationFlowView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)
+                .accessibilityElement(children: .ignore)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("I agree to the terms and conditions and authorize verification of my submitted documents")
+                .accessibilityValue(agreedToTerms ? "Checked" : "Unchecked")
+                .accessibilityHint("Double tap to toggle agreement")
+                .accessibilityAction { agreedToTerms.toggle() }
             }
 
             footerActions
@@ -527,6 +533,8 @@ struct LoanApplicationFlowView: View {
             }
         }
         .padding(.horizontal, 32)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(step) of 4")
     }
 
     private var stepLabels: some View {
@@ -677,6 +685,10 @@ struct ProductOptionRow: View {
         .background(Color(hex: "#E8F5EC"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color(hex: "#2D8B4E") : Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1.5))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(subtitle), \(rate)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
@@ -704,6 +716,8 @@ struct AmountTenureStep: View {
                         .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                 }
                 Slider(value: $amount, in: product.minAmount...product.maxAmount, step: 10_000).tint(.accentGreen)
+                    .accessibilityLabel("Loan amount")
+                    .accessibilityValue("₹\(formatIndian(amount))")
                 HStack {
                     Text(formatCompact(product.minAmount)); Spacer(); Text(formatCompact(product.maxAmount))
                 }.font(.caption).foregroundColor(.textTertiary)
@@ -717,6 +731,8 @@ struct AmountTenureStep: View {
                         .font(.title3.weight(.bold)).fontDesign(.rounded).foregroundColor(.textPrimary)
                 }
                 Slider(value: $tenureMonths, in: Double(product.minTenureMonths)...Double(product.maxTenureMonths), step: 1).tint(.accentGreen)
+                    .accessibilityLabel("Loan tenure")
+                    .accessibilityValue("\(Int(tenureMonths)) months")
                 HStack {
                     Text("\(product.minTenureMonths) Mo"); Spacer(); Text("\(product.maxTenureMonths) Mo")
                 }.font(.caption).foregroundColor(.textTertiary)

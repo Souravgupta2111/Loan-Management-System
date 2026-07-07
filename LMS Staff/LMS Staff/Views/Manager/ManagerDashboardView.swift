@@ -65,6 +65,7 @@ struct ManagerDashboardView: View {
                 .foregroundColor(.staffTextPrimary)
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
+                .accessibilityAddTraits(.isHeader)
             
             VStack(spacing: StaffSpacing.sm) {
                 // KPI summary widgets
@@ -127,6 +128,7 @@ struct ManagerDashboardView: View {
                     } label: {
                         queueListRow(app)
                     }
+                    .accessibilityHint("Double tap to review this application")
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -184,6 +186,8 @@ struct ManagerDashboardView: View {
                         .foregroundColor(.white)
                 }
             }
+            .accessibilityLabel("AI Analytics")
+            .accessibilityHint("Opens the AI portfolio assistant")
             .padding(.trailing, 24)
             .padding(.bottom, 24)
         }
@@ -258,6 +262,9 @@ struct ManagerDashboardView: View {
                     .chartYScale(domain: 0...100)
                     .chartXAxis(.hidden)
                     .chartYAxis(.hidden)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Collection efficiency trend")
+                    .accessibilityValue(String(format: "Currently %.0f percent", vm.collectionEfficiency))
                 }
                 .padding(10)
                 .background(Color.staffSurface)
@@ -288,6 +295,7 @@ struct ManagerDashboardView: View {
                             }
                         }
                         .frame(height: 90)
+                        .accessibilityLabel("Portfolio mix by loan status")
                         
                         // Legend
                         VStack(alignment: .leading, spacing: 2) {
@@ -345,6 +353,9 @@ struct ManagerDashboardView: View {
                                     .foregroundStyle(Color.staffTextSecondary)
                             }
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("NPA aging distribution")
+                        .accessibilityValue("\(totalNPA) non-performing loans")
                     }
                 }
                 .padding(10)
@@ -403,6 +414,7 @@ struct ManagerDashboardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.staffBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
     }
     
     private func colorForStatus(_ status: String) -> Color {

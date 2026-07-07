@@ -657,6 +657,74 @@ struct HomeDashboardView: View {
                 if let row = users.first {
                     userName = row.fullName
                 }
+
+                // Proactive nudges: schedule local EMI reminders for active loans.
+                let reminders: [NotificationService.EMIReminder] = loans
+                    .filter { $0.status.lowercased() == "active" }
+                    .compactMap { loan in
+                        guard let raw = loan.nextDueDate,
+                              let date = LoansListView.parseDateString(raw) else { return nil }
+                        return NotificationService.EMIReminder(
+                            loanName: loan.name,
+                            amount: loan.emiAmount,
+                            dueDate: date
+                        )
+                    }
+                NotificationService.shared.scheduleEMIReminders(reminders)
+
+                // ----- Widgets: publish a rich snapshot to the shared App Group -----
+                let active = loans.filter { $0.status.lowercased() == "active" }
+
+                let loanDTOs: [WidgetLoanDTO] = active.map { loan in
+                    WidgetLoanDTO(
+                        id: loan.id.uuidString,
+                        name: loan.name,
+                        loanType: loan.loanType,
+                        outstanding: loan.remainingAmount,
+                        emiAmount: loan.emiAmount,
+                        nextDue: loan.nextDueDate.flatMap { LoansListView.parseDateString($0) },
+                        paidPercent: loan.paidPercent,
+                        status: loan.status
+                    )
+                }
+
+                // EMI calendar: merge active loans' schedules into (day, status).
+                var calendar: [WidgetEMIDayDTO] = []
+                for loan in active {
+                    for emi in loan.emiSchedule ?? [] {
+                        if let day = LoansListView.parseDateString(emi.dueDate) {
+                            calendar.append(WidgetEMIDayDTO(date: day, status: emi.status.lowercased()))
+                        }
+                    }
+                }
+
+                // An application still in progress (not yet an active loan).
+                let pendingStatuses = ["submitted", "under_review", "sent_back", "approved", "pending_acceptance", "pending_disbursal"]
+                let pendingItem = loans.first { pendingStatuses.contains($0.status.lowercased()) }
+                let appUpdated = pendingItem?.timeline?.compactMap { LoansListView.parseDateString($0.date) }.max()
+
+                // Credit score (not otherwise loaded on the dashboard).
+                var creditScore: Int? = nil
+                if let userId = authViewModel.currentUser?.id {
+                    struct ScoreRow: Decodable { let credit_score: Int? }
+                    let rows: [ScoreRow] = (try? await SupabaseManager.shared.client
+                        .from("borrower_profiles")
+                        .select("credit_score")
+                        .eq("user_id", value: userId.uuidString)
+                        .execute()
+                        .value) ?? []
+                    creditScore = rows.first?.credit_score
+                }
+
+                WidgetDataProvider.update(WidgetSnapshotDTO(
+                    loans: loanDTOs,
+                    creditScore: creditScore,
+                    applicationStage: pendingItem?.status,
+                    applicationLoanName: pendingItem?.name,
+                    applicationUpdated: appUpdated,
+                    calendar: calendar,
+                    generated: Date()
+                ))
             }
             hasLoaded = true
         } catch {

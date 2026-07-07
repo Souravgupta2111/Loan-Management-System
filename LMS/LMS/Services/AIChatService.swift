@@ -109,9 +109,9 @@ final class AIChatService {
         let dateFormatter = ISO8601DateFormatter()
         
         for loan in loans where loan.status == .active {
-            // Fetch next EMI
+            // Fetch next EMI (real table is `emi_schedule`, not `emis`)
             let emis: [EMIScheduleItem] = try await supabase.client
-                .from("emis")
+                .from("emi_schedule")
                 .select()
                 .eq("loan_id", value: loan.id)
                 .order("due_date", ascending: true)

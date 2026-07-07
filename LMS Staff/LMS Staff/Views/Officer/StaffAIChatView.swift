@@ -204,10 +204,15 @@ struct StaffAIChatView: View {
                     .accessibilityLabel("Close AI Chat")
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: speechService.isListening)
+            .accessibleAnimation(.easeInOut(duration: 0.2), value: speechService.isListening)
         }
         .task {
             await viewModel.startNewConversationIfNeeded()
+            // If Siri opened us with a question, ask it automatically (once).
+            if let question = StaffIntentRouter.shared.consumePrefill()?
+                .trimmingCharacters(in: .whitespacesAndNewlines), !question.isEmpty {
+                viewModel.sendMessage(question)
+            }
         }
         .onDisappear {
             speechService.stopListening()

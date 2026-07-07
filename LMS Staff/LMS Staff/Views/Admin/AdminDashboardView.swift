@@ -80,6 +80,7 @@ struct AdminDashboardView: View {
                             Text("Recent Security Audit Trail")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -114,6 +115,7 @@ struct AdminDashboardView: View {
                                                 .foregroundColor(.staffTextSecondary)
                                         }
                                         .padding(.vertical, 8)
+                                        .accessibilityElement(children: .combine)
                                         
                                         Divider()
                                     }
@@ -181,5 +183,7 @@ struct MetricBlockCard: View {
             RoundedRectangle(cornerRadius: StaffCorner.md)
                 .stroke(Color.staffBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value)")
     }
 }

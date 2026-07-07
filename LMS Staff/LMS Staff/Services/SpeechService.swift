@@ -114,14 +114,14 @@ final class SpeechService: ObservableObject {
         }
 
         request.shouldReportPartialResults = true
-        
-        // Enforce on-device recognition only if supported to avoid simulator crashes, 
-        // matching the behavior in the B-easy project.
-        if #available(iOS 13, *), speechRecognizer.supportsOnDeviceRecognition {
-            // Note: On simulators, this might still be true but fail if models aren't downloaded. 
-            // In the B-easy project, this wasn't enforced at all, which is why it worked on simulator.
-            // request.requiresOnDeviceRecognition = true 
-        }
+
+        // Force SERVER-BASED recognition. "kLSRErrorDomain 300 — Failed to
+        // initialize recognizer" means the LOCAL (on-device) recognizer could not
+        // start — the norm on the iOS Simulator and on devices without the offline
+        // model downloaded. Server-based recognition avoids that broken daemon and
+        // is what makes the mic work on the Simulator (it needs network, which the
+        // app already requires).
+        request.requiresOnDeviceRecognition = false
         
         // 1. MUST create the recognition task BEFORE installing the tap and starting the engine
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in

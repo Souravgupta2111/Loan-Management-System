@@ -52,7 +52,7 @@ struct StaffButton: View {
         }
         .disabled(isLoading)
         .scaleEffect(isPressed ? 0.97 : 1.0)
-        .animation(.easeOut(duration: 0.1), value: isPressed)
+        .accessibleAnimation(.easeOut(duration: 0.1), value: isPressed)
         .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})

@@ -29,7 +29,7 @@ struct CreditScoreGauge: View {
                     )
                     .frame(width: 160, height: 160)
                     .rotationEffect(Angle(degrees: 90))
-                    .animation(.easeOut(duration: 1.0), value: score)
+                    .accessibleAnimation(.easeOut(duration: 1.0), value: score)
                 
                 VStack(spacing: 2) {
                     Text("\(score)")

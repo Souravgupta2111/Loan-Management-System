@@ -31,6 +31,7 @@ struct OfficerDashboardView: View {
                     .foregroundColor(.staffTextPrimary)
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
+                    .accessibilityAddTraits(.isHeader)
                 
                 // Mini Metric Summary Cards
                 HStack(spacing: StaffSpacing.md) {
@@ -110,6 +111,7 @@ struct OfficerDashboardView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .accessibilityHint("Opens the application to review")
                         .listRowBackground(
                             selectedApp?.application.id == app.application.id
                             ? Color.staffAccent.opacity(0.15)
@@ -204,6 +206,8 @@ struct MiniStatCard: View {
             RoundedRectangle(cornerRadius: StaffCorner.md)
                 .stroke(Color.staffBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 

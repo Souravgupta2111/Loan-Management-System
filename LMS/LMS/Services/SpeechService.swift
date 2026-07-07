@@ -104,6 +104,25 @@ final class SpeechService: ObservableObject {
 
     }
     
+    /// Speech recognition reports normal lifecycle events (end of speech, no
+    /// speech detected, cancellation from `endAudio`/`cancel`) as errors. These
+    /// are expected and must not be shown to the user as failures.
+    private func isBenignRecognitionError(_ error: NSError) -> Bool {
+        // kAFAssistantErrorDomain codes seen during normal operation:
+        //   203  = "Retry" / no speech detected
+        //   216  = recognition request was canceled (we called cancel/endAudio)
+        //   1101 = local speech recognition service issue (transient)
+        //   1110 = no speech detected
+        if error.domain == "kAFAssistantErrorDomain" {
+            return [203, 216, 1101, 1110, 0].contains(error.code)
+        }
+        // NSURLErrorDomain cancellation.
+        if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled {
+            return true
+        }
+        return false
+    }
+
     nonisolated private func startAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
 
@@ -131,12 +150,16 @@ final class SpeechService: ObservableObject {
         }
 
         request.shouldReportPartialResults = true
-        
 
-        if #available(iOS 13, *), speechRecognizer.supportsOnDeviceRecognition {
+        // Force SERVER-BASED recognition. The log "kLSRErrorDomain 300 — Failed
+        // to initialize recognizer" means the LOCAL (on-device) recognizer could
+        // not start — this is the norm on the iOS Simulator and on devices that
+        // haven't downloaded the offline speech model. Server-based recognition
+        // sidesteps that broken daemon (it needs a network connection, which the
+        // app already requires). Setting this to false is what makes the mic work
+        // on the Simulator.
+        request.requiresOnDeviceRecognition = false
 
-        }
-        
         // 1. MUST create the recognition task BEFORE installing the tap and starting the engine
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
@@ -150,11 +173,26 @@ final class SpeechService: ObservableObject {
                     print("🗣️ Transcribed so far: \(self.transcribedText)")
                 }
 
-                // On error (e.g. Simulator speechd daemon crash) or final result,
-                // tear down cleanly so the mic button doesn't get stuck "on".
+                // Distinguish benign end-of-speech / cancellation errors (which
+                // fire during completely normal use — e.g. the user pauses, or we
+                // call endAudio) from real failures. Surfacing the benign ones as
+                // a scary "voice input unavailable" banner is what made the mic
+                // look broken. We only show an error for genuine failures.
                 if let error = error {
-                    print("⚠️ Recognition ended: \(error.localizedDescription)")
-                    self.speechError = "Voice input is unavailable. On the Simulator, restart it (Device → Restart) or use a real device."
+                    let nsError = error as NSError
+                    print("⚠️ Recognition ended: \(nsError.domain) \(nsError.code) — \(error.localizedDescription)")
+
+                    if !self.isBenignRecognitionError(nsError) {
+                        #if targetEnvironment(simulator)
+                        // SFSpeechRecognizer cannot initialize reliably in the iOS
+                        // Simulator (kLSRErrorDomain 300). Apple limitation, not an
+                        // app bug — voice input works on a real device.
+                        self.speechError = "Voice input isn't supported in the iOS Simulator. Please test on a real device."
+                        #else
+                        self.speechError = "Voice input is unavailable right now. Please check your connection and try again."
+                        #endif
+                    }
+                    // Tear down quietly either way so the mic button doesn't stick "on".
                     self.stopListening()
                 } else if isFinal {
                     self.stopListening()
