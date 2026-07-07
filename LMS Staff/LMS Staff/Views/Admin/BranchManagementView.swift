@@ -65,7 +65,7 @@ struct BranchManagementView: View {
                     Spacer()
 
                     Button(action: { showCreateSheet = true }) {
-                        Image(systemName: "plus.app")
+                        Image(systemName: "plus.circle")
                             .font(.system(size: 20))
                             .foregroundColor(.staffAccent)
                     }

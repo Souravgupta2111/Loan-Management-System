@@ -100,7 +100,6 @@ struct AdminDashboardView: View {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(log.changeSummary ?? "System Change")
                                                     .font(.staffBody)
-                                                    .fontWeight(.bold)
                                                     .foregroundColor(.staffTextPrimary)
                                                 
                                                 Text("Table: \(log.tableName) | Action: \(log.action)")
