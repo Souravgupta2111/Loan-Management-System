@@ -18,7 +18,7 @@ struct ProfileView: View {
     // Loaded state
     @State private var userName = ""
     @State private var userEmail = ""
-    @State private var kycStatus = "pending"
+    @State private var kycStatus = ""
     @State private var aaConsentStatus = "pending"
     @State private var phone = ""
     @State private var pan = ""
@@ -152,7 +152,9 @@ struct ProfileView: View {
                 .font(.bodyRegular)
                 .foregroundColor(.textSecondary)
 
-            AccessibleStatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
+            if !kycStatus.isEmpty {
+                AccessibleStatusBadge(status: kycStatus)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.xxl)
@@ -252,7 +254,9 @@ struct ProfileView: View {
                         .foregroundColor(.textPrimary)
                 }
                 Spacer()
-                StatusBadge(status: kycStatus == "verified" ? "verified" : "pending")
+                if !kycStatus.isEmpty {
+                    StatusBadge(status: kycStatus)
+                }
             }
             .padding(Spacing.lg)
 
@@ -438,7 +442,7 @@ struct ProfileView: View {
                             .font(.subheadline)
                     }
                     Text("Haptic Feedback")
-                        .font(.bodyRegular)
+                        .font(.bodyLarge)
                         .foregroundColor(.textPrimary)
                 }
             }
@@ -459,7 +463,7 @@ struct ProfileView: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("High Contrast Mode")
-                            .font(.bodyRegular)
+                            .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
                         Text("Color blind safe shapes & contrast")
                             .font(.caption2)
@@ -515,7 +519,7 @@ struct ProfileView: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Test Notification")
-                            .font(.bodyRegular)
+                            .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
                         Text(testNotificationScheduled ? "Arriving in 5 seconds — background the app!" : "Sends a test push in 5 seconds")
                             .font(.caption2)

@@ -51,8 +51,8 @@ extension Color {
         case "active", "approved", "paid", "verified":
             return .accentGreen
         case "pending", "under_review", "submitted", "upcoming":
-            return Color(hex: "#1A1A1A")
-        case "rejected", "overdue", "failed":
+            return Color(hex: "#D85C00")
+        case "rejected", "overdue", "failed", "not_verified", "not verified", "unverified":
             return .accentRed
         case "draft", "inactive":
             return .textSecondary
@@ -70,8 +70,8 @@ extension Color {
         case "active", "approved", "paid", "verified":
             return .accentGreenBg
         case "pending", "under_review", "submitted", "upcoming":
-            return Color(hex: "#1A1A1A").opacity(0.08)
-        case "rejected", "overdue", "failed":
+            return Color(hex: "#FFF3E0")
+        case "rejected", "overdue", "failed", "not_verified", "not verified", "unverified":
             return .accentRedBg
         case "disbursed", "processing":
             return .accentBlueBg
