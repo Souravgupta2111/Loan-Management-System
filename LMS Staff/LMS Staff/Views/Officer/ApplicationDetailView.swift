@@ -192,6 +192,7 @@ struct ApplicationDetailView: View {
                 .zIndex(100)
             }
         }
+        }
         .task {
             await vm.loadAllDetails()
         }
