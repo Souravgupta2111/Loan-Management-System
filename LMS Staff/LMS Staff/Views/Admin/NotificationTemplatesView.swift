@@ -54,17 +54,18 @@ struct NotificationTemplatesView: View {
                         newPlaceholders = ""
                         showCreateSheet = true
                     }) {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: "plus.circle")
                             .font(.title3)
                             .foregroundColor(.staffAccent)
                     }
                 }
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
+                .padding(.bottom, StaffSpacing.md)
+                .background(Color.white)
                 
                 Divider()
                     .background(Color.staffBorder)
-                    .padding(.vertical, StaffSpacing.md)
                 
                 if isLoading {
                     Spacer()
@@ -78,10 +79,6 @@ struct NotificationTemplatesView: View {
                 } else {
                     List(templates, selection: $selectedTemplate) { template in
                         HStack(spacing: StaffSpacing.sm) {
-                            Circle()
-                                .fill(template.isActive ? Color.staffGreen : Color.staffTextSecondary.opacity(0.3))
-                                .frame(width: 8, height: 8)
-                            
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(template.eventName.replacingOccurrences(of: "_", with: " ").capitalized)
                                     .font(.staffBody)
@@ -95,7 +92,7 @@ struct NotificationTemplatesView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(template)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(Color.white)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

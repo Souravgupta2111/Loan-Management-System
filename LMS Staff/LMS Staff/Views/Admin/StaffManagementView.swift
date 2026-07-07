@@ -25,33 +25,35 @@ struct StaffManagementView: View {
         HStack(spacing: 0) {
             // Left: Staff List
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("Staff Accounts")
-                        .font(.staffTitle)
-                        .foregroundColor(.staffTextPrimary)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        if let firstBranch = vm.branches.first {
-                            selectedBranchId = firstBranch.id
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Staff Accounts")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            if let firstBranch = vm.branches.first {
+                                selectedBranchId = firstBranch.id
+                            }
+                            showCreateSheet = true
+                        }) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.title3)
+                                .foregroundColor(.staffAccent)
                         }
-                        showCreateSheet = true
-                    }) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.title3)
-                            .foregroundColor(.staffAccent)
                     }
-                }
-                .padding(StaffSpacing.lg)
-                .background(Color.staffSurface)
-                
-                TextField("Search staff list...", text: $vm.searchText)
-                    .padding(12)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
                     .padding(StaffSpacing.lg)
+                    
+                    TextField("Search staff list...", text: $vm.searchText)
+                        .padding(12)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(StaffSpacing.lg)
+                }
+                .background(Color.white)
                 
                 Divider().background(Color.staffBorder)
                 
@@ -90,7 +92,7 @@ struct StaffManagementView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(item)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(Color.white)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

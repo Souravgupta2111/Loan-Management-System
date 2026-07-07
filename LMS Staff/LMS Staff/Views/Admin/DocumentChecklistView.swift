@@ -19,15 +19,19 @@ struct DocumentChecklistView: View {
         HStack(spacing: 0) {
             // Left list of products
             VStack(alignment: .leading, spacing: 0) {
-                Text("File Checklists")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.lg)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("File Checklists")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        .padding(.top, StaffSpacing.lg)
+                        .padding(.bottom, StaffSpacing.md)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white)
                 
                 Divider()
                     .background(Color.staffBorder)
-                    .padding(.vertical, StaffSpacing.md)
                 
                 if vm.isLoading {
                     Spacer()
@@ -36,7 +40,14 @@ struct DocumentChecklistView: View {
                     Spacer()
                 } else {
                     List(vm.products, selection: $selectedProduct) { product in
-                        HStack {
+                        HStack(spacing: StaffSpacing.md) {
+                            Image(systemName: productIcon(for: product.type))
+                                .font(.system(size: 20))
+                                .foregroundColor(.staffAccent)
+                                .frame(width: 36, height: 36)
+                                .background(Color.staffAccentBg)
+                                .clipShape(Circle())
+                            
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(product.name)
                                     .font(.staffBody)
@@ -53,7 +64,7 @@ struct DocumentChecklistView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(product)
-                        .listRowBackground(Color.staffSurface)
+                        .listRowBackground(Color.white)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -239,6 +250,19 @@ struct DocumentChecklistView: View {
         }
         .onChange(of: item) { newItem in
             checklistItems = newItem.requiredDocuments ?? []
+        }
+    }
+    
+    private func productIcon(for type: LoanType) -> String {
+        switch type {
+        case .personal: return "person.fill"
+        case .home: return "house.fill"
+        case .vehicle: return "car.fill"
+        case .education: return "graduationcap.fill"
+        case .business: return "building.2.fill"
+        case .gold: return "sparkles"
+        case .agriculture: return "leaf.fill"
+        case .other: return "doc.fill"
         }
     }
 }

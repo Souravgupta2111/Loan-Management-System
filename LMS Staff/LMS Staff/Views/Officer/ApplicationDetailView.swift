@@ -91,21 +91,23 @@ struct ApplicationDetailView: View {
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
                     
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            showCopilot.toggle()
+                    if authViewModel.currentUser?.role != .admin {
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                showCopilot.toggle()
+                            }
+                        }) {
+                            Image(systemName: showCopilot ? "mic.fill" : "mic")
+                                .font(.system(size: 20))
+                                .foregroundColor(showCopilot ? .white : .staffAccent)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(showCopilot ? Color.staffAccent : Color.staffAccent.opacity(0.1))
+                                )
                         }
-                    }) {
-                        Image(systemName: showCopilot ? "mic.fill" : "mic")
-                            .font(.system(size: 20))
-                            .foregroundColor(showCopilot ? .white : .staffAccent)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(showCopilot ? Color.staffAccent : Color.staffAccent.opacity(0.1))
-                            )
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(StaffSpacing.lg)
@@ -568,22 +570,24 @@ struct ApplicationDetailView: View {
                         Spacer()
                         
                         // Action buttons
-                        Button(action: {
-                            Task {
-                                if let url = await vm.getDocumentUrl(for: doc) {
-                                    openURL(url)
+                        if authViewModel.currentUser?.role != .admin {
+                            Button(action: {
+                                Task {
+                                    if let url = await vm.getDocumentUrl(for: doc) {
+                                        openURL(url)
+                                    }
                                 }
+                            }) {
+                                Text("View")
+                                    .font(.staffCaption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.staffAccent)
+                                    .cornerRadius(StaffCorner.sm)
+                                    .shadow(color: Color.staffAccent.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
-                        }) {
-                            Text("View")
-                                .font(.staffCaption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.staffAccent)
-                                .cornerRadius(StaffCorner.sm)
-                                .shadow(color: Color.staffAccent.opacity(0.3), radius: 2, x: 0, y: 1)
                         }
                         
                         if doc.isVerified {

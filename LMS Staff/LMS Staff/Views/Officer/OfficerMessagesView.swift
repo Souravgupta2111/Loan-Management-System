@@ -163,7 +163,7 @@ struct ChatSupportConsole: View {
                 }
             }
             .padding(StaffSpacing.lg)
-            .background(Color.staffSurface)
+            .background(Color.white.opacity(0.1))
             
             // Message List Scroller
             ScrollViewReader { proxy in
@@ -180,19 +180,33 @@ struct ChatSupportConsole: View {
                                 .padding(.top, 40)
                         } else {
                             ForEach(activeMessages.filter { msg in
+                                // If Admin, show all messages. Otherwise, filter out deleted ones for the user.
+                                if authViewModel.currentUser?.role == .admin {
+                                    return true
+                                }
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
                             }) { msg in
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                                let isStaffSender = msg.senderId != appWithBorrower.borrower.id
+                                
+                                let styling = getMessageStyling(for: msg, isInternalChat: isInternalChat, isMe: isMe, isStaffSender: isStaffSender)
+                                
                                 HStack {
-                                    if isMe { Spacer() }
+                                    if styling.isRightAligned { Spacer() }
                                     
-                                    VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
+                                    VStack(alignment: styling.isRightAligned ? .trailing : .leading, spacing: 4) {
+                                        Text(getSenderRoleName(isInternalChat: isInternalChat, isMe: isMe, isStaffSender: isStaffSender, isManagerInInternalChat: styling.isManagerInInternalChat))
+                                            .font(.caption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.staffTextSecondary)
+                                            .padding(.horizontal, 4)
+                                        
                                         Text(msg.content)
                                             .font(.staffBody)
                                             .padding(12)
-                                            .background(isMe ? Color.staffAccent : (isInternalChat ? Color.staffAmber.opacity(0.2) : Color.staffSurface))
-                                            .foregroundColor(isMe ? .white : .staffTextPrimary)
+                                            .background(styling.bgColor)
+                                            .foregroundColor(styling.fgColor)
                                             .cornerRadius(12)
                                         
                                         HStack(spacing: 4) {
@@ -216,16 +230,18 @@ struct ChatSupportConsole: View {
                                         }
                                     }
                                     .contextMenu {
-                                        Button(role: .destructive) {
-                                            Task {
-                                                await detailVm.deleteMessage(msg.id, isSender: isMe)
+                                        if isMe {
+                                            Button(role: .destructive) {
+                                                Task {
+                                                    await detailVm.deleteMessage(msg.id, isSender: isMe)
+                                                }
+                                            } label: {
+                                                Label("Delete for me", systemImage: "trash")
                                             }
-                                        } label: {
-                                            Label("Delete for me", systemImage: "trash")
                                         }
                                     }
                                     
-                                    if !isMe { Spacer() }
+                                    if !styling.isRightAligned { Spacer() }
                                 }
                             }
                         }
@@ -295,5 +311,62 @@ struct ChatSupportConsole: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: d)
+    }
+    
+    private func getMessageStyling(for msg: Message, isInternalChat: Bool, isMe: Bool, isStaffSender: Bool) -> (isRightAligned: Bool, isManagerInInternalChat: Bool, bgColor: Color, fgColor: Color) {
+        let isManagerInInternalChat: Bool
+        if authViewModel.currentUser?.role == .admin {
+            let senderRole = detailVm.internalChatParticipantRoles[msg.senderId]
+            isManagerInInternalChat = senderRole == .manager || senderRole == .admin
+        } else {
+            isManagerInInternalChat = authViewModel.currentUser?.role == .manager ? isMe : !isMe
+        }
+        
+        let isRightAligned: Bool
+        if isInternalChat {
+            if authViewModel.currentUser?.role == .admin {
+                isRightAligned = !isManagerInInternalChat
+            } else {
+                isRightAligned = isMe
+            }
+        } else {
+            isRightAligned = isStaffSender
+        }
+        
+        let bgColor: Color
+        if authViewModel.currentUser?.role == .admin {
+            bgColor = .white
+        } else if isRightAligned {
+            bgColor = .staffAccent
+        } else if isInternalChat {
+            bgColor = .staffAmber.opacity(0.2)
+        } else {
+            bgColor = .staffSurface
+        }
+        
+        let fgColor: Color
+        if authViewModel.currentUser?.role == .admin {
+            fgColor = .staffTextPrimary
+        } else if isRightAligned {
+            fgColor = .white
+        } else {
+            fgColor = .staffTextPrimary
+        }
+        
+        return (isRightAligned, isManagerInInternalChat, bgColor, fgColor)
+    }
+    
+    private func getSenderRoleName(isInternalChat: Bool, isMe: Bool, isStaffSender: Bool, isManagerInInternalChat: Bool) -> String {
+        if isInternalChat {
+            return isManagerInInternalChat ? "Manager" : "Loan Officer"
+        } else {
+            if isMe {
+                return authViewModel.currentUser?.role.displayName ?? "Loan Officer"
+            } else if isStaffSender {
+                return "Loan Officer"
+            } else {
+                return "Borrower"
+            }
+        }
     }
 }
