@@ -21,21 +21,24 @@ struct BorrowerSearchView: View {
         HStack(spacing: 0) {
             // Left Search List
             VStack(alignment: .leading, spacing: 0) {
-                Text("Borrower Database")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.top, StaffSpacing.lg)
-                
-                TextField("Search", text: $searchText)
-                    .padding(12)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
-                    .padding(StaffSpacing.lg)
-                    .onChange(of: searchText) { _ in
-                        applyFilters()
-                    }
+                VStack(spacing: 0) {
+                    Text("Borrower Database")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        .padding(.top, StaffSpacing.lg)
+                    
+                    TextField("Search", text: $searchText)
+                        .padding(12)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                        .padding(StaffSpacing.lg)
+                        .onChange(of: searchText) { _ in
+                            applyFilters()
+                        }
+                }
+                .background(Color.white)
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -73,11 +76,7 @@ struct BorrowerSearchView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(borrower)
-                        .listRowBackground(
-                            selectedBorrower?.id == borrower.id
-                            ? Color.staffAccent.opacity(0.15)
-                            : Color.staffSurface
-                        )
+                        .listRowBackground(Color.white)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
