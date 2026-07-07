@@ -64,9 +64,9 @@ struct ApplicationDetailView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             VStack(spacing: 0) {
-                // Header Info Bar
+            // Header Info Bar
             HStack(spacing: StaffSpacing.lg) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -91,20 +91,19 @@ struct ApplicationDetailView: View {
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
                     
-                    // AI Copilot Toggle
-                    Button {
+                    Button(action: {
                         withAnimation(.spring()) {
                             showCopilot.toggle()
                         }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(showCopilot ? Color(hex: "#2D8B4E") : Color(hex: "#E8F5EC"))
-                                .frame(width: 44, height: 44)
-                            Image(systemName: "sparkles")
-                                .font(.title3.weight(.semibold))
-                                .foregroundColor(showCopilot ? .white : Color(hex: "#2D8B4E"))
-                        }
+                    }) {
+                        Image(systemName: showCopilot ? "mic.fill" : "mic")
+                            .font(.system(size: 20))
+                            .foregroundColor(showCopilot ? .white : .staffAccent)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(showCopilot ? Color.staffAccent : Color.staffAccent.opacity(0.1))
+                            )
                     }
                     .buttonStyle(.plain)
                 }
@@ -139,117 +138,124 @@ struct ApplicationDetailView: View {
             .background(Color.staffSurface.opacity(0.5))
             
             // Content Body based on selected Tab
-            ScrollView {
-                VStack(alignment: .leading, spacing: StaffSpacing.xl) {
-                    switch activeTab {
-                    case .profile:
-                        kycAndCreditSection
-                    case .documents:
-                        documentsSection
-                    case .chat:
-                        ChatSupportConsole(appWithBorrower: appWithBorrower)
-                            .frame(height: 550)
-                            .cornerRadius(StaffCorner.md)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: StaffCorner.md)
-                                    .stroke(Color.staffBorder, lineWidth: 1)
-                            )
-                            .clipped()
-                    case .timeline:
-                        timelineSection
-                    case .emiSchedule:
-                        emiScheduleSection
+            if activeTab == .chat {
+                ChatSupportConsole(appWithBorrower: appWithBorrower, forceInternalOnly: authViewModel.currentUser?.role == .manager)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: StaffSpacing.xl) {
+                        switch activeTab {
+                        case .profile:
+                            kycAndCreditSection
+                        case .documents:
+                            documentsSection
+                        case .chat:
+                            EmptyView()
+                        case .timeline:
+                            timelineSection
+                        case .emiSchedule:
+                            emiScheduleSection
+                        }
                     }
+                    .padding(StaffSpacing.lg)
                 }
-                .padding(StaffSpacing.lg)
+                .background(Color.staffBackground)
             }
-            .background(Color.staffBackground)
             
-            if vm.application.status == .approved || vm.application.status == .disbursed || vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
-                Divider()
-                    .background(Color.staffBorder)
-                actionButtonBar
+            if activeTab != .chat && activeTab != .timeline {
+                if vm.application.status == .approved || vm.application.status == .disbursed || vm.application.status == .rejected || ((vm.application.status == .submitted || vm.application.status == .underReview || vm.application.status == .sentBack) && authViewModel.currentUser?.role != .admin) {
+                    Divider()
+                        .background(Color.staffBorder)
+                    actionButtonBar
+                }
             }
-        }
-        
-        // AI Copilot Panel Overlay
-        if showCopilot {
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture {
+            
+            // AI Copilot Panel Overlay
+            if showCopilot {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring()) {
+                            showCopilot = false
+                        }
+                    }
+                    
+                AICopilotPanel(application: appWithBorrower) { text in
+                    self.remarks = text
+                    self.mgrRemarks = text
                     withAnimation(.spring()) {
                         showCopilot = false
                     }
                 }
-                
-            AICopilotPanel(application: appWithBorrower) { text in
-                self.remarks = text
-                self.mgrRemarks = text
-                withAnimation(.spring()) {
-                    showCopilot = false
-                }
+                .frame(maxHeight: 500)
+                .transition(.move(edge: .bottom))
+                .zIndex(100)
             }
-            .frame(maxHeight: 500)
-            .transition(.move(edge: .bottom))
         }
-    }
-    .task {
-        await vm.loadAllDetails()
-    }
-    .onChange(of: appWithBorrower) { newValue in
-        vm.application = newValue.application
-        vm.borrower = newValue.borrower
-        vm.borrowerProfile = newValue.profile
-        vm.product = newValue.product
-        Task {
+        .task {
             await vm.loadAllDetails()
         }
-    }
-    .navigationBarHidden(false)
-    // MODALS/SHEETS LIST
-    .sheet(isPresented: $showRejectSheet) {
-        rejectionRemarksSheet
-    }
-    .sheet(isPresented: $showRecommendSheet) {
-        recommendChecklistSheet
-    }
-    .sheet(isPresented: $showSendBackSheet) {
-        sendBackRemarksSheet
-    }
-    .sheet(isPresented: $showShareSheet) {
-        if let url = pdfShareURL {
-            ShareSheet(activityItems: [url])
-        }
-    }
-    .alert("Error", isPresented: Binding(
-        get: { vm.errorMessage != nil },
-        set: { isPresented in if !isPresented { vm.errorMessage = nil } }
-    )) {
-        Button("OK", role: .cancel) {}
-    } message: {
-        Text(vm.errorMessage ?? "An unknown error occurred.")
-    }
-    .sheet(isPresented: $showIncomeVerification) {
-        IncomeVerificationView(
-            consentId: vm.borrowerProfile?.aaConsentId,
-            consentStatus: vm.borrowerProfile?.aaConsentStatus,
-            onVerificationComplete: { analyzedData in
-                Task {
-                    await vm.saveVerifiedIncome(analyzedData)
-                }
+        .onChange(of: appWithBorrower) { newValue in
+            vm.application = newValue.application
+            vm.borrower = newValue.borrower
+            vm.borrowerProfile = newValue.profile
+            vm.product = newValue.product
+            Task {
+                await vm.loadAllDetails()
             }
-        )
-    }
-    // Manager Action Sheets
-    .sheet(isPresented: $showManagerApprovalSheet) {
-        managerApprovalTermsSheet
-    }
-    .sheet(isPresented: $showManagerRejectSheet) {
-        managerRejectionSheet
-    }
-    .sheet(isPresented: $showManagerSendBackSheet) {
-        managerSendBackSheet
-    }
+        }
+        .navigationBarHidden(false)
+        // MODALS/SHEETS LIST
+        .background(EmptyView().sheet(isPresented: $showRejectSheet) {
+            rejectionRemarksSheet
+                .presentationBackground(Color.staffBackground)
+        })
+        .background(EmptyView().sheet(isPresented: $showRecommendSheet) {
+            recommendChecklistSheet
+                .presentationBackground(Color.staffBackground)
+        })
+        .background(EmptyView().sheet(isPresented: $showSendBackSheet) {
+            sendBackRemarksSheet
+                .presentationBackground(Color.staffBackground)
+        })
+        .background(EmptyView().sheet(isPresented: $showShareSheet) {
+            if let url = pdfShareURL {
+                ShareSheet(activityItems: [url])
+            }
+        })
+        .alert("Error", isPresented: Binding(
+            get: { vm.errorMessage != nil },
+            set: { isPresented in if !isPresented { vm.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(vm.errorMessage ?? "An unknown error occurred.")
+        }
+        .background(EmptyView().sheet(isPresented: $showIncomeVerification) {
+            IncomeVerificationView(
+                consentId: vm.borrowerProfile?.aaConsentId,
+                consentStatus: vm.borrowerProfile?.aaConsentStatus,
+                onVerificationComplete: { analyzedData in
+                    Task {
+                        await vm.saveVerifiedIncome(analyzedData)
+                    }
+                }
+            )
+            .presentationBackground(Color.staffBackground)
+        })
+        // Manager Action Sheets
+        .background(EmptyView().sheet(isPresented: $showManagerApprovalSheet) {
+            managerApprovalTermsSheet
+                .presentationBackground(Color.staffBackground)
+        })
+        .background(EmptyView().sheet(isPresented: $showManagerRejectSheet) {
+            managerRejectionSheet
+                .presentationBackground(Color.staffBackground)
+        })
+        .background(EmptyView().sheet(isPresented: $showManagerSendBackSheet) {
+            managerSendBackSheet
+                .presentationBackground(Color.staffBackground)
+        })
     }
     
     // MARK: - Subviews
@@ -361,14 +367,14 @@ struct ApplicationDetailView: View {
                             
                             HStack {
                                 Text("Overall System Decision")
-                                    .font(.body.weight(.bold))
+                                    .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.staffTextPrimary)
                                 Spacer()
                                 HStack(spacing: 6) {
                                     Image(systemName: suggestion.isEligible ? "checkmark.seal.fill" : "xmark.seal.fill")
                                     Text(suggestion.isEligible ? "ELIGIBLE" : "NOT ELIGIBLE")
                                 }
-                                .font(.subheadline.weight(.heavy))
+                                .font(.system(size: 14, weight: .heavy))
                                 .foregroundColor(suggestion.isEligible ? .staffGreen : .staffRed)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -383,17 +389,17 @@ struct ApplicationDetailView: View {
                             Divider()
                             
                             Text("Financial Analysis & Recommendations")
-                                .font(.body.weight(.bold))
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(.staffTextPrimary)
                                 .padding(.top, 4)
                             
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Max Eligible")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.maxEligibleAmount))")
-                                        .font(.body.weight(.semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -403,10 +409,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Suggested")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.suggestedAmount))")
-                                        .font(.body.weight(.semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffGreen)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -416,10 +422,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Rate / Tenure")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.suggestedInterestRate))% / \(suggestion.suggestedTenureMonths)m")
-                                        .font(.body.weight(.semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -429,10 +435,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("FOIR Ratio")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("\(String(format: "%.1f", suggestion.foirRatio * 100))%")
-                                        .font(.body.weight(.semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(suggestion.foirRatio > 0.5 ? .staffAmber : .staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -442,10 +448,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Monthly EMI")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text("INR \(String(format: "%.0f", suggestion.monthlyEMI))")
-                                        .font(.body.weight(.semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.staffTextPrimary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -455,10 +461,10 @@ struct ApplicationDetailView: View {
                                 
                                 VStack(alignment: .trailing, spacing: 4) {
                                     Text("Risk Grade")
-                                        .font(.caption.weight(.medium))
+                                        .font(.system(size: 12, weight: .medium))
                                         .foregroundColor(.staffTextSecondary)
                                     Text(suggestion.riskGrade)
-                                        .font(.title3.weight(.heavy))
+                                        .font(.system(size: 20, weight: .heavy))
                                         .foregroundColor(gradeColor(for: suggestion.riskGrade))
                                 }
                             }
@@ -469,15 +475,15 @@ struct ApplicationDetailView: View {
                             if !suggestion.rejectionReasons.isEmpty {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Risk Flags")
-                                        .font(.subheadline.weight(.bold))
+                                        .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.staffRed)
                                     ForEach(suggestion.rejectionReasons, id: \.self) { reason in
                                         HStack(spacing: 6) {
                                             Image(systemName: "exclamationmark.triangle.fill")
-                                                .font(.caption)
+                                                .font(.system(size: 11))
                                                 .foregroundColor(.staffAmber)
                                             Text(reason)
-                                                .font(.subheadline)
+                                                .font(.system(size: 13))
                                                 .foregroundColor(.staffTextSecondary)
                                         }
                                     }
@@ -497,16 +503,16 @@ struct ApplicationDetailView: View {
         HStack(spacing: 12) {
             Image(systemName: isPassed ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(isPassed ? .staffGreen : .staffRed)
-                .font(.headline)
+                .font(.system(size: 18))
             
             Text(title)
-                .font(.body.weight(.medium))
+                .font(.system(size: 15, weight: .medium))
                 .foregroundColor(.staffTextPrimary)
             
             Spacer()
             
             Text(isPassed ? "Passed" : "Failed")
-                .font(.subheadline.weight(.bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(isPassed ? .staffGreen : .staffRed)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
@@ -571,11 +577,12 @@ struct ApplicationDetailView: View {
                             Text("View")
                                 .font(.staffCaption)
                                 .fontWeight(.bold)
-                                .foregroundColor(.staffAccent)
+                                .foregroundColor(.white)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Color.staffAccent.opacity(0.15))
+                                .background(Color.staffAccent)
                                 .cornerRadius(StaffCorner.sm)
+                                .shadow(color: Color.staffAccent.opacity(0.3), radius: 2, x: 0, y: 1)
                         }
                         
                         if doc.isVerified {
@@ -708,34 +715,57 @@ struct ApplicationDetailView: View {
     }
     
     private var actionButtonBar: some View {
-        HStack(spacing: StaffSpacing.md) {
-            if vm.application.status == .approved || vm.application.status == .disbursed {
-                Spacer()
-            } else if vm.application.status == .rejected {
-                Spacer()
-                Text("Application Rejected")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffRed)
-                Spacer()
-            } else {
-                    if authViewModel.currentUser?.role == .officer {
-                        if vm.application.status == .submitted || vm.application.status == .sentBack {
-                            if activeTab == .profile {
-                                StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                                    showRejectSheet = true
-                                }
-                                
-                                Spacer(minLength: 20)
-                                
-                                StaffButton(
-                                    title: "Verify Documents",
-                                    style: .primary,
-                                    icon: "doc.text.magnifyingglass"
-                                ) {
-                                    activeTab = .documents
-                                }
-                                .frame(minWidth: 240)
+        Group {
+            if authViewModel.currentUser?.role == .manager && vm.application.status == .underReview {
+                GeometryReader { geometry in
+                    let totalWidth = geometry.size.width
+                    let sidePadding = totalWidth * 0.03
+                    let spacingBetween = totalWidth * 0.02
+                    let buttonWidth = totalWidth * 0.30
+                    
+                    HStack(spacing: spacingBetween) {
+                        StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
+                            showManagerSendBackSheet = true
+                        }
+                        .frame(width: buttonWidth)
+                        
+                        StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
+                            showManagerRejectSheet = true
+                        }
+                        .frame(width: buttonWidth)
+                        
+                        StaffButton(title: "Verify & Approve", style: .success, icon: "checkmark.seal.fill") {
+                            if let suggestion = vm.underwritingSuggestion {
+                                mgrApprovedAmount = max(vm.product.minAmount, min(suggestion.suggestedAmount > 0 ? suggestion.suggestedAmount : vm.application.requestedAmount, vm.product.maxAmount))
+                                mgrApprovedTenure = max(vm.product.minTenureMonths, min(suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : vm.application.requestedTenureMonths, vm.product.maxTenureMonths))
+                                mgrApprovedRate = max(vm.product.minInterestRate, min(suggestion.suggestedInterestRate > 0 ? suggestion.suggestedInterestRate : vm.product.minInterestRate, vm.product.maxInterestRate))
                             } else {
+                                mgrApprovedAmount = vm.application.requestedAmount
+                                mgrApprovedTenure = vm.application.requestedTenureMonths
+                                mgrApprovedRate = vm.product.minInterestRate
+                            }
+                            showManagerApprovalSheet = true
+                        }
+                        .frame(width: buttonWidth)
+                    }
+                    .padding(.horizontal, sidePadding)
+                    .frame(width: totalWidth, height: geometry.size.height, alignment: .center)
+                }
+                .frame(height: 76)
+                .background(Color.staffSurface)
+            } else {
+                HStack(spacing: StaffSpacing.md) {
+                    if vm.application.status == .approved || vm.application.status == .disbursed {
+                        Spacer()
+                    } else if vm.application.status == .rejected {
+                        Spacer()
+                        Text("Application Rejected")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffRed)
+                        Spacer()
+                    } else {
+                        if authViewModel.currentUser?.role == .officer {
+                            if vm.application.status == .submitted || vm.application.status == .sentBack {
                                 StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
                                     showRejectSheet = true
                                 }
@@ -744,7 +774,7 @@ struct ApplicationDetailView: View {
                                 
                                 let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
                                 StaffButton(
-                                    title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Escalate to Manager",
+                                    title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
                                     style: .primary,
                                     icon: "hand.thumbsup.fill"
                                 ) {
@@ -753,45 +783,20 @@ struct ApplicationDetailView: View {
                                 .frame(minWidth: 240)
                                 .disabled(!allVerified)
                                 .opacity(allVerified ? 1.0 : 0.5)
+                            } else if vm.application.status == .underReview {
+                                Spacer()
+                                Text("Escalated to Manager")
+                                    .font(.staffTitle)
+                                    .foregroundColor(.staffAmber)
+                                Spacer()
                             }
-                        } else if vm.application.status == .underReview {
-                            Spacer()
-                            Text("Escalated to Manager")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffAmber)
-                            Spacer()
-                        }
-                    } else if authViewModel.currentUser?.role == .manager {
-                        if vm.application.status == .underReview {
-                            StaffButton(title: "Send Back", style: .outline, icon: "arrow.uturn.left") {
-                                showManagerSendBackSheet = true
-                            }
-                            
-                            StaffButton(title: "Reject", style: .destructive, icon: "xmark.circle") {
-                                showManagerRejectSheet = true
-                            }
-                            
-                            Spacer()
-                            
-                            StaffButton(title: "Verify & Approve", style: .success, icon: "checkmark.seal.fill") {
-                                if let suggestion = vm.underwritingSuggestion {
-                                    mgrApprovedAmount = max(vm.product.minAmount, min(suggestion.suggestedAmount > 0 ? suggestion.suggestedAmount : vm.application.requestedAmount, vm.product.maxAmount))
-                                    mgrApprovedTenure = max(vm.product.minTenureMonths, min(suggestion.suggestedTenureMonths > 0 ? suggestion.suggestedTenureMonths : vm.application.requestedTenureMonths, vm.product.maxTenureMonths))
-                                    mgrApprovedRate = max(vm.product.minInterestRate, min(suggestion.suggestedInterestRate > 0 ? suggestion.suggestedInterestRate : vm.product.minInterestRate, vm.product.maxInterestRate))
-                                } else {
-                                    mgrApprovedAmount = vm.application.requestedAmount
-                                    mgrApprovedTenure = vm.application.requestedTenureMonths
-                                    mgrApprovedRate = vm.product.minInterestRate
-                                }
-                                showManagerApprovalSheet = true
-                            }
-                            .frame(width: 240)
                         }
                     }
                 }
+                .padding(StaffSpacing.lg)
+                .background(Color.staffSurface)
             }
-        .padding(StaffSpacing.lg)
-        .background(Color.staffSurface)
+        }
     }
     
     private func generateAndShareSanctionLetter() {
@@ -897,7 +902,7 @@ struct ApplicationDetailView: View {
                                     .frame(maxWidth: .infinity, alignment: .trailing)
                                 
                                 Text(emi.status.displayName)
-                                    .font(.caption.weight(.bold))
+                                    .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(emiStatusColor(emi.status))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
@@ -958,7 +963,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(30)
-        .frame(width: 500, height: 280)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
@@ -993,77 +998,34 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(30)
-        .frame(width: 500, height: 280)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
 
     
     private var recommendChecklistSheet: some View {
-        VStack(spacing: 0) {
-            // Top Row for Close button
-            HStack {
-                Button(action: { showRecommendSheet = false }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.staffGreen)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color.white))
-                        .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 1)
-                }
-                Spacer()
-            }
-            .padding(.leading, 24)
-            .padding(.top, 24)
+        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
+            Text("Officer Checklist Audit")
+                .font(.staffTitle)
+                .foregroundColor(.staffTextPrimary)
+            
+            Text("Verify requirements checklist before sending to manager:")
+                .font(.staffCaption)
+                .foregroundColor(.staffTextSecondary)
             
             VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                // Centered aligned Header
-                VStack(spacing: StaffSpacing.xs) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.staffGreen)
-                            .frame(width: 72, height: 72)
-                        Image(systemName: "checklist")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.bottom, StaffSpacing.xs)
-                    
-                    Text("Officer Checklist Audit")
-                        .font(.staffTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.staffTextPrimary)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Verify requirements checklist before sending to manager")
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                
-                Spacer(minLength: StaffSpacing.md)
-                
-                // Checkpoints (centered as a block)
-                HStack {
-                    Spacer()
-                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                        ChecklistItem(text: "KYC Details matched with original scans")
-                        ChecklistItem(text: "Bank Details exist and confirmed")
-                        ChecklistItem(text: "Credit score conforms to rules guidelines")
-                        ChecklistItem(text: "Income verification files confirmed valid")
-                    }
-                    Spacer()
-                }
-                
-                Spacer(minLength: StaffSpacing.lg)
-                
-                // Full width Confirm & Recommend button
-                StaffButton(
-                    title: "Confirm & Recommend",
-                    style: .success,
-                    icon: "checkmark.circle.fill"
-                ) {
+                ChecklistItem(text: "KYC Details matched with original scans")
+                ChecklistItem(text: "Bank Details exist and confirmed")
+                ChecklistItem(text: "Credit score conforms to rules guidelines")
+                ChecklistItem(text: "Income verification files confirmed valid")
+            }
+            
+            HStack {
+                Button("Cancel") { showRecommendSheet = false }
+                    .foregroundColor(.staffTextSecondary)
+                Spacer()
+                Button("Confirm & Recommend") {
                     Task {
                         if await vm.recommendToManager() {
                             showRecommendSheet = false
@@ -1071,13 +1033,14 @@ struct ApplicationDetailView: View {
                         }
                     }
                 }
+                .foregroundColor(.staffGreen)
+                .fontWeight(.bold)
             }
-            .padding(.horizontal, 30)
-            .padding(.bottom, 30)
+            .padding(.top, StaffSpacing.lg)
         }
-        .frame(width: 480, height: 500)
-        .background(Color.staffGreenBg.ignoresSafeArea())
-        .presentationBackground(Color.staffGreenBg)
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.staffBackground.ignoresSafeArea())
     }
     
     // MARK: - Manager Action Sheets
@@ -1120,7 +1083,7 @@ struct ApplicationDetailView: View {
                         .tint(.staffAccent)
                 }
             }
-            .padding(StaffSpacing.lg)
+            .padding(.vertical, StaffSpacing.lg)
             
             HStack(spacing: StaffSpacing.md) {
                 StaffButton(title: "Cancel", style: .outline, icon: "xmark", isFullWidth: false) {
@@ -1140,6 +1103,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(StaffSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
@@ -1178,6 +1142,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(StaffSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.staffBackground.ignoresSafeArea())
     }
     
@@ -1216,6 +1181,7 @@ struct ApplicationDetailView: View {
             }
         }
         .padding(StaffSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.staffBackground.ignoresSafeArea())
     }
 }

@@ -175,6 +175,8 @@ struct ChatSupportConsole: View {
                             Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, StaffSpacing.lg)
                                 .padding(.top, 40)
                         } else {
                             ForEach(activeMessages.filter { msg in
@@ -229,6 +231,7 @@ struct ChatSupportConsole: View {
                         }
                     }
                     .padding(StaffSpacing.lg)
+                    .frame(maxWidth: .infinity)
                 }
                 .onChange(of: isInternalChat ? detailVm.internalMessages : detailVm.borrowerMessages) { messages in
                     if let last = messages.last {
@@ -245,7 +248,14 @@ struct ChatSupportConsole: View {
                 .background(Color.staffBorder)
             
             // Text Input Footer
-            if authViewModel.currentUser?.role != .admin {
+            if authViewModel.currentUser?.role == .manager && appWithBorrower.application.status == .rejected {
+                Text("Application is rejected. Chat is disabled.")
+                    .font(.staffBody)
+                    .foregroundColor(.staffTextSecondary)
+                    .padding(StaffSpacing.lg)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.staffSurface)
+            } else if authViewModel.currentUser?.role != .admin {
                 HStack(spacing: StaffSpacing.md) {
                     TextField(isInternalChat ? "Type internal message..." : "Type a message to client...", text: $messageText)
                         .textInputAutocapitalization(.sentences)

@@ -19,8 +19,8 @@ struct BranchManagementView: View {
         HStack(spacing: 0) {
             // Left Panel — Branch List
             branchListPanel
-                .frame(width: 320)
-                .background(Color.staffSurface)
+                .frame(width: 340)
+                .background(Color.staffBackground)
 
             Divider()
                 .background(Color.staffBorder)
@@ -58,18 +58,19 @@ struct BranchManagementView: View {
             // Header
             HStack {
                 Text("Branches")
-                    .font(.staffSectionTitle)
+                    .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
 
                 Spacer()
 
                 Button(action: { showCreateSheet = true }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
+                    Image(systemName: "plus.app")
+                        .font(.system(size: 20))
                         .foregroundColor(.staffAccent)
                 }
             }
-            .padding(StaffSpacing.lg)
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.top, StaffSpacing.lg)
 
             // Search
             HStack(spacing: StaffSpacing.sm) {
@@ -99,7 +100,7 @@ struct BranchManagementView: View {
                 Spacer()
                 VStack(spacing: StaffSpacing.md) {
                     Image(systemName: "building.2")
-                        .font(.title)
+                        .font(.system(size: 40))
                         .foregroundColor(.staffTextTertiary)
                     Text("No branches found")
                         .font(.staffBody)
@@ -128,7 +129,7 @@ struct BranchManagementView: View {
             HStack(spacing: StaffSpacing.md) {
                 // Icon
                 Image(systemName: "building.2.fill")
-                    .font(.headline)
+                    .font(.system(size: 18))
                     .foregroundColor(isSelected ? .staffAccent : .staffTextTertiary)
                     .frame(width: 36, height: 36)
                     .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceLight)
@@ -175,7 +176,7 @@ struct BranchManagementView: View {
     private var emptyDetailPanel: some View {
         VStack(spacing: StaffSpacing.lg) {
             Image(systemName: "building.2.fill")
-                .font(.title.weight(.light))
+                .font(.system(size: 56, weight: .light))
                 .foregroundColor(.staffTextTertiary.opacity(0.4))
 
             Text("Select a Branch")
@@ -237,7 +238,7 @@ struct BranchManagementView: View {
         HStack(spacing: StaffSpacing.lg) {
             // Branch icon
             Image(systemName: "building.2.fill")
-                .font(.title2)
+                .font(.system(size: 28))
                 .foregroundColor(.staffAccent)
                 .frame(width: 52, height: 52)
                 .background(Color.staffAccentBg)
@@ -291,7 +292,7 @@ struct BranchManagementView: View {
                     VStack(spacing: StaffSpacing.sm) {
                         HStack(spacing: StaffSpacing.xs) {
                             Image(systemName: tab.icon)
-                                .font(.subheadline)
+                                .font(.system(size: 13))
                             Text(tab.title)
                                 .font(.staffLabel)
                         }
@@ -535,7 +536,7 @@ struct BranchStaffTab: View {
                     if let manager = vm.managerUser {
                         HStack(spacing: StaffSpacing.lg) {
                             Image(systemName: "person.crop.circle.fill")
-                                .font(.title)
+                                .font(.system(size: 40))
                                 .foregroundColor(.staffTeal)
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -661,7 +662,7 @@ struct BranchStaffTab: View {
                             Spacer()
                             VStack(spacing: StaffSpacing.sm) {
                                 Image(systemName: "person.badge.plus")
-                                    .font(.title2)
+                                    .font(.system(size: 28))
                                     .foregroundColor(.staffTextTertiary)
                                 Text("No officers assigned to this branch")
                                     .font(.staffCaption)
@@ -675,7 +676,7 @@ struct BranchStaffTab: View {
                             ForEach(branchOfficers) { staffUser in
                                 HStack(spacing: StaffSpacing.md) {
                                     Image(systemName: "person.crop.circle.fill")
-                                        .font(.title2)
+                                        .font(.system(size: 28))
                                         .foregroundColor(.staffAccent)
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -901,7 +902,7 @@ struct BranchPincodesTab: View {
                             Spacer()
                             VStack(spacing: StaffSpacing.sm) {
                                 Image(systemName: "map")
-                                    .font(.title2)
+                                    .font(.system(size: 28))
                                     .foregroundColor(.staffTextTertiary)
                                 Text("No pincodes assigned yet")
                                     .font(.staffCaption)
@@ -921,7 +922,7 @@ struct BranchPincodesTab: View {
                                 HStack(spacing: StaffSpacing.sm) {
                                     Image(systemName: "mappin.circle.fill")
                                         .foregroundColor(.staffOrange)
-                                        .font(.subheadline)
+                                        .font(.system(size: 14))
 
                                     Text(bp.pincode)
                                         .font(.staffBody)
@@ -934,7 +935,7 @@ struct BranchPincodesTab: View {
                                         Task { await vm.removePincode(id: bp.id) }
                                     }) {
                                         Image(systemName: "xmark.circle.fill")
-                                            .font(.subheadline)
+                                            .font(.system(size: 14))
                                             .foregroundColor(.staffRed.opacity(0.6))
                                     }
                                 }
@@ -1213,7 +1214,7 @@ struct BranchMetricsTab: View {
             } else {
                 VStack(spacing: StaffSpacing.md) {
                     Image(systemName: "chart.bar.xaxis")
-                        .font(.title)
+                        .font(.system(size: 40))
                         .foregroundColor(.staffTextTertiary)
                     Text("No loan data available for this branch")
                         .font(.staffBody)
@@ -1253,7 +1254,7 @@ struct CreateBranchSheet: View {
                 VStack(spacing: StaffSpacing.xl) {
                     // Header icon
                     Image(systemName: "building.2.crop.circle.fill")
-                        .font(.title)
+                        .font(.system(size: 56))
                         .foregroundColor(.staffAccent)
                         .padding(.top, StaffSpacing.xl)
 
@@ -1331,9 +1332,12 @@ struct CreateBranchSheet: View {
             .background(Color.staffBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.staffAccent)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
                 }
             }
         }
@@ -1378,7 +1382,7 @@ struct StaffPickerSheet: View {
                     Spacer()
                     VStack(spacing: StaffSpacing.md) {
                         Image(systemName: "person.slash")
-                            .font(.title)
+                            .font(.system(size: 36))
                             .foregroundColor(.staffTextTertiary)
                         Text("No available staff found")
                             .font(.staffBody)
@@ -1395,7 +1399,7 @@ struct StaffPickerSheet: View {
                                 }) {
                                     HStack(spacing: StaffSpacing.md) {
                                         Image(systemName: "person.crop.circle.fill")
-                                            .font(.title)
+                                            .font(.system(size: 36))
                                             .foregroundColor(Color.roleBadgeColor(for: staffUser.user.role.rawValue))
 
                                         VStack(alignment: .leading, spacing: 2) {
@@ -1421,7 +1425,7 @@ struct StaffPickerSheet: View {
                                         Spacer()
 
                                         Image(systemName: "chevron.right")
-                                            .font(.caption)
+                                            .font(.system(size: 12))
                                             .foregroundColor(.staffTextTertiary)
                                     }
                                     .padding(.horizontal, StaffSpacing.lg)
@@ -1440,9 +1444,12 @@ struct StaffPickerSheet: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.staffAccent)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
                 }
             }
         }

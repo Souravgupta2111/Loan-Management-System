@@ -102,7 +102,7 @@ struct NotificationTemplatesView: View {
                     .background(Color.staffBackground)
                 }
             }
-            .frame(width: 320)
+            .frame(width: 340)
             .background(Color.staffBackground)
             
             Divider()
@@ -388,82 +388,62 @@ struct NotificationTemplatesView: View {
     // MARK: - Create Template Sheet
     
     private var createTemplateSheet: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            Text("Create New Notification Template")
-                .font(.staffTitle)
-                .foregroundColor(.staffTextPrimary)
-            
-            Text("Define a new event template that the system can use to dispatch notifications.")
-                .font(.staffCaption)
-                .foregroundColor(.staffTextSecondary)
-            
-            VStack(spacing: StaffSpacing.md) {
-                StaffFormField(
-                    label: "Event Name (snake_case)",
-                    placeholder: "e.g. loan_approved",
-                    text: $newEventName,
-                    error: nil
-                )
-                
-                StaffFormField(
-                    label: "Description",
-                    placeholder: "Brief description of the event trigger",
-                    text: $newDescription,
-                    error: nil
-                )
-                
-                StaffFormField(
-                    label: "Supported Placeholders (comma-separated)",
-                    placeholder: "{{borrower_name}}, {{amount}}, {{loan_id}}",
-                    text: $newPlaceholders,
-                    error: nil
-                )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Template Text")
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextSecondary)
-                    TextEditor(text: $newTemplateText)
-                        .frame(height: 100)
-                        .padding(8)
-                        .background(Color.staffSurfaceMuted)
-                        .cornerRadius(StaffCorner.md)
+        NavigationView {
+            ScrollView {
+                VStack(spacing: StaffSpacing.xl) {
+                    Image(systemName: "envelope.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundColor(.staffAccent)
+                        .padding(.top, StaffSpacing.xl)
+                    
+                    Text("Create New Notification Template")
+                        .font(.staffSectionTitle)
                         .foregroundColor(.staffTextPrimary)
-                }
-            }
-            
-            HStack {
-                Button("Cancel") {
-                    showCreateSheet = false
-                }
-                .foregroundColor(.staffTextSecondary)
-                
-                Spacer()
-                
-                StaffButton(title: "Create Template", style: .primary, icon: "plus.circle.fill") {
-                    Task {
-                        do {
-                            let placeholderArray = parsePlaceholders(newPlaceholders)
-                            let _ = try await service.createTemplate(
-                                eventName: newEventName.trimmingCharacters(in: .whitespacesAndNewlines),
-                                templateText: newTemplateText,
-                                description: newDescription,
-                                placeholders: placeholderArray
-                            )
-                            showCreateSheet = false
-                            loadTemplates()
-                        } catch {
-                            errorMessage = error.localizedDescription
+                        .multilineTextAlignment(.center)
+                    
+                    VStack(spacing: StaffSpacing.lg) {
+                        StaffFormField(label: "Event Name (snake_case) *", placeholder: "e.g. loan_approved", text: $newEventName, icon: "tag")
+                        StaffFormField(label: "Description", placeholder: "Brief description of the event trigger", text: $newDescription, icon: "text.alignleft")
+                        StaffFormField(label: "Supported Placeholders (comma-separated)", placeholder: "{{borrower_name}}, {{amount}}, {{loan_id}}", text: $newPlaceholders, icon: "curlybraces")
+                        StaffTextEditor(label: "Template Text *", placeholder: "Write the notification message...", text: $newTemplateText, minHeight: 120)
+                    }
+                    .padding(.horizontal, StaffSpacing.xl)
+                    
+                    StaffButton(title: "Create Template", style: .primary, icon: "plus.circle.fill") {
+                        Task {
+                            do {
+                                let placeholderArray = parsePlaceholders(newPlaceholders)
+                                let _ = try await service.createTemplate(
+                                    eventName: newEventName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    templateText: newTemplateText,
+                                    description: newDescription,
+                                    placeholders: placeholderArray
+                                )
+                                showCreateSheet = false
+                                loadTemplates()
+                            } catch {
+                                errorMessage = error.localizedDescription
+                            }
                         }
                     }
+                    .disabled(newEventName.isEmpty || newTemplateText.isEmpty)
+                    .padding(.horizontal, StaffSpacing.xl)
+                    .padding(.bottom, StaffSpacing.xl)
                 }
-                .disabled(newEventName.isEmpty || newTemplateText.isEmpty)
-                .frame(width: 220)
             }
-            .padding(.top, StaffSpacing.md)
+            .background(Color.staffBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showCreateSheet = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.staffAccent)
+                }
+            }
         }
-        .padding(30)
-        .background(Color.staffBackground.ignoresSafeArea())
+        .presentationBackground(Color.staffBackground)
     }
     
     // MARK: - Validation Logic

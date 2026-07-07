@@ -28,9 +28,13 @@ struct ManagerDashboardView: View {
     @State private var selectedApp: ApplicationWithBorrower?
     @State private var selectedSegment: ManagerQueueSegment = .pendingReview
     
-    @State private var showMetricDetailSheet: Bool = false
-    @State private var metricDetailTitle: String = ""
-    @State private var metricDetailData: MetricDataType = .loans([])
+    struct MetricDetailPayload: Identifiable {
+        let id = UUID()
+        let title: String
+        let data: MetricDataType
+    }
+    
+    @State private var metricDetailPayload: MetricDetailPayload?
     
     // Chart expand state
     @State private var showChartsSection: Bool = false
@@ -120,7 +124,6 @@ struct ManagerDashboardView: View {
                 List(currentQueue) { app in
                     Button {
                         selectedApp = app
-                        showDetailSheet = true
                     } label: {
                         queueListRow(app)
                     }
@@ -137,26 +140,24 @@ struct ManagerDashboardView: View {
             .onAppear {
                 Task { await vm.loadDashboard() }
             }
-            .fullScreenCover(isPresented: $showDetailSheet) {
-                if let app = selectedApp {
-                    NavigationStack {
-                        ApplicationDetailView(appWithBorrower: app, onStatusUpdated: {
-                            showDetailSheet = false
-                            Task { await vm.loadDashboard() }
-                        })
-                        .environmentObject(authViewModel)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Close") { showDetailSheet = false }
-                            }
+            .fullScreenCover(item: $selectedApp) { app in
+                NavigationStack {
+                    ApplicationDetailView(appWithBorrower: app, onStatusUpdated: {
+                        selectedApp = nil
+                        Task { await vm.loadDashboard() }
+                    })
+                    .environmentObject(authViewModel)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Close") { selectedApp = nil }
                         }
                     }
                 }
             }
-            .sheet(isPresented: $showMetricDetailSheet) {
+            .sheet(item: $metricDetailPayload) { payload in
                 NavigationStack {
-                    MetricDetailSheet(title: metricDetailTitle, data: metricDetailData)
+                    MetricDetailSheet(title: payload.title, data: payload.data)
                 }
             }
             .sheet(isPresented: $showAIAnalytics) {
@@ -194,18 +195,14 @@ struct ManagerDashboardView: View {
         VStack(spacing: StaffSpacing.sm) {
             HStack(spacing: StaffSpacing.sm) {
                 Button(action: {
-                    metricDetailTitle = "Active Portfolio"
-                    metricDetailData = .loans(vm.activeLoansList)
-                    showMetricDetailSheet = true
+                    metricDetailPayload = MetricDetailPayload(title: "Active Portfolio", data: .loans(vm.activeLoansList))
                 }) {
                     MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
                 }
                 .buttonStyle(PlainButtonStyle())
                 
                 Button(action: {
-                    metricDetailTitle = "Active Loans"
-                    metricDetailData = .loans(vm.activeLoansList)
-                    showMetricDetailSheet = true
+                    metricDetailPayload = MetricDetailPayload(title: "Active Loans", data: .loans(vm.activeLoansList))
                 }) {
                     MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
                 }
@@ -213,18 +210,14 @@ struct ManagerDashboardView: View {
             }
             HStack(spacing: StaffSpacing.sm) {
                 Button(action: {
-                    metricDetailTitle = "Collection Efficiency"
-                    metricDetailData = .loans(vm.activeLoansList)
-                    showMetricDetailSheet = true
+                    metricDetailPayload = MetricDetailPayload(title: "Collection Efficiency", data: .loans(vm.activeLoansList))
                 }) {
                     MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
                 }
                 .buttonStyle(PlainButtonStyle())
                 
                 Button(action: {
-                    metricDetailTitle = "NPA Ratio"
-                    metricDetailData = .loans(vm.activeLoansList.filter { $0.loan.status == .npa })
-                    showMetricDetailSheet = true
+                    metricDetailPayload = MetricDetailPayload(title: "NPA Ratio", data: .loans(vm.activeLoansList.filter { $0.loan.status == .npa }))
                 }) {
                     MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
                 }
@@ -385,20 +378,20 @@ struct ManagerDashboardView: View {
                 Spacer()
                 
                 if selectedSegment == .sentBack {
-                    Text("↩ Sent Back")
-                        .font(.caption.weight(.bold))
+                    Text("Sent Back")
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffAmber)
                 } else if selectedSegment == .rejected {
-                    Text("✕ Rejected")
-                        .font(.caption.weight(.bold))
+                    Text("Rejected")
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffRed)
                 } else if selectedSegment == .approved {
-                    Text("✓ Approved")
-                        .font(.caption.weight(.bold))
+                    Text("Approved")
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.staffGreen)
                 } else {
                     Text("Tenure: \(app.application.requestedTenureMonths)m")
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundColor(.staffTextSecondary)
                 }
             }

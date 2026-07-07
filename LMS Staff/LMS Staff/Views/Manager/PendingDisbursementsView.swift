@@ -16,8 +16,11 @@ struct PendingDisbursementsView: View {
     @State private var inputIfscCode: String = ""
     
     // Amortization table review sheet
-    @State private var showAmortizationReview: Bool = false
-    @State private var reviewEmiItems: [EMIScheduleItem] = []
+    struct DisbursementReviewPayload: Identifiable {
+        let id = UUID()
+        let items: [EMIScheduleItem]
+    }
+    @State private var reviewPayload: DisbursementReviewPayload?
     
     var body: some View {
         HStack(spacing: 0) {
@@ -118,8 +121,9 @@ struct PendingDisbursementsView: View {
                 await vm.loadPendingDisbursements()
             }
         }
-        .sheet(isPresented: $showAmortizationReview) {
-            amortizationReviewSheet
+        .sheet(item: $reviewPayload) { payload in
+            amortizationReviewSheet(payload: payload)
+                .presentationBackground(Color.staffBackground)
         }
     }
     
@@ -237,7 +241,6 @@ struct PendingDisbursementsView: View {
                     icon: "indianrupeesign.circle.fill"
                 ) {
                     calculateReviewSchedule(item)
-                    showAmortizationReview = true
                 }
                 .frame(width: 320)
                 .disabled(inputAccountNo.isEmpty || vm.verifiedBankDetails == nil)
@@ -254,14 +257,14 @@ struct PendingDisbursementsView: View {
         }
     }
     
-    private var amortizationReviewSheet: some View {
+    private func amortizationReviewSheet(payload: DisbursementReviewPayload) -> some View {
         VStack(alignment: .leading, spacing: StaffSpacing.lg) {
             HStack {
                 Text("Confirm Disbursal & Repayment Schedule")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
                 Spacer()
-                Button("Cancel") { showAmortizationReview = false }
+                Button("Cancel") { reviewPayload = nil }
                     .foregroundColor(.staffTextSecondary)
             }
             
@@ -290,7 +293,7 @@ struct PendingDisbursementsView: View {
                     
                     Divider()
                     
-                    ForEach(reviewEmiItems, id: \.installmentNumber) { item in
+                    ForEach(payload.items, id: \.installmentNumber) { item in
                         HStack {
                             Text("\(item.installmentNumber)")
                                 .frame(width: 40, alignment: .leading)
@@ -337,7 +340,7 @@ struct PendingDisbursementsView: View {
                                 processingFeePct: product.processingFeePct
                             )
                             if isSuccess {
-                                showAmortizationReview = false
+                                reviewPayload = nil
                                 selectedApp = nil
                             } else {
                                 print("Disbursal failed: \(vm.errorMessage ?? "Unknown error")")
@@ -412,6 +415,6 @@ struct PendingDisbursementsView: View {
             ))
         }
         
-        self.reviewEmiItems = list
+        self.reviewPayload = DisbursementReviewPayload(items: list)
     }
 }

@@ -114,43 +114,43 @@ struct LoanInspectorView: View {
             .background(Color.staffSurface.opacity(0.5))
             
             // Content Body based on selected Tab
-            ScrollView {
-                VStack(alignment: .leading, spacing: StaffSpacing.xl) {
-                    switch activeTab {
-                    case .profile:
-                        kycAndCreditSection
-                    case .documents:
-                        documentsSection
-                    case .emiSchedule:
-                        emiScheduleSection
-                    case .recovery:
-                        recoverySection
-                    case .chat:
-                        if let appWithBorrower = vm.appWithBorrower {
-                            ChatSupportConsole(appWithBorrower: appWithBorrower)
-                                .frame(height: 550)
-                                .cornerRadius(StaffCorner.md)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: StaffCorner.md)
-                                        .stroke(Color.staffBorder, lineWidth: 1)
-                                )
-                                .clipped()
-                        } else {
-                            ProgressView()
-                                .frame(height: 550)
-                        }
-                    case .timeline:
-                        timelineSection
-                    }
+            if activeTab == .chat {
+                if let appWithBorrower = vm.appWithBorrower {
+                    ChatSupportConsole(appWithBorrower: appWithBorrower, forceInternalOnly: true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(StaffSpacing.lg)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: StaffSpacing.xl) {
+                        switch activeTab {
+                        case .profile:
+                            kycAndCreditSection
+                        case .documents:
+                            documentsSection
+                        case .emiSchedule:
+                            emiScheduleSection
+                        case .recovery:
+                            recoverySection
+                        case .chat:
+                            EmptyView()
+                        case .timeline:
+                            timelineSection
+                        }
+                    }
+                    .padding(StaffSpacing.lg)
+                }
+                .background(Color.staffBackground)
             }
-            .background(Color.staffBackground)
             
-            if vm.loanWithDetails.loan.status == .npa && authViewModel.currentUser?.role == .manager {
-                Divider()
-                    .background(Color.staffBorder)
-                actionButtonBar
+            if activeTab != .chat && activeTab != .timeline {
+                if vm.loanWithDetails.loan.status == .npa && authViewModel.currentUser?.role == .manager {
+                    Divider()
+                        .background(Color.staffBorder)
+                    actionButtonBar
+                }
             }
         }
         .task {
@@ -165,6 +165,7 @@ struct LoanInspectorView: View {
         // MODALS/SHEETS LIST
         .sheet(isPresented: $showRestructureSheet) {
             restructureActionSheet()
+                .presentationBackground(Color.staffBackground)
         }
         .sheet(isPresented: $showWriteOffSheet) {
             actionSheet(title: "Write-off Loan", actionColor: .staffRed, actionLabel: "Confirm Write-Off") {
@@ -177,6 +178,7 @@ struct LoanInspectorView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             }
+            .presentationBackground(Color.staffBackground)
         }
         .sheet(isPresented: $showEscalateSheet) {
             actionSheet(title: "Escalate to Admin", actionColor: .staffRed, actionLabel: "Escalate") {
@@ -189,6 +191,7 @@ struct LoanInspectorView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             }
+            .presentationBackground(Color.staffBackground)
         }
         .alert("Error", isPresented: Binding(
             get: { vm.errorMessage != nil },
