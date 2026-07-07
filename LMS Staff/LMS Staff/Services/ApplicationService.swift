@@ -207,6 +207,20 @@ class ApplicationService {
                 managerUserId = try? await StaffManagementService.shared.fetchBranchManager(branchId: branchId)?.id
             }
             
+            // Determine current user role
+            let currentUserId = supabase.currentUserId
+            var currentUserRole: UserRole? = nil
+            if let currentUserId = currentUserId {
+                let userRecord: AppUser? = try? await supabase.database
+                    .from("users")
+                    .select()
+                    .eq("id", value: currentUserId)
+                    .single()
+                    .execute()
+                    .value
+                currentUserRole = userRecord?.role
+            }
+            
             if status == .underReview {
                 if let managerId = managerUserId {
                     try? await NotificationService.shared.createNotification(
@@ -218,12 +232,45 @@ class ApplicationService {
                         referenceType: "loan_applications"
                     )
                 }
+                
+                // Notify Borrower
+                try? await NotificationService.shared.createNotification(
+                    userId: record.borrower_id,
+                    title: "Application Under Review",
+                    message: "Your loan application has been recommended by the officer and is now under review by the manager.",
+                    type: .loanUpdate,
+                    referenceId: applicationId,
+                    referenceType: "loan_applications"
+                )
             } else if status == .sentBack {
-                if let officerId = officerUserId {
+                if currentUserRole == .officer {
+                    // Officer sent back to borrower
                     try? await NotificationService.shared.createNotification(
-                        userId: officerId,
-                        title: "Application Sent Back",
-                        message: "Manager sent back an application for revision. Reason: \(reason ?? "Check details")",
+                        userId: record.borrower_id,
+                        title: "Additional Documents Required",
+                        message: "The loan officer has requested additional documents or revision. Reason: \(reason ?? "Please check details")",
+                        type: .loanUpdate,
+                        referenceId: applicationId,
+                        referenceType: "loan_applications"
+                    )
+                } else {
+                    // Manager sent back to officer
+                    if let officerId = officerUserId {
+                        try? await NotificationService.shared.createNotification(
+                            userId: officerId,
+                            title: "Application Sent Back",
+                            message: "Manager sent back an application for revision. Reason: \(reason ?? "Check details")",
+                            type: .loanUpdate,
+                            referenceId: applicationId,
+                            referenceType: "loan_applications"
+                        )
+                    }
+                    
+                    // Also notify borrower
+                    try? await NotificationService.shared.createNotification(
+                        userId: record.borrower_id,
+                        title: "Application Under Revision",
+                        message: "Your application has been sent back to the officer for revision. Reason: \(reason ?? "Please check details")",
                         type: .loanUpdate,
                         referenceId: applicationId,
                         referenceType: "loan_applications"
