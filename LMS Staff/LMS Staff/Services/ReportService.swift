@@ -59,6 +59,27 @@ class ReportService {
             .execute()
             .value
             
+        // Fetch all confirmed payments
+        struct PaymentFetch: Decodable {
+            let emi_id: UUID?
+            let amount_paid: Double
+            let status: String
+        }
+        
+        let payments: [PaymentFetch] = (try? await supabase.database
+            .from("payments")
+            .select("emi_id, amount_paid, status")
+            .eq("status", value: "confirmed")
+            .execute()
+            .value) ?? []
+            
+        var paidMap: [UUID: Double] = [:]
+        for payment in payments {
+            if let emiId = payment.emi_id {
+                paidMap[emiId, default: 0.0] += payment.amount_paid
+            }
+        }
+            
         // Filter EMIs whose due dates are in the past or today
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -68,8 +89,14 @@ class ReportService {
         let totalDue = historicalDueEMIs.reduce(0.0) { $0 + $1.totalEmi }
         
         // Paid components
-        let paidEMIs = emiItems.filter { $0.status == .paid }
-        let totalCollected = paidEMIs.reduce(0.0) { $0 + $1.totalEmi }
+        var totalCollected = 0.0
+        for emi in emiItems {
+            if let collectedAmount = paidMap[emi.id] {
+                totalCollected += collectedAmount
+            } else if emi.status == .paid {
+                totalCollected += emi.totalEmi
+            }
+        }
         
         let collectionEfficiency = totalDue > 0 ? (totalCollected / totalDue) * 100.0 : 100.0
         
@@ -103,10 +130,33 @@ class ReportService {
             .execute()
             .value
             
+        // Fetch all confirmed payments
+        struct PaymentFetch: Decodable {
+            let emi_id: UUID?
+            let amount_paid: Double
+            let status: String
+        }
+        
+        let payments: [PaymentFetch] = (try? await supabase.database
+            .from("payments")
+            .select("emi_id, amount_paid, status")
+            .eq("status", value: "confirmed")
+            .execute()
+            .value) ?? []
+            
+        var paidMap: [UUID: Double] = [:]
+        for payment in payments {
+            if let emiId = payment.emi_id {
+                paidMap[emiId, default: 0.0] += payment.amount_paid
+            }
+        }
+            
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
-        let historicalEMIs = emiItems.filter { $0.dueDate <= todayStr }
+        
+        // Include any EMI that is historically due OR has a payment
+        let historicalEMIs = emiItems.filter { $0.dueDate <= todayStr || paidMap[$0.id] != nil }
         
         // Group by YYYY-MM
         var monthlyTotals: [String: (due: Double, collected: Double)] = [:]
@@ -114,10 +164,18 @@ class ReportService {
         for emi in historicalEMIs {
             let prefix = String(emi.dueDate.prefix(7)) // "2026-06"
             var current = monthlyTotals[prefix] ?? (due: 0.0, collected: 0.0)
-            current.due += emi.totalEmi
-            if emi.status == .paid {
+            
+            // Only add to due if the EMI is actually due in the past or today
+            if emi.dueDate <= todayStr {
+                current.due += emi.totalEmi
+            }
+            
+            if let collectedAmount = paidMap[emi.id] {
+                current.collected += collectedAmount
+            } else if emi.status == .paid {
                 current.collected += emi.totalEmi
             }
+            
             monthlyTotals[prefix] = current
         }
         
