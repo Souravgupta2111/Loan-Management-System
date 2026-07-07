@@ -21,7 +21,7 @@ final class SpeechService: ObservableObject {
     @Published var speechError: String?
     
     // MARK: - Speech-to-Text (Voice Input)
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
+    private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -84,30 +84,24 @@ final class SpeechService: ObservableObject {
         }
     }
     
-    func stopListening() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
-        
-        recognitionTask = nil
-        recognitionRequest = nil
-        isListening = false
-        
-        // Deactivate audio session so TTS can use it smoothly
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-    }
+
     
     private func startAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        // Use .playAndRecord to handle both STT and TTS without category switching,
+        // which crashes the iOS Simulator audio driver (Abandoning I/O cycle).
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
     }
     
     private func startRecognition() throws {
         recognitionTask?.cancel()
         self.recognitionTask = nil
+        
+        // Re-initialize the recognizer on every run. 
+        // On iOS Simulators, the background speechd daemon frequently crashes 
+        // leaving the existing instance permanently broken (Failed to initialize).
+        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN"))
 
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             throw NSError(domain: "SpeechService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer is not available right now. Check your network connection."])
@@ -142,9 +136,10 @@ final class SpeechService: ObservableObject {
                     print("🗣️ Transcribed so far: \(self.transcribedText)")
                 }
                 
-                if error != nil || isFinal {
-                    if let error = error { print("❌ Recognition error: \(error.localizedDescription)") }
-                    self.stopListening()
+                if let error = error {
+                    print("⚠️ Recognition ended: \(error.localizedDescription)")
+                    // Do NOT call stopListening() here! B-easy explicitly avoids this
+                    // to prevent simulator CoreAudio crashes.
                 }
             }
         }
@@ -165,7 +160,25 @@ final class SpeechService: ObservableObject {
         try audioEngine.start()
     }
     
-    // MARK: - Voice Output (Text-to-Speech)
+    func stopListening() {
+        guard isListening else { return } // Prevent infinite recursive stopping loop
+        isListening = false
+        
+        if audioEngine.isRunning {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            audioEngine.stop()
+        }
+        
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        
+        recognitionTask = nil
+        recognitionRequest = nil
+        
+        // Do NOT deactivate audio session here. 
+        // TTS will likely follow immediately, and rapid activation/deactivation 
+        // causes "Abandoning I/O cycle because reconfig pending" on simulators.
+    }
     
     func speak(_ text: String) {
         // Stop any current speech
@@ -187,8 +200,9 @@ final class SpeechService: ObservableObject {
         utterance.pitchMultiplier = 1.05
         utterance.volume = 1.0
         
-        // Ensure audio session is set for playback
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        // No need to switch audio session category here.
+        // It is already set to .playAndRecord in startAudioSession().
+        // Switching back and forth crashes the simulator driver.
         try? AVAudioSession.sharedInstance().setActive(true)
         
         isSpeaking = true
