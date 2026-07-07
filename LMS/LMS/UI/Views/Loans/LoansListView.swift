@@ -282,11 +282,10 @@ struct LoansListView: View {
                         .stroke(
                             isSelected
                             ? Color.clear
-                            : Color.white.opacity(0.5),
+                            : Color(hex: "#2D8B4E").opacity(0.3),
                             lineWidth: 1
                         )
                 )
-                .liquidGlass(cornerRadius: 999)
         }
         .buttonStyle(.plain)
     }
@@ -301,7 +300,7 @@ struct LoansListView: View {
 
             VStack(alignment: .leading, spacing: 2) {
 
-                Text("Current Loans")
+                Text(sectionTitle)
                     .font(
                         .system(
                             size: 20,
@@ -311,12 +310,32 @@ struct LoansListView: View {
                     )
                     .foregroundColor(Color(hex: "#1A1A1A"))
 
-                Text("\(filteredLoans.count) of \(loans.count) loans")
+                Text(sectionSubtitle)
                     .font(.subheadline)
                     .foregroundColor(Color(hex: "#6B6B6B"))
             }
 
             Spacer()
+        }
+    }
+
+    private var sectionTitle: String {
+        switch selectedFilter {
+        case .all:
+            return "Current Loans"
+        default:
+            return "\(selectedFilter.rawValue) Loans"
+        }
+    }
+
+    private var sectionSubtitle: String {
+        switch selectedFilter {
+        case .all:
+            return "\(filteredLoans.count) of \(loans.count) loans"
+        default:
+            let count = filteredLoans.count
+            let name = selectedFilter.rawValue.lowercased()
+            return "\(count) \(name) loan\(count == 1 ? "" : "s")"
         }
     }
     // MARK: - Loan Cards List

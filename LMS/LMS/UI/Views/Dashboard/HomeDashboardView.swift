@@ -2,6 +2,11 @@ import SwiftUI
 import Supabase
 import Auth
 
+enum LoanNavigation: Hashable {
+    case selectLoanType
+    case applicationFlow(LoanType?)
+}
+
 struct HomeDashboardView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var loans: [LoanListItem] = []
@@ -11,13 +16,14 @@ struct HomeDashboardView: View {
     @State private var showChatHint = false
     @State private var showAllTransactions = false
     @State private var showAIChat = false
+    @State private var path = NavigationPath()
 
     // UI control flags to hide elements
     private let showChatButton = true
     private let showNotificationButton = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 ZStack(alignment: .top) {
                     ScrollView(.vertical, showsIndicators: false) {
@@ -92,6 +98,14 @@ struct HomeDashboardView: View {
             }
             .fullScreenCover(isPresented: $showAIChat) {
                 AIChatView()
+            }
+            .navigationDestination(for: LoanNavigation.self) { dest in
+                switch dest {
+                case .selectLoanType:
+                    SelectLoanTypeView(path: $path)
+                case .applicationFlow(let loanType):
+                    LoanApplicationFlowView(initialLoanType: loanType, path: $path)
+                }
             }
             .task { await loadData() }
             .refreshable { await loadData() }
@@ -348,9 +362,7 @@ struct HomeDashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    SelectLoanTypeView()
-                } label: {
+                NavigationLink(value: LoanNavigation.selectLoanType) {
                     quickActionCard(icon: "pointer.arrow.rays", label: "Apply")
                 }
                 .buttonStyle(.plain)
@@ -456,13 +468,13 @@ struct HomeDashboardView: View {
             ZStack {
                 Circle()
                     .fill(item.statusBg)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 28, height: 28)
                 Image(systemName: item.statusIcon)
-                    .font(.subheadline.weight(.bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundColor(item.statusColor)
             }
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.body.weight(.bold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
@@ -484,16 +496,14 @@ struct HomeDashboardView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .liquidGlass(cornerRadius: 18)
     }
 
     // MARK: - Empty State
     
     private var applyLoanPromoCard: some View {
-        NavigationLink {
-            SelectLoanTypeView()
-        } label: {
+        NavigationLink(value: LoanNavigation.selectLoanType) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     ZStack {
@@ -541,9 +551,7 @@ struct HomeDashboardView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
 
-            NavigationLink {
-                SelectLoanTypeView()
-            } label: {
+            NavigationLink(value: LoanNavigation.selectLoanType) {
                 HStack {
                     Spacer()
                     Text("Apply Now")

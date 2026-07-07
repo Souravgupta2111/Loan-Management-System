@@ -32,13 +32,13 @@ struct TransactionHistoryView: View {
             ZStack {
                 Circle()
                     .fill(item.statusBg)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 28, height: 28)
                 Image(systemName: item.statusIcon)
-                    .font(.subheadline.weight(.bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundColor(item.statusColor)
             }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.body.weight(.bold))
                     .foregroundColor(Color(hex: "#1A1A1A"))
@@ -60,7 +60,8 @@ struct TransactionHistoryView: View {
                     .foregroundColor(Color(hex: "#1A1A1A"))
             }
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
         .liquidGlass(cornerRadius: 16)
     }
     

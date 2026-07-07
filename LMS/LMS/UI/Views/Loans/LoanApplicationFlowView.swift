@@ -5,10 +5,10 @@ import Supabase
 ///
 /// Screen flow:
 ///   step 1              — Select loan product (list, fetched from backend)
-///   showProductDetail   — Full product detail screen (all info from backend, no hardcoding)
-///   step 2              — Amount & Tenure
-///   step 3              — Document Upload
-///   step 4              — Review & Submit
+///   step 2              — Product Details
+///   step 3              — Amount & Tenure (Requirement)
+///   step 4              — Document Upload
+///   step 5              — Review & Submit (Preview)
 ///
 /// Toolbar: single glass-circle back button (top-left) that always returns
 /// to SelectLoanTypeView by dismissing the entire flow.
@@ -16,9 +16,9 @@ struct LoanApplicationFlowView: View {
     @Environment(\.dismiss) private var dismiss
 
     let initialLoanType: LoanType?
+    @Binding var path: NavigationPath
 
     @State private var step = 1
-    @State private var showProductDetail = false
     @State private var loanProducts: [LoanProduct] = []
     @State private var selectedProduct: LoanProduct?
     @State private var isLoadingProducts = true
@@ -37,8 +37,9 @@ struct LoanApplicationFlowView: View {
     @State private var showKYCSheet = false
     @State private var isCheckingKYC = false
 
-    init(initialLoanType: LoanType? = nil) {
+    init(initialLoanType: LoanType? = nil, path: Binding<NavigationPath> = .constant(NavigationPath())) {
         self.initialLoanType = initialLoanType
+        self._path = path
     }
 
     // MARK: - Body
@@ -54,8 +55,6 @@ struct LoanApplicationFlowView: View {
 
             if applicationSuccess {
                 successState
-            } else if showProductDetail, let product = selectedProduct {
-                productDetailScreen(product: product)
             } else {
                 wizardContent
             }
@@ -70,8 +69,8 @@ struct LoanApplicationFlowView: View {
             ToolbarItem(placement: .topBarLeading) {
                 if !applicationSuccess {
                     GlassBackButton { 
-                        if showProductDetail {
-                            withAnimation { showProductDetail = false }
+                        if step > 1 {
+                            withAnimation { step -= 1 }
                         } else {
                             dismiss()
                         }
@@ -143,12 +142,12 @@ struct LoanApplicationFlowView: View {
 
     private var navigationTitle: String {
         if applicationSuccess      { return "Application Submitted" }
-        if showProductDetail       { return selectedProduct?.name ?? "Product Details" }
         switch step {
         case 1:  return "Select Product"
-        case 2:  return "Loan Details"
-        case 3:  return "Documents"
-        case 4:  return "Review & Submit"
+        case 2:  return selectedProduct?.name ?? "Product Details"
+        case 3:  return "Loan Details"
+        case 4:  return "Documents"
+        case 5:  return "Review & Submit"
         default: return "Apply for Loan"
         }
     }
@@ -157,12 +156,10 @@ struct LoanApplicationFlowView: View {
 
     private var wizardContent: some View {
         VStack(spacing: 0) {
-            if step > 1 {
-                VStack(spacing: 8) { stepIndicator; stepLabels }
-                    .padding(.vertical, 16)
-                    .liquidGlass(cornerRadius: 0)
-                    .shadow(color: .black.opacity(0.02), radius: 6, x: 0, y: 3)
-            }
+            VStack(spacing: 8) { stepIndicator; stepLabels }
+                .padding(.vertical, 16)
+                .liquidGlass(cornerRadius: 0)
+                .shadow(color: .black.opacity(0.02), radius: 6, x: 0, y: 3)
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -178,12 +175,16 @@ struct LoanApplicationFlowView: View {
                                 selectedProduct = product
                                 amount = product.minAmount
                                 tenureMonths = Double(product.minTenureMonths)
-                                withAnimation { showProductDetail = true }
+                                withAnimation { step = 2 }
                             }
                         )
                     } else if step == 2 {
-                        AmountTenureStep(product: selectedProduct!, amount: $amount, tenureMonths: $tenureMonths)
+                        if let product = selectedProduct {
+                            productDetailScreen(product: product)
+                        }
                     } else if step == 3 {
+                        AmountTenureStep(product: selectedProduct!, amount: $amount, tenureMonths: $tenureMonths)
+                    } else if step == 4 {
                         DocumentUploadStep(product: selectedProduct!, documents: $applicationDocuments)
                     } else {
                         ReviewSubmitStep(product: selectedProduct!, amount: amount, tenure: Int(tenureMonths))
@@ -193,7 +194,7 @@ struct LoanApplicationFlowView: View {
                 .padding(.bottom, 20)
             }
 
-            if step == 4 {
+            if step == 5 {
                 HStack(alignment: .top, spacing: 10) {
                     Button { agreedToTerms.toggle() } label: {
                         Image(systemName: agreedToTerms ? "checkmark.square.fill" : "square")
@@ -214,158 +215,110 @@ struct LoanApplicationFlowView: View {
         }
     }
 
-    // MARK: - Product detail screen (all data from backend — zero hardcoding)
+    // MARK: - Product detail screen
 
-    @ViewBuilder
     private func productDetailScreen(product: LoanProduct) -> some View {
-        VStack(spacing: 0) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 24) {
 
-                    // Hero
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(hex: "#89DBA6").opacity(0.18))
-                                    .frame(width: 52, height: 52)
-                                Image(systemName: product.type.icon)
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
-                            }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(product.name)
-                                    .font(.title3.weight(.bold)).fontDesign(.rounded)
-                                    .foregroundColor(.textPrimary)
-                                Text(product.type.displayName)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundColor(.textSecondary)
-                            }
-                        }
-                        if let desc = product.description, !desc.isEmpty {
-                            Text(desc)
-                                .font(.subheadline)
-                                .foregroundColor(.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+            // Hero
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#89DBA6").opacity(0.18))
+                            .frame(width: 52, height: 52)
+                        Image(systemName: product.type.icon)
+                            .font(.title3.weight(.semibold))
+                            .foregroundColor(Color(hex: "#2D8B4E"))
                     }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .liquidGlass(cornerRadius: 20)
-                    .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
-
-                    // Interest & Rates — fully backend-driven
-                    detailSection(title: "Interest & Rates") {
-                        detailRow(icon: "percent",                    label: "Interest Rate Range",   value: product.formattedRateRange)
-                        detailRow(icon: "arrow.up.arrow.down",        label: "Interest Types",         value: product.formattedInterestTypes)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(product.name)
+                            .font(.title3.weight(.bold)).fontDesign(.rounded)
+                            .foregroundColor(.textPrimary)
+                        Text(product.type.displayName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.textSecondary)
                     }
+                }
+                if let desc = product.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.subheadline)
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .liquidGlass(cornerRadius: 20)
+            .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
 
-                    // Amount & Tenure — fully backend-driven
-                    detailSection(title: "Loan Amount & Tenure") {
-                        detailRow(icon: "indianrupeesign.circle", label: "Amount Range",       value: product.formattedCompactAmountRange)
-                        detailRow(icon: "calendar",               label: "Tenure Range",       value: product.formattedTenureRange)
-                        detailRow(icon: "lock.shield",            label: "Requires Collateral", value: product.requiresCollateral ? "Yes" : "No")
-                    }
+            // Interest & Rates — fully backend-driven
+            detailSection(title: "Interest & Rates") {
+                detailRow(icon: "percent",                    label: "Interest Rate Range",   value: product.formattedRateRange)
+                detailRow(icon: "arrow.up.arrow.down",        label: "Interest Types",         value: product.formattedInterestTypes)
+            }
 
-                    // Fees & Penalties — fully backend-driven
-                    detailSection(title: "Fees & Penalties") {
-                        detailRow(icon: "creditcard",             label: "Processing Fee",       value: String(format: "%.2f%%", product.processingFeePct))
-                        detailRow(icon: "arrow.counterclockwise", label: "Prepayment Penalty",   value: String(format: "%.2f%%", product.prepaymentPenaltyPct))
-                        detailRow(icon: "exclamationmark.circle", label: "Late Penalty/Month",   value: String(format: "%.2f%%", product.latePenaltyPctPerMonth))
-                    }
+            // Amount & Tenure — fully backend-driven
+            detailSection(title: "Loan Amount & Tenure") {
+                detailRow(icon: "indianrupeesign.circle", label: "Amount Range",       value: product.formattedCompactAmountRange)
+                detailRow(icon: "calendar",               label: "Tenure Range",       value: product.formattedTenureRange)
+                detailRow(icon: "lock.shield",            label: "Requires Collateral", value: product.requiresCollateral ? "Yes" : "No")
+            }
 
-                    // Eligibility criteria — from backend JSON column, admin-editable
-                    if let criteria = product.eligibilityCriteria, !criteria.isEmpty {
-                        detailSection(title: "Eligibility Criteria") {
-                            ForEach(criteria.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                                let displayValue: String = {
-                                    if key.lowercased().contains("age") {
-                                        return "\(value) years"
-                                    } else if key.lowercased().contains("income") {
-                                        if let intValue = Int(value) {
-                                            let formatter = NumberFormatter()
-                                            formatter.numberStyle = .decimal
-                                            formatter.locale = Locale(identifier: "en_IN")
-                                            return "₹\(formatter.string(from: NSNumber(value: intValue)) ?? value)"
-                                        }
-                                        return "₹\(value)"
-                                    }
-                                    return value
-                                }()
-                                detailRow(
-                                    icon: "checkmark.seal",
-                                    label: key.replacingOccurrences(of: "_", with: " ").capitalized,
-                                    value: displayValue
-                                )
-                            }
-                        }
-                    }
+            // Fees & Penalties — fully backend-driven
+            detailSection(title: "Fees & Penalties") {
+                detailRow(icon: "creditcard",             label: "Processing Fee",       value: String(format: "%.2f%%", product.processingFeePct))
+                detailRow(icon: "arrow.counterclockwise", label: "Prepayment Penalty",   value: String(format: "%.2f%%", product.prepaymentPenaltyPct))
+                detailRow(icon: "exclamationmark.circle", label: "Late Penalty/Month",   value: String(format: "%.2f%%", product.latePenaltyPctPerMonth))
+            }
 
-                    // Required documents — from backend JSON column, admin-editable
-                    let docs = product.requiredDocumentTitles
-                    if !docs.isEmpty {
-                        detailSection(title: "Required Documents") {
-                            ForEach(docs, id: \.self) { doc in
-                                HStack(spacing: 10) {
-                                    Image(systemName: "doc.text")
-                                        .font(.subheadline)
-                                        .foregroundColor(Color(hex: "#2D8B4E"))
-                                        .frame(width: 24)
-                                    Text(doc)
-                                        .font(.subheadline)
-                                        .foregroundColor(.textPrimary)
-                                    Spacer()
+            // Eligibility criteria — from backend JSON column, admin-editable
+            if let criteria = product.eligibilityCriteria, !criteria.isEmpty {
+                detailSection(title: "Eligibility Criteria") {
+                    ForEach(criteria.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                        let displayValue: String = {
+                            if key.lowercased().contains("age") {
+                                return "\(value) years"
+                            } else if key.lowercased().contains("income") {
+                                if let intValue = Int(value) {
+                                    let formatter = NumberFormatter()
+                                    formatter.numberStyle = .decimal
+                                    formatter.locale = Locale(identifier: "en_IN")
+                                    return "₹\(formatter.string(from: NSNumber(value: intValue)) ?? value)"
                                 }
-                                .padding(.vertical, 6)
-                                Divider().opacity(0.5)
+                                return "₹\(value)"
                             }
-                        }
+                            return value
+                        }()
+                        detailRow(
+                            icon: "checkmark.seal",
+                            label: key.replacingOccurrences(of: "_", with: " ").capitalized,
+                            value: displayValue
+                        )
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
             }
 
-            // NEXT button on product detail
-            Button {
-                guard !isCheckingKYC else { return }
-                Task {
-                    isCheckingKYC = true
-                    await fetchKYCStatus()
-                    isCheckingKYC = false
-                    if kycStatus.lowercased() != "verified" && kycStatus.lowercased() != "approved" {
-                        showKYCAlert = true
-                    } else {
-                        withAnimation { showProductDetail = false; step = 2 }
+            // Required documents — from backend JSON column, admin-editable
+            let docs = product.requiredDocumentTitles
+            if !docs.isEmpty {
+                detailSection(title: "Required Documents") {
+                    ForEach(docs, id: \.self) { doc in
+                        HStack(spacing: 10) {
+                            Image(systemName: "doc.text")
+                                .font(.subheadline)
+                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .frame(width: 24)
+                            Text(doc)
+                                .font(.subheadline)
+                                .foregroundColor(.textPrimary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        Divider().opacity(0.5)
                     }
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    if isCheckingKYC {
-                        ProgressView().tint(.white)
-                        Text("CHECKING...")
-                            .font(.body.weight(.bold))
-                            .tracking(1.5)
-                    } else {
-                        Text("NEXT")
-                            .font(.body.weight(.bold))
-                            .tracking(1.5)
-                        Image(systemName: "arrow.right")
-                            .font(.subheadline.weight(.bold))
-                    }
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(Color(hex: "#1A1A1A"))
-                .clipShape(Capsule())
             }
-            .disabled(isCheckingKYC)
-            .buttonStyle(.plain)
-            .padding(.horizontal, 24)
-            .padding(.top, 14)
-            .padding(.bottom, 18)
         }
     }
 
@@ -444,32 +397,48 @@ struct LoanApplicationFlowView: View {
                     let isDisabled: Bool = {
                         if step == 1 {
                             return selectedProduct == nil
-                        } else if step == 3 {
+                        } else if step == 2 {
+                            return false
+                        } else if step == 4 {
                             if let product = selectedProduct {
                                 return !product.requiredDocumentTitles.allSatisfy { applicationDocuments[$0] != nil }
                             }
                             return true
-                        } else if step == 4 {
+                        } else if step == 5 {
                             return !agreedToTerms
                         }
                         return false
                     }()
                     Button {
-                        if step == 1 {
-                            withAnimation { showProductDetail = true }
-                        } else if step < 4 {
+                        if step == 2 {
+                            guard !isCheckingKYC else { return }
+                            Task {
+                                isCheckingKYC = true
+                                await fetchKYCStatus()
+                                isCheckingKYC = false
+                                if kycStatus.lowercased() != "verified" && kycStatus.lowercased() != "approved" {
+                                    showKYCAlert = true
+                                } else {
+                                    withAnimation { step = 3 }
+                                }
+                            }
+                        } else if step < 5 {
                             withAnimation { step += 1 }
                         } else {
                             submitApplication()
                         }
                     } label: {
                         HStack(spacing: 8) {
-                            Text(step == 4 ? "SUBMIT" : "NEXT")
-                                .font(.body.weight(.bold))
-                                .tracking(1.5)
-                            Image(systemName: step == 4 ? "checkmark" : "arrow.right")
-                                .font(.subheadline.weight(.bold))
+                            if isCheckingKYC {
+                                ProgressView().tint(.white)
+                                Text("CHECKING...")
+                            } else {
+                                Text(step == 5 ? "SUBMIT" : "NEXT")
+                                Image(systemName: step == 5 ? "checkmark" : "arrow.right")
+                            }
                         }
+                        .font(.body.weight(.bold))
+                        .tracking(1.5)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -490,9 +459,9 @@ struct LoanApplicationFlowView: View {
 
     private var stepIndicator: some View {
         HStack(spacing: 0) {
-            ForEach(1...4, id: \.self) { index in
-                let isCompleted = (index < step) || (index == 1 && step == 1 && showProductDetail)
-                let isActive = (index == step) && !(step == 1 && showProductDetail)
+            ForEach(1...5, id: \.self) { index in
+                let isCompleted = index < step
+                let isActive = index == step
                 let isFilled = isCompleted || isActive
 
                 ZStack {
@@ -506,20 +475,11 @@ struct LoanApplicationFlowView: View {
                         Circle().fill(Color.white).frame(width: 8, height: 8)
                     }
                 }
-                if index < 4 {
-                    let fillRatio: CGFloat = {
-                        if index < step { return 1.0 }
-                        if index == 1 && step == 1 && showProductDetail { return 0.5 }
-                        return 0.0
-                    }()
+                if index < 5 {
+                    let fillRatio: CGFloat = index < step ? 1.0 : 0.0
                     
                     if fillRatio == 1.0 {
                         Rectangle().fill(Color.accentGreen).frame(height: 2).frame(maxWidth: .infinity)
-                    } else if fillRatio == 0.5 {
-                        HStack(spacing: 0) {
-                            Rectangle().fill(Color.accentGreen).frame(height: 2).frame(maxWidth: .infinity)
-                            Rectangle().fill(Color.border).frame(height: 2).frame(maxWidth: .infinity)
-                        }
                     } else {
                         Rectangle().fill(Color.border).frame(height: 2).frame(maxWidth: .infinity)
                     }
@@ -533,8 +493,9 @@ struct LoanApplicationFlowView: View {
         HStack {
             stepLabel(text: "Product", isActive: step >= 1); Spacer()
             stepLabel(text: "Details", isActive: step >= 2); Spacer()
-            stepLabel(text: "Docs",    isActive: step >= 3); Spacer()
-            stepLabel(text: "Review",  isActive: step >= 4)
+            stepLabel(text: "Request", isActive: step >= 3); Spacer()
+            stepLabel(text: "Docs",    isActive: step >= 4); Spacer()
+            stepLabel(text: "Preview",  isActive: step >= 5)
         }
         .padding(.horizontal, 16)
     }
@@ -572,8 +533,7 @@ struct LoanApplicationFlowView: View {
                 }
             }
             PillButton(title: "Back to Dashboard", style: .primary) {
-                NotificationCenter.default.post(name: NSNotification.Name("PopToDashboard"), object: nil)
-                dismiss()
+                path = NavigationPath()
             }
                 .frame(width: 240)
         }
