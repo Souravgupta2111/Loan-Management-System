@@ -10,13 +10,19 @@ import SwiftUI
 struct AccessibleStatusBadge: View {
     let status: String
     @StateObject private var a11yManager = AppAccessibilityManager.shared
-    
+
     // Dynamic Type Support
     @Environment(\.sizeCategory) var sizeCategory
-    
+    // Honor the system "Differentiate Without Color" setting too, not just the in-app toggle.
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
+    private var showsShape: Bool {
+        differentiateWithoutColor || a11yManager.isHighContrastEnabled
+    }
+
     var body: some View {
         HStack(spacing: 4) {
-            if a11yManager.isHighContrastEnabled {
+            if showsShape {
                 Image(systemName: iconName(for: status))
                     .font(.caption.weight(.bold))
             } else {

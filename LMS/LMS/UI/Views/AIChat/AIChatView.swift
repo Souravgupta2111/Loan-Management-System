@@ -9,9 +9,9 @@ import SwiftUI
 
 struct AIChatView: View {
     @StateObject private var viewModel = AIChatViewModel()
+    @StateObject private var speechService = SpeechService()
     @Environment(\.dismiss) var dismiss
     @Environment(\.sizeCategory) var sizeCategory
-    @State private var showFinancialHealthCard = true
     
     // Quick questions tailored for Borrower
     private let quickActions = [
@@ -29,8 +29,7 @@ struct AIChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            // Top Financial Health Card removed by request
-                                
+                            
                             if let error = viewModel.errorMessage {
                                 Text(error)
                                     .font(.footnote)
@@ -42,8 +41,14 @@ struct AIChatView: View {
                             }
                             
                             ForEach(viewModel.messages) { message in
-                                ChatBubbleView(message: message)
-                                    .id(message.id)
+                                ChatBubbleView(message: message, onSpeakTapped: {
+                                    if speechService.isSpeaking {
+                                        speechService.stopSpeaking()
+                                    } else {
+                                        speechService.speak(message.content)
+                                    }
+                                })
+                                .id(message.id)
                             }
                             
                             if viewModel.isTyping {
@@ -99,16 +104,52 @@ struct AIChatView: View {
                     .padding(.vertical, 8)
                 }
                 
-                // Input Area
+                // Voice Recording Indicator (Tiny text above input)
+                if speechService.isListening {
+                    Text(speechService.transcribedText.isEmpty ? "Listening... (Tap mic to stop)" : speechService.transcribedText)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 2)
+                        .lineLimit(1)
+                        .transition(.opacity)
+                }
+                
                 // Input Area
                 VStack(spacing: 0) {
-                    HStack(alignment: .bottom, spacing: 12) {
+                    HStack(alignment: .bottom, spacing: 8) {
+                        // Mic Button (Tap to toggle)
+                        Button {
+                            HapticManager.shared.impact(style: .medium)
+                            if speechService.isListening {
+                                let text = speechService.transcribedText
+                                speechService.stopListening()
+                                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    viewModel.sendMessage(text)
+                                }
+                            } else {
+                                speechService.transcribedText = ""
+                                speechService.startListening()
+                            }
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(speechService.isListening ? Color.red.opacity(0.15) : Color(hex: "#F5F6F5"))
+                                    .frame(width: 44, height: 44) // Match Send button dimension
+                                
+                                Image(systemName: speechService.isListening ? "stop.fill" : "mic")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(speechService.isListening ? .red : Color(hex: "#2D8B4E"))
+                            }
+                        }
+                        .accessibilityLabel(speechService.isListening ? "Stop recording" : "Start recording voice")
+                        
                         TextField("Type a message...", text: $viewModel.currentInput, axis: .vertical)
                             .lineLimit(1...5)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
-                            .background(Color(hex: "#F5F6F5"))
-                            .cornerRadius(22)
+                            .background(Color.clear) // Clear to blend with capsule
                             .onSubmit {
                                 viewModel.sendMessage()
                             }
@@ -133,19 +174,18 @@ struct AIChatView: View {
                         .disabled(viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .opacity(viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1.0)
                         .accessibilityLabel("Send message")
-                        .accessibilityHint(viewModel.currentInput.isEmpty ? "Type a message first" : "Double tap to send your message")
                     }
-                    .padding(8)
+                    .padding(4) // tighter padding so buttons fit inside the capsule nicely
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.4))
+                            .fill(Color.white.opacity(0.8))
                     )
                     .overlay(
                         Capsule()
                             .stroke(Color.white, lineWidth: 1.5)
                     )
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 8)
                 }
                 .background(Color(hex: "#E7EFE5"))
             }
@@ -163,12 +203,15 @@ struct AIChatView: View {
                     }
                     .accessibilityLabel("Close AI Chat")
                 }
-                
-
             }
+            .animation(.easeInOut(duration: 0.2), value: speechService.isListening)
         }
         .task {
             await viewModel.startNewConversationIfNeeded()
+        }
+        .onDisappear {
+            speechService.stopListening()
+            speechService.stopSpeaking()
         }
     }
 }
