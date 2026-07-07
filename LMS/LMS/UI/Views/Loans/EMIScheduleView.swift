@@ -84,6 +84,13 @@ struct EMIScheduleView: View {
                 }
             }
             .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    GlassBackButton {
+                        dismiss()
+                    }
+                }
+            }
             .navigationTitle("EMI Schedule")
             .navigationBarTitleDisplayMode(.large)
             .task {

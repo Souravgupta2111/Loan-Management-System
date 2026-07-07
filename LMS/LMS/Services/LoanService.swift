@@ -522,25 +522,12 @@ class LoanService {
     }
     
     func rejectDisbursement(applicationId: UUID) async throws {
-        // Delete related approval_history, documents, and messages to satisfy foreign key constraints
-        try? await SupabaseManager.shared.client.from("approval_history")
-            .delete()
-            .eq("application_id", value: applicationId)
-            .execute()
-        
-        try? await SupabaseManager.shared.client.from("documents")
-            .delete()
-            .eq("application_id", value: applicationId)
-            .execute()
-            
-        try? await SupabaseManager.shared.client.from("messages")
-            .delete()
-            .eq("application_id", value: applicationId)
-            .execute()
-
         try await SupabaseManager.shared.client
             .from("loan_applications")
-            .delete()
+            .update([
+                "status": "rejected",
+                "rejection_reason": "Disbursement terms rejected by borrower."
+            ])
             .eq("id", value: applicationId)
             .execute()
     }
