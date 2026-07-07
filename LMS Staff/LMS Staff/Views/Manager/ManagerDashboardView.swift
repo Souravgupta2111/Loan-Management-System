@@ -70,13 +70,10 @@ struct ManagerDashboardView: View {
                         .padding(.horizontal, StaffSpacing.lg)
                         .padding(.top, StaffSpacing.lg)
                     
-                    // KPI + Charts Section
+                    // KPI Section
                     VStack(spacing: StaffSpacing.sm) {
                         // KPI summary widgets
                         kpiCardsSection
-                        
-                        // Inline Charts
-                        chartsSection
                     }
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.sm)
@@ -252,46 +249,6 @@ struct ManagerDashboardView: View {
         }
     }
     
-    
-    // MARK: - Inline Charts
-    
-    private var chartsSection: some View {
-        VStack(spacing: StaffSpacing.sm) {
-            // Collection Efficiency Sparkline
-            if !vm.collectionTrends.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Collection Efficiency Trend")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(.staffTextSecondary)
-                    
-                    Chart(vm.collectionTrends) { item in
-                        LineMark(
-                            x: .value("Month", item.month),
-                            y: .value("Eff", item.efficiency)
-                        )
-                        .foregroundStyle(Color.staffGreen)
-                        .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 2))
-                        
-                        AreaMark(
-                            x: .value("Month", item.month),
-                            y: .value("Eff", item.efficiency)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(colors: [Color.staffGreen.opacity(0.3), Color.staffGreen.opacity(0.02)], startPoint: .top, endPoint: .bottom)
-                        )
-                    }
-                    .frame(height: 60)
-                    .chartYScale(domain: 0...100)
-                    .chartXAxis(.hidden)
-                    .chartYAxis(.hidden)
-                }
-                .padding(10)
-                .background(Color.staffSurface)
-                .cornerRadius(StaffCorner.md)
-            }
-        }
-    }
     
     private func colorForStatus(_ status: String) -> Color {
         switch status.lowercased() {

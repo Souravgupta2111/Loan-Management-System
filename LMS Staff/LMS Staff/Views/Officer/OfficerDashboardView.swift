@@ -197,6 +197,8 @@ struct MiniStatCard: View {
                 .font(.staffBody)
                 .fontWeight(.bold)
                 .foregroundColor(.staffTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
         .padding(StaffSpacing.lg)
         .frame(maxWidth: .infinity, minHeight: 85)

@@ -21,6 +21,7 @@ class PDFReportGenerator {
         dashboardVM: ManagerDashboardViewModel,
         productVolumeBreakdown: [(product: String, amount: Double)],
         selectedPeriod: String,
+        selectedRepaymentPeriod: String,
         startDate: Date,
         endDate: Date,
         branchName: String = "HQ - Consolidated Summary"
@@ -75,7 +76,63 @@ class PDFReportGenerator {
             currentY += 30
             
             // Render specific charts based on report type
-            if reportType == "Portfolio Summary" {
+            if reportType == "Consolidated Report" {
+                currentY = drawChartWithDescription(
+                    title: "Portfolio Status Mix & Product Volume",
+                    description: "This section illustrates the distribution of loans across various states (e.g., Active, NPA, Closed) and the volume of loans disbursed per loan product category.",
+                    view: AnyView(
+                        PortfolioSummaryCharts(dashboardVM: dashboardVM, productVolumeBreakdown: productVolumeBreakdown)
+                            .frame(width: 500)
+                            .padding()
+                            .background(Color.white)
+                    ),
+                    currentY: currentY,
+                    pageRect: pageRect,
+                    context: context
+                )
+                
+                currentY = drawChartWithDescription(
+                    title: "Disbursement Trend (\(selectedPeriod.capitalized))",
+                    description: "This chart shows the historical disbursement volume grouped by the selected time period, indicating overall growth and seasonal spikes in loan origination.",
+                    view: AnyView(
+                        DisbursementTrendChart(dashboardVM: dashboardVM, selectedPeriod: .constant(selectedPeriod))
+                            .frame(width: 500)
+                            .padding()
+                            .background(Color.white)
+                    ),
+                    currentY: currentY,
+                    pageRect: pageRect,
+                    context: context
+                )
+                
+                currentY = drawChartWithDescription(
+                    title: "Repayment Trend (\(selectedRepaymentPeriod.capitalized))",
+                    description: "This chart shows the historical repayment volume (INR) collected from EMI collections, indicating the cash recovery rate across the selected period.",
+                    view: AnyView(
+                        RepaymentTrendChart(dashboardVM: dashboardVM, selectedPeriod: .constant(selectedRepaymentPeriod))
+                            .frame(width: 500)
+                            .padding()
+                            .background(Color.white)
+                    ),
+                    currentY: currentY,
+                    pageRect: pageRect,
+                    context: context
+                )
+                
+                currentY = drawChartWithDescription(
+                    title: "NPA Aging Buckets",
+                    description: "This chart breaks down the Non-Performing Assets (NPA) into aging buckets (30-60 days, 60-90 days, etc.), highlighting the severity of overdue accounts.",
+                    view: AnyView(
+                        NPAReportChart(dashboardVM: dashboardVM)
+                            .frame(width: 500)
+                            .padding()
+                            .background(Color.white)
+                    ),
+                    currentY: currentY,
+                    pageRect: pageRect,
+                    context: context
+                )
+            } else if reportType == "Portfolio Summary" {
                 currentY = drawChartWithDescription(
                     title: "Portfolio Status Mix & Product Volume",
                     description: "This section illustrates the distribution of loans across various states (e.g., Active, NPA, Closed) and the volume of loans disbursed per loan product category.",
@@ -105,10 +162,10 @@ class PDFReportGenerator {
                 )
             } else if reportType == "Repayment Trend" {
                 currentY = drawChartWithDescription(
-                    title: "Collection Efficiency Trend",
-                    description: "This graph plots the monthly collection efficiency percentage, tracking the branch's performance in recovering scheduled EMI payments on time.",
+                    title: "Repayment Trend (\(selectedRepaymentPeriod.capitalized))",
+                    description: "This chart shows the historical repayment volume (INR) collected from EMI collections, indicating the cash recovery rate across the selected period.",
                     view: AnyView(
-                        RepaymentTrendChart(dashboardVM: dashboardVM)
+                        RepaymentTrendChart(dashboardVM: dashboardVM, selectedPeriod: .constant(selectedRepaymentPeriod))
                             .frame(width: 500)
                             .padding()
                             .background(Color.white)

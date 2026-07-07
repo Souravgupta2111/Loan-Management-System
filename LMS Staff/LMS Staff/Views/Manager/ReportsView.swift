@@ -23,17 +23,18 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct ReportsView: View {
     @StateObject private var dashboardVM = ManagerDashboardViewModel()
     
-    @State private var selectedReportType: String = "Portfolio Summary"
+    @State private var selectedReportType: String = "Consolidated Report"
     @State private var startDate = Date().addingTimeInterval(-2592000) // 30 days ago
     @State private var endDate = Date()
-    @State private var isGenerating: Bool = false
-    
-    // Sharing state
+    @State private var isExportingCSV: Bool = false
+    @State private var isExportingPDF: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var shareURL: URL? = nil
     
-    let reportTypes = ["Portfolio Summary", "Disbursement Trend", "Repayment Trend", "NPA Report"]
+    let reportTypes = ["Consolidated Report", "Portfolio Summary", "Disbursement Trend", "Repayment Trend", "NPA Report"]
     @State private var selectedDisbursementPeriod: String = "monthly"
+    @State private var selectedRepaymentPeriod: String = "monthly"
+
 
     
     var productVolumeBreakdown: [(product: String, amount: Double)] {
@@ -77,18 +78,42 @@ struct ReportsView: View {
                                     .fontWeight(.bold)
                                     .foregroundColor(.staffTextPrimary)
                                 
-                                switch selectedReportType {
-                                case "Portfolio Summary":
-                                    PortfolioSummaryCharts(dashboardVM: dashboardVM, productVolumeBreakdown: productVolumeBreakdown)
-                                case "Disbursement Trend":
-                                    DisbursementTrendChart(dashboardVM: dashboardVM, selectedPeriod: $selectedDisbursementPeriod)
-                                case "Repayment Trend":
-                                    RepaymentTrendChart(dashboardVM: dashboardVM)
-                                case "NPA Report":
-                                    NPAReportChart(dashboardVM: dashboardVM)
-                                default:
-                                    EmptyView()
-                                }
+                                // 1. Portfolio Summary Section
+                                Text("Portfolio Summary")
+                                    .font(.staffTitle)
+                                    .foregroundColor(.staffTextPrimary)
+                                    .padding(.top, StaffSpacing.xs)
+                                PortfolioSummaryCharts(dashboardVM: dashboardVM, productVolumeBreakdown: productVolumeBreakdown)
+                                
+                                Divider()
+                                    .background(Color.staffBorder)
+                                    .padding(.vertical, StaffSpacing.xs)
+                                
+                                // 2. Disbursement Trend Section
+                                Text("Disbursement Trend")
+                                    .font(.staffTitle)
+                                    .foregroundColor(.staffTextPrimary)
+                                DisbursementTrendChart(dashboardVM: dashboardVM, selectedPeriod: $selectedDisbursementPeriod)
+                                
+                                Divider()
+                                    .background(Color.staffBorder)
+                                    .padding(.vertical, StaffSpacing.xs)
+                                
+                                // 3. Repayment Trend Section
+                                Text("Repayment Trend")
+                                    .font(.staffTitle)
+                                    .foregroundColor(.staffTextPrimary)
+                                RepaymentTrendChart(dashboardVM: dashboardVM, selectedPeriod: $selectedRepaymentPeriod)
+                                
+                                Divider()
+                                    .background(Color.staffBorder)
+                                    .padding(.vertical, StaffSpacing.xs)
+                                
+                                // 4. NPA Report Section
+                                Text("NPA Report")
+                                    .font(.staffTitle)
+                                    .foregroundColor(.staffTextPrimary)
+                                NPAReportChart(dashboardVM: dashboardVM)
                             }
                             .frame(width: geo.size.width * 0.58)
                             
@@ -111,19 +136,22 @@ struct ReportsView: View {
                                         Text("Report Type")
                                             .font(.staffCaption)
                                             .foregroundColor(.staffTextSecondary)
-                                        Picker("Report Type", selection: $selectedReportType) {
-                                            ForEach(reportTypes, id: \.self) { type in
-                                                Text(type)
+                                        
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: StaffSpacing.xs) {
+                                                ForEach(reportTypes, id: \.self) { type in
+                                                    ReportFilterChip(title: type, isSelected: selectedReportType == type) {
+                                                        selectedReportType = type
+                                                    }
+                                                }
                                             }
+                                            .padding(.vertical, 4)
                                         }
-                                        .pickerStyle(SegmentedPickerStyle())
                                         
                                         // Date Range Picker
                                         VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                                            DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
-                                                .foregroundColor(.staffTextPrimary)
-                                            DatePicker("End Date", selection: $endDate, displayedComponents: .date)
-                                                .foregroundColor(.staffTextPrimary)
+                                            BeautifulDateSelector(label: "Start Date", selection: $startDate)
+                                            BeautifulDateSelector(label: "End Date", selection: $endDate)
                                         }
                                         .padding(.top, StaffSpacing.md)
                                     }
@@ -151,7 +179,7 @@ struct ReportsView: View {
                                         title: "Compile & Export CSV",
                                         style: .primary,
                                         icon: "tablecells",
-                                        isLoading: isGenerating
+                                        isLoading: isExportingCSV
                                     ) {
                                         Task {
                                             await compileAndExportReport(format: "CSV")
@@ -162,7 +190,7 @@ struct ReportsView: View {
                                         title: "Compile & Export PDF",
                                         style: .primary,
                                         icon: "doc.text.fill",
-                                        isLoading: isGenerating
+                                        isLoading: isExportingPDF
                                     ) {
                                         Task {
                                             await compileAndExportReport(format: "PDF")
@@ -193,7 +221,11 @@ struct ReportsView: View {
     // MARK: - Actions
     
     private func compileAndExportReport(format: String) async {
-        isGenerating = true
+        if format == "CSV" {
+            isExportingCSV = true
+        } else {
+            isExportingPDF = true
+        }
         
         // Simulate background report compile processing
         try? await Task.sleep(nanoseconds: 1_500_000_000)
@@ -216,6 +248,7 @@ struct ReportsView: View {
                     dashboardVM: dashboardVM,
                     productVolumeBreakdown: productVolumeBreakdown,
                     selectedPeriod: selectedDisbursementPeriod,
+                    selectedRepaymentPeriod: selectedRepaymentPeriod,
                     startDate: startDate,
                     endDate: endDate
                 )
@@ -230,7 +263,11 @@ struct ReportsView: View {
             print("Error compiling report: \(error)")
         }
         
-        isGenerating = false
+        if format == "CSV" {
+            isExportingCSV = false
+        } else {
+            isExportingPDF = false
+        }
     }
     
     private func formatSpanDate(_ date: Date) -> String {
@@ -443,43 +480,58 @@ struct DisbursementTrendChart: View {
 
 struct RepaymentTrendChart: View {
     @ObservedObject var dashboardVM: ManagerDashboardViewModel
+    @Binding var selectedPeriod: String
+    
+    let periods = ["daily", "weekly", "monthly", "yearly"]
     
     var body: some View {
-        if !dashboardVM.collectionTrends.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Collection Efficiency Trend (%)")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(.staffTextSecondary)
-                
-                Chart(dashboardVM.collectionTrends) { item in
-                    LineMark(
-                        x: .value("Month", item.month),
-                        y: .value("Efficiency", item.efficiency)
-                    )
-                    .foregroundStyle(Color.staffGreen)
-                    .interpolationMethod(.catmullRom)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
-                    
-                    AreaMark(
-                        x: .value("Month", item.month),
-                        y: .value("Efficiency", item.efficiency)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(colors: [Color.staffGreen.opacity(0.3), Color.staffGreen.opacity(0.01)], startPoint: .top, endPoint: .bottom)
-                    )
+        VStack(alignment: .leading, spacing: StaffSpacing.md) {
+            Picker("Period", selection: $selectedPeriod) {
+                ForEach(periods, id: \.self) { period in
+                    Text(period.capitalized)
                 }
-                .frame(height: 250)
-                .chartYScale(domain: 0...100)
             }
-            .padding(StaffSpacing.md)
-            .background(Color.staffSurface)
-            .cornerRadius(StaffCorner.md)
-            .overlay(
-                RoundedRectangle(cornerRadius: StaffCorner.md)
-                    .stroke(Color.staffBorder, lineWidth: 1)
-            )
-        } else {
-            EmptyView()
+            .pickerStyle(SegmentedPickerStyle())
+            
+            let data = dashboardVM.repaymentTrends[selectedPeriod] ?? []
+            
+            if !data.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Repayment Volume (INR) - \(selectedPeriod.capitalized)")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.staffTextSecondary)
+                    
+                    Chart(data, id: \.period) { item in
+                        BarMark(
+                            x: .value("Period", item.period),
+                            y: .value("Amount", item.amount)
+                        )
+                        .foregroundStyle(Color.staffGreen)
+                    }
+                    .frame(height: 250)
+                    .chartYAxis {
+                        AxisMarks { value in
+                            AxisValueLabel {
+                                if let amount = value.as(Double.self) {
+                                    Text(ReportsView.formatAmount(amount))
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(StaffSpacing.md)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(Color.staffBorder, lineWidth: 1)
+                )
+            } else {
+                Text("No repayment data available for this period.")
+                    .font(.caption)
+                    .foregroundColor(.staffTextSecondary)
+                    .padding()
+            }
         }
     }
 }
@@ -559,6 +611,75 @@ extension ReportsView {
             return String(format: "%.0fK", amount / 1_000)
         }
         return String(format: "%.0f", amount)
+    }
+}
+
+// MARK: - ReportFilterChip View
+struct ReportFilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.staffCaption)
+                .fontWeight(.bold)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.staffAccent : Color.staffSurfaceMuted)
+                .foregroundColor(isSelected ? .white : .staffTextSecondary)
+                .cornerRadius(StaffCorner.sm)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.sm)
+                        .stroke(isSelected ? Color.staffAccent : Color.staffBorder, lineWidth: 1)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - BeautifulDateSelector View
+struct BeautifulDateSelector: View {
+    let label: String
+    @Binding var selection: Date
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.staffBody)
+                .foregroundColor(.staffTextSecondary)
+            
+            Spacer()
+            
+            ZStack(alignment: .trailing) {
+                // The visible formatted text
+                Text(formatDate(selection))
+                    .font(.staffBody)
+                    .foregroundColor(.staffTextPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.staffSurfaceMuted)
+                    .cornerRadius(StaffCorner.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StaffCorner.sm)
+                            .stroke(Color.staffBorder, lineWidth: 1)
+                    )
+                
+                // The transparent clickable date picker
+                DatePicker("", selection: $selection, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .opacity(0.015) // Almost invisible but catches taps
+                    .blendMode(.destinationOver) // Ensures picker doesn't block the visual style but still acts as the tap target
+            }
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM yyyy"
+        return formatter.string(from: date)
     }
 }
 

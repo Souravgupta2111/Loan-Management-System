@@ -40,6 +40,9 @@ class ManagerDashboardViewModel: ObservableObject {
     @Published var disbursementTrends: [String: [(period: String, amount: Double)]] = [
         "daily": [], "weekly": [], "monthly": [], "yearly": []
     ]
+    @Published var repaymentTrends: [String: [(period: String, amount: Double)]] = [
+        "daily": [], "weekly": [], "monthly": [], "yearly": []
+    ]
 
     
     @Published var availableOfficers: [StaffWithUser] = []
@@ -86,6 +89,16 @@ class ManagerDashboardViewModel: ObservableObject {
             let allApplications = try await appService.fetchAllApplications()
             computeApplicationStageBreakdown(allApplications)
             computeDisbursementTrends(allLoans)
+
+            // Fetch all confirmed payments
+            let payments: [Payment] = (try? await SupabaseManager.shared.client
+                .from("payments")
+                .select()
+                .eq("status", value: "confirmed")
+                .execute()
+                .value) ?? []
+            computeRepaymentTrends(payments)
+
 
             self.recommendedApplications = allApplications.filter { $0.application.status == .underReview }
             self.sentBackApplications = allApplications.filter { $0.application.status == .sentBack }
@@ -227,6 +240,55 @@ class ManagerDashboardViewModel: ObservableObject {
             .map { (period: yearFormatter.string(from: $0.key), amount: $0.value) }
             
         self.disbursementTrends = trends
+    }
+    
+    private func computeRepaymentTrends(_ payments: [Payment]) {
+        let cal = Calendar.current
+        
+        var daily: [Date: Double] = [:]
+        var weekly: [Date: Double] = [:]
+        var monthly: [Date: Double] = [:]
+        var yearly: [Date: Double] = [:]
+        
+        for payment in payments {
+            guard let date = payment.confirmedAt ?? payment.initiatedAt else { continue }
+            let amount = payment.amountPaid
+            
+            let startOfDay = cal.startOfDay(for: date)
+            let startOfWeek = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)) ?? startOfDay
+            let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: date)) ?? startOfDay
+            let startOfYear = cal.date(from: cal.dateComponents([.year], from: date)) ?? startOfDay
+            
+            daily[startOfDay, default: 0] += amount
+            weekly[startOfWeek, default: 0] += amount
+            monthly[startOfMonth, default: 0] += amount
+            yearly[startOfYear, default: 0] += amount
+        }
+        
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "MMM d"
+        let weekFormatter = DateFormatter()
+        weekFormatter.dateFormat = "MMM d, yyyy"
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMM yyyy"
+        let yearFormatter = DateFormatter()
+        yearFormatter.dateFormat = "yyyy"
+        
+        var trends: [String: [(period: String, amount: Double)]] = [:]
+        
+        trends["daily"] = daily.sorted { $0.key < $1.key }
+            .map { (period: dayFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["weekly"] = weekly.sorted { $0.key < $1.key }
+            .map { (period: "Week of " + weekFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["monthly"] = monthly.sorted { $0.key < $1.key }
+            .map { (period: monthFormatter.string(from: $0.key), amount: $0.value) }
+            
+        trends["yearly"] = yearly.sorted { $0.key < $1.key }
+            .map { (period: yearFormatter.string(from: $0.key), amount: $0.value) }
+            
+        self.repaymentTrends = trends
     }
     
     // MARK: - Message Timestamps
