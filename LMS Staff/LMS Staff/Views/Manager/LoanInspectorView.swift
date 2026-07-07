@@ -96,11 +96,12 @@ struct LoanInspectorView: View {
             HStack(spacing: 0) {
                 ForEach(visibleTabs, id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 0) {
                             Text(tab.rawValue)
                                 .font(.staffBody)
                                 .fontWeight(activeTab == tab ? .bold : .regular)
                                 .foregroundColor(activeTab == tab ? .staffAccent : .staffTextSecondary)
+                                .padding(.vertical, 12)
                             
                             // Indicator line
                             Rectangle()

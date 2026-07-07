@@ -35,8 +35,7 @@ struct ManagerDashboardView: View {
     // Search
     @State private var searchText: String = ""
     
-    // AI Analytics
-    @State private var showAIAnalytics: Bool = false
+
     
     var currentQueue: [ApplicationWithBorrower] {
         switch selectedSegment {
@@ -93,7 +92,8 @@ struct ManagerDashboardView: View {
                         }
                         .padding(.horizontal, StaffSpacing.lg)
                     }
-                    .padding(.vertical, StaffSpacing.sm)
+                    .padding(.top, StaffSpacing.lg)
+                    .padding(.bottom, StaffSpacing.md)
                     
                     // Search field
                     TextField("Search borrower or application...", text: $searchText)
@@ -204,33 +204,6 @@ struct ManagerDashboardView: View {
             .onAppear {
                 Task { await vm.loadDashboard() }
             }
-
-            .sheet(isPresented: $showAIAnalytics) {
-                NavigationStack {
-                    AIAnalyticsView()
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Close") { showAIAnalytics = false }
-                            }
-                        }
-                }
-            }
-            
-            // Floating AI Button
-            Button(action: { showAIAnalytics = true }) {
-                ZStack {
-                    Circle()
-                        .fill(Color.staffAccent)
-                        .frame(width: 56, height: 56)
-                        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
-                    Image(systemName: "sparkles")
-                        .font(.title2.weight(.semibold))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.trailing, 24)
-            .padding(.bottom, 24)
         }
     }
     

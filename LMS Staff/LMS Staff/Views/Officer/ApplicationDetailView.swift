@@ -39,8 +39,7 @@ struct ApplicationDetailView: View {
     @State private var mgrApprovedRate: Double = 10.0
     @State private var mgrRemarks: String = ""
     
-    // AI Copilot State
-    @State private var showCopilot: Bool = false
+
     
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
@@ -91,21 +90,7 @@ struct ApplicationDetailView: View {
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
                     
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            showCopilot.toggle()
-                        }
-                    }) {
-                        Image(systemName: showCopilot ? "mic.fill" : "mic")
-                            .font(.system(size: 20))
-                            .foregroundColor(showCopilot ? .white : .staffAccent)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(showCopilot ? Color.staffAccent : Color.staffAccent.opacity(0.1))
-                            )
-                    }
-                    .buttonStyle(.plain)
+
                 }
             }
             .padding(StaffSpacing.lg)
@@ -120,11 +105,12 @@ struct ApplicationDetailView: View {
                     return true
                 }, id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 0) {
                             Text(tab.rawValue)
                                 .font(.staffBody)
                                 .fontWeight(activeTab == tab ? .bold : .regular)
                                 .foregroundColor(activeTab == tab ? .staffAccent : .staffTextSecondary)
+                                .padding(.vertical, 12)
                             
                             // Indicator line
                             Rectangle()
@@ -171,26 +157,7 @@ struct ApplicationDetailView: View {
             }
             
             // AI Copilot Panel Overlay
-            if showCopilot {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring()) {
-                            showCopilot = false
-                        }
-                    }
-                    
-                AICopilotPanel(application: appWithBorrower) { text in
-                    self.remarks = text
-                    self.mgrRemarks = text
-                    withAnimation(.spring()) {
-                        showCopilot = false
-                    }
-                }
-                .frame(maxHeight: 500)
-                .transition(.move(edge: .bottom))
-                .zIndex(100)
-            }
+
         }
         }
         .task {
