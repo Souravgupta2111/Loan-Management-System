@@ -4,6 +4,7 @@ import UIKit
 /// Main Tab View — uses the native iOS tab bar with a translucent glass appearance.
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var intentRouter = IntentRouter.shared
     @State private var selectedTab: TabType = .home
 
     enum TabType: CaseIterable {
@@ -92,6 +93,27 @@ struct MainTabView: View {
             }
         .tint(.accentGreen)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        // Siri / Shortcuts intents drive navigation through IntentRouter.
+        .onReceive(intentRouter.$selectedTab) { routed in
+            switch routed {
+            case .home:     selectedTab = .home
+            case .loans:    selectedTab = .loans
+            case .schedule: selectedTab = .schedule
+            }
+        }
+        .fullScreenCover(isPresented: $intentRouter.showAIChat) {
+            AIChatView(prefilledQuestion: intentRouter.advisorPrefill)
+        }
+        .fullScreenCover(item: $intentRouter.paymentTarget) { target in
+            NavigationStack {
+                EMIScheduleView(loanId: target.loanId)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Close") { intentRouter.paymentTarget = nil }
+                        }
+                    }
+            }
+        }
         .onAppear {
             Task {
                 // Ask for notification permission (first launch) before subscribing,

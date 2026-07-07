@@ -34,6 +34,26 @@ struct ContentView: View {
                 }
         )
         .onOpenURL { url in
+            // Widget / Siri deep links (lmsstaffapp://...)
+            if url.scheme == "lmsstaffapp" {
+                switch url.host {
+                case "applications":
+                    StaffIntentRouter.shared.request(.applications); return
+                case "portfolio":
+                    StaffIntentRouter.shared.request(.portfolio); return
+                case "npa":
+                    StaffIntentRouter.shared.request(.npa); return
+                case "disbursements":
+                    StaffIntentRouter.shared.request(.disbursements); return
+                case "assistant", "chat":
+                    let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first(where: { $0.name == "q" })?.value
+                    StaffIntentRouter.shared.request(.aiChat, prefill: q); return
+                default:
+                    break
+                }
+            }
+
             Task {
                 do {
                     // 1. Let Supabase process the reset password URL and log the user in

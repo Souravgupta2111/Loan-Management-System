@@ -1,5 +1,7 @@
 import SwiftUI
 import Supabase
+import UIKit
+import ActivityKit
 
 struct EMIScheduleView: View {
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +13,7 @@ struct EMIScheduleView: View {
     @State private var emiList: [EMIDetail] = []
     @State private var isLoading = true
     @State private var activeRazorpayOrder: RazorpayOrder? = nil
+    @State private var paymentActivity: Activity<PaymentActivityAttributes>? = nil
     
     var body: some View {
         ZStack {
@@ -111,9 +114,11 @@ struct EMIScheduleView: View {
                         onFailure: { errorMsg in
                             activeRazorpayOrder = nil
                             paymentError = errorMsg
+                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment failed"); paymentActivity = nil }
                         },
                         onCancel: {
                             activeRazorpayOrder = nil
+                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment cancelled"); paymentActivity = nil }
                         }
                     )
                     .navigationBarBackButtonHidden(true)
@@ -138,6 +143,8 @@ struct EMIScheduleView: View {
         do {
             let order = try await PaymentService.shared.createOrder(emiId: emi.id, loanId: loanId)
             activeRazorpayOrder = order
+            // Start a Live Activity so the payment shows in the Dynamic Island / lock screen.
+            paymentActivity = PaymentLiveActivity.start(title: "EMI Payment", amount: emi.amount)
         } catch {
             paymentError = "Failed to initiate payment: \(error.localizedDescription)"
         }
@@ -161,9 +168,15 @@ struct EMIScheduleView: View {
                 .execute()
             
             paymentSuccess = true
+            // Proactively announce success for VoiceOver users.
+            UIAccessibility.post(notification: .announcement, argument: "Payment successful. Your EMI has been paid.")
+            await PaymentLiveActivity.confirm(paymentActivity)
+            paymentActivity = nil
             await fetchEMIs()
         } catch {
             paymentError = "Payment succeeded on Razorpay, but failed to record in system: \(error.localizedDescription)"
+            await PaymentLiveActivity.fail(paymentActivity, message: "Couldn't record payment")
+            paymentActivity = nil
         }
         
         isProcessingPayment = false
@@ -422,6 +435,11 @@ struct EMIRow: View {
                         .foregroundColor(.accentRed)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "EMI due \(emi.date). \(statusText). Principal ₹\(Int(emi.principal)), interest ₹\(Int(emi.interest))"
+                + (emi.penalty > 0 ? ", penalty ₹\(Int(emi.penalty))" : "")
+            )
             
             Spacer()
             
@@ -429,11 +447,13 @@ struct EMIRow: View {
                 Text("₹\(Int(emi.amount))")
                     .font(.cardTitle)
                     .foregroundColor(.textPrimary)
+                    .accessibilityLabel("Total amount ₹\(Int(emi.amount))")
                 
                 if emi.status != .paid {
                     if isProcessing {
                         ProgressView()
                             .tint(.accentGreen)
+                            .accessibilityLabel("Processing payment")
                     } else if showPayNow {
                         Button("PAY NOW") {
                             onPay()
@@ -444,6 +464,8 @@ struct EMIRow: View {
                         .background(Color.accentGreen)
                         .foregroundColor(.white)
                         .clipShape(Capsule())
+                        .accessibilityLabel("Pay now")
+                        .accessibilityHint("Pays the EMI of ₹\(Int(emi.amount)) due \(emi.date)")
                     }
                 }
             }

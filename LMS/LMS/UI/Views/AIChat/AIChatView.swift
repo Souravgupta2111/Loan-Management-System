@@ -12,6 +12,13 @@ struct AIChatView: View {
     @StateObject private var speechService = SpeechService()
     @Environment(\.dismiss) var dismiss
     @Environment(\.sizeCategory) var sizeCategory
+
+    /// An optional question to auto-send when the advisor opens (used by Siri).
+    let prefilledQuestion: String?
+
+    init(prefilledQuestion: String? = nil) {
+        self.prefilledQuestion = prefilledQuestion
+    }
     
     // Quick questions tailored for Borrower
     private let quickActions = [
@@ -204,10 +211,15 @@ struct AIChatView: View {
                     .accessibilityLabel("Close AI Chat")
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: speechService.isListening)
+            .accessibleAnimation(.easeInOut(duration: 0.2), value: speechService.isListening)
         }
         .task {
             await viewModel.startNewConversationIfNeeded()
+            // If Siri launched us with a question, ask it automatically.
+            if let question = prefilledQuestion?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !question.isEmpty {
+                viewModel.sendMessage(question)
+            }
         }
         .onDisappear {
             speechService.stopListening()

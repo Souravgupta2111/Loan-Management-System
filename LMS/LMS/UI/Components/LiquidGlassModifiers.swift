@@ -23,23 +23,44 @@ struct LiquidGlassModifier: ViewModifier {
     var shadowRadius: CGFloat = 20
     var shadowY: CGFloat = 10
 
+    /// Drives the in-app "High Contrast Mode" toggle. When on, the frosted
+    /// translucency is replaced with a near-opaque surface and a strong, solid
+    /// dark outline so every card separates clearly from the background and text
+    /// sits on a high-contrast surface (WCAG-friendly). Because every card in the
+    /// app uses `.liquidGlass(...)`, this upgrades the whole UI at once.
+    @ObservedObject private var a11y = AppAccessibilityManager.shared
+
     func body(content: Content) -> some View {
+        let highContrast = a11y.isHighContrastEnabled
+
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(tint?.opacity(tintOpacity) ?? Color.clear)
+                            .fill(
+                                highContrast
+                                    ? Color.white.opacity(0.95)
+                                    : (tint?.opacity(tintOpacity) ?? Color.clear)
+                            )
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(borderColor.opacity(borderOpacity), lineWidth: 1)
-                    .blendMode(.overlay)
+                    .stroke(
+                        highContrast ? Color(hex: "#1A1A1A") : borderColor.opacity(borderOpacity),
+                        lineWidth: highContrast ? 2 : 1
+                    )
+                    .blendMode(highContrast ? .normal : .overlay)
             )
-            .shadow(color: Color.black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
+            .shadow(
+                color: Color.black.opacity(highContrast ? 0 : shadowOpacity),
+                radius: highContrast ? 0 : shadowRadius,
+                x: 0,
+                y: highContrast ? 0 : shadowY
+            )
     }
 }
 

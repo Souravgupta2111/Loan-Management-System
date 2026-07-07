@@ -24,8 +24,36 @@ struct ContentView: View {
             }
         }
         .environmentObject(authViewModel)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: authViewModel.authState)
+        .accessibleAnimation(.spring(response: 0.6, dampingFraction: 0.8), value: authViewModel.authState)
         .onOpenURL { url in
+            // Widget / Siri deep links: lmsapp://emi, lmsapp://loans, lmsapp://advisor
+            if url.scheme == "lmsapp" {
+                switch url.host {
+                case "emi", "schedule":
+                    IntentRouter.shared.switchTab(.schedule)
+                    return
+                case "loans":
+                    IntentRouter.shared.switchTab(.loans)
+                    return
+                case "advisor", "chat":
+                    let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first(where: { $0.name == "q" })?.value
+                    IntentRouter.shared.openAdvisor(prefill: q)
+                    return
+                case "pay":
+                    if let loanIdStr = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first(where: { $0.name == "loanId" })?.value,
+                       let loanId = UUID(uuidString: loanIdStr) {
+                        IntentRouter.shared.openPayment(loanId: loanId)
+                    } else {
+                        IntentRouter.shared.switchTab(.schedule)
+                    }
+                    return
+                default:
+                    break
+                }
+            }
+
             Task {
                 do {
                     // 1. Let Supabase process the reset password URL and log the user in

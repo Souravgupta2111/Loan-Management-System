@@ -78,6 +78,9 @@ struct LoanDetailView: View {
                             .clipShape(Capsule())
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(unreadCount > 0 ? "Message officer, \(unreadCount) unread" : "Message officer")
+                        .accessibilityHint("Opens your chat with the assigned loan officer")
                     }
                     .padding()
                 }
@@ -370,6 +373,9 @@ private struct LoanSummaryCard: View {
                         }
                     }
                     .frame(height: 6)
+                    .accessibilityElement()
+                    .accessibilityLabel("Repayment progress")
+                    .accessibilityValue("\(Int(min(max(progress, 0), 1) * 100)) percent. \(detail.progressText)")
                 }
                 .padding(.top, 12)
             } else {
@@ -860,7 +866,8 @@ private struct TimelineItemRow: View {
                     .minFrameHeight()
                 }
             }
-            
+            .accessibilityHidden(true) // decorative node + connector line
+
             // Text Content Column
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title)
@@ -1295,6 +1302,8 @@ private struct EMIScheduleRowView: View {
             shadowRadius: 10,
             shadowY: 4
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("EMI due \(emi.dueDate), \(formatCurrency(emi.amount)), \(emi.status.rawValue)")
     }
 }
 

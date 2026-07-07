@@ -43,7 +43,7 @@ final class ManagerAIService {
         // 1. Count active loans
         let activeLoans: [ManagerLoanRow] = try await supabase.database
             .from("loans")
-            .select("id, status, approved_amount, applied_interest_rate")
+            .select("id, status, principal_amount, interest_rate")
             .eq("status", value: "active")
             .execute()
             .value
@@ -51,40 +51,41 @@ final class ManagerAIService {
         // 2. Count NPA loans
         let npaLoans: [ManagerLoanRow] = try await supabase.database
             .from("loans")
-            .select("id, status, approved_amount, applied_interest_rate")
+            .select("id, status, principal_amount, interest_rate")
             .eq("status", value: "npa")
             .execute()
             .value
         
-        // 3. Count pending applications
+        // 3. Count pending applications ('recommended' is not a valid application_status)
         let pendingApps: [ManagerAppRow] = try await supabase.database
             .from("loan_applications")
             .select("id")
-            .in("status", values: ["submitted", "under_review", "recommended"])
+            .in("status", values: ["submitted", "under_review"])
             .execute()
             .value
         
         // 4. Compute totals
-        let totalDisbursed = activeLoans.reduce(0.0) { $0 + ($1.approvedAmount ?? 0) }
+        let totalDisbursed = activeLoans.reduce(0.0) { $0 + ($1.principalAmount ?? 0) }
         let npaPercentage = activeLoans.isEmpty ? 0 : (Double(npaLoans.count) / Double(activeLoans.count + npaLoans.count)) * 100
         
-        // 5. Fetch recent overdue EMIs for collection efficiency
+        // 5. Fetch EMIs for collection efficiency. The real table is `emi_schedule`
+        //    and 'pending' is not a valid emi_status — use 'paid' vs 'overdue'.
         let overdueEmis: [ManagerEmiRow] = try await supabase.database
-            .from("emis")
+            .from("emi_schedule")
             .select("id")
             .eq("status", value: "overdue")
             .execute()
             .value
         
-        let totalEmis: [ManagerEmiRow] = try await supabase.database
-            .from("emis")
+        let paidEmis: [ManagerEmiRow] = try await supabase.database
+            .from("emi_schedule")
             .select("id")
-            .in("status", values: ["paid", "overdue", "pending"])
+            .eq("status", value: "paid")
             .execute()
             .value
         
-        let paidEmis = totalEmis.count - overdueEmis.count
-        let collectionEfficiency = totalEmis.isEmpty ? 100.0 : (Double(paidEmis) / Double(totalEmis.count)) * 100
+        let settledCount = paidEmis.count + overdueEmis.count
+        let collectionEfficiency = settledCount == 0 ? 100.0 : (Double(paidEmis.count) / Double(settledCount)) * 100
         
         let portfolioSummary = ManagerPortfolioSummary(
             totalActiveLoans: activeLoans.count,
@@ -97,7 +98,7 @@ final class ManagerAIService {
             collectionEfficiency: collectionEfficiency,
             pendingApplicationsCount: pendingApps.count,
             overdueEmiCount: overdueEmis.count,
-            totalEmiCount: totalEmis.count
+            totalEmiCount: settledCount
         )
         
         return ManagerContext(
@@ -111,13 +112,13 @@ final class ManagerAIService {
 private struct ManagerLoanRow: Codable {
     let id: UUID
     let status: String
-    let approvedAmount: Double?
-    let appliedInterestRate: Double?
+    let principalAmount: Double?
+    let interestRate: Double?
 
     enum CodingKeys: String, CodingKey {
         case id, status
-        case approvedAmount = "approved_amount"
-        case appliedInterestRate = "applied_interest_rate"
+        case principalAmount = "principal_amount"
+        case interestRate = "interest_rate"
     }
 }
 

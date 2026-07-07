@@ -31,7 +31,6 @@ struct ProfileView: View {
     @State private var isEditingAddress = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @State private var showHelpAndSupport = false
-    @State private var testNotificationScheduled = false
 
     @State private var draftName = ""
     @State private var draftEmail = ""
@@ -496,43 +495,6 @@ struct ProfileView: View {
             .onChange(of: notificationsEnabled) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: "notificationsEnabled")
             }
-            
-            divider
-            
-            // Test Notification Row
-            Button {
-                NotificationService.shared.scheduleTestNotification(afterSeconds: 5)
-                HapticManager.shared.notification(type: .success)
-                withAnimation { testNotificationScheduled = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    withAnimation { testNotificationScheduled = false }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "bell.and.waves.left.and.right")
-                            .foregroundColor(Color(hex: "#2D8B4E"))
-                            .font(.subheadline)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Test Notification")
-                            .font(.bodyLarge)
-                            .foregroundColor(.textPrimary)
-                        Text(testNotificationScheduled ? "Arriving in 5 seconds — background the app!" : "Sends a test push in 5 seconds")
-                            .font(.caption2)
-                            .foregroundColor(testNotificationScheduled ? Color(hex: "#2D8B4E") : .textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: testNotificationScheduled ? "checkmark.circle.fill" : "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(testNotificationScheduled ? Color(hex: "#2D8B4E") : .textTertiary)
-                }
-                .padding(Spacing.lg)
-            }
-            .buttonStyle(.plain)
             
             divider
             

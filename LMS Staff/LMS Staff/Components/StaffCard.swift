@@ -5,14 +5,23 @@ struct StaffCard<Content: View>: View {
     var padding: CGFloat = StaffSpacing.lg
     @ViewBuilder let content: () -> Content
 
+    // High Contrast Mode: replace the subtle hairline border with a strong,
+    // solid dark outline so cards separate clearly. Applied app-wide because
+    // every staff screen builds on StaffCard. Read the AppStorage key directly
+    // so the card live-updates the moment the toggle changes.
+    @AppStorage("isHighContrastEnabled") private var highContrast: Bool = false
+
     var body: some View {
         content()
             .padding(padding)
-            .background(Color(hex: "#FAFAF8"))
+            .background(Color(hex: highContrast ? "#FFFFFF" : "#FAFAF8"))
             .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
             .overlay(
                 RoundedRectangle(cornerRadius: StaffCorner.md)
-                    .stroke(Color.staffBorder, lineWidth: 1)
+                    .stroke(
+                        highContrast ? Color(hex: "#1A1A1A") : Color.staffBorder,
+                        lineWidth: highContrast ? 2 : 1
+                    )
             )
     }
 }
