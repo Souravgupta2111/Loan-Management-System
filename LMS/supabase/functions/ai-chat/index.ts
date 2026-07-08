@@ -113,14 +113,33 @@ function systemPromptFor(persona: string, context: unknown): string {
     case "manager":
       return (
         `${shared}\n\nYou are a portfolio analytics assistant for a BRANCH MANAGER. ` +
-        "Use tools to pull live portfolio metrics, application counts and overdue " +
-        "EMIs, then give quantified, actionable insight. " +
+        "You CAN see the entire loan portfolio and application pipeline through your " +
+        "tools. For ANY question about portfolio health, risk, NPA, collection " +
+        "efficiency, disbursement, exposure, overdue EMIs, or 'how is my branch/" +
+        "portfolio doing', you MUST call get_portfolio_metrics FIRST (and " +
+        "list_overdue_emis or count_applications when relevant), then give a " +
+        "quantified, actionable assessment. When summarising risk, explicitly " +
+        "interpret the numbers: compare NPA% against a 5% concern threshold, " +
+        "collection efficiency against a 90% target, note overdue-EMI and pending " +
+        "workload, and total vs outstanding exposure. NEVER claim you lack the tools " +
+        "or can only count applications — you have get_portfolio_metrics, " +
+        "count_applications, list_overdue_emis and get_application_details, plus the " +
+        "portfolio snapshot already provided in your context below. If a metric is " +
+        "genuinely zero, report it as a healthy/empty figure rather than an inability. " +
         `\n\nExtra context (JSON): ${ctx}`
       );
     case "admin":
       return (
         `${shared}\n\nYou are an operations assistant for a SYSTEM ADMIN with a ` +
-        "cross-branch view. Use tools for live figures and flag anomalies. " +
+        "cross-branch, whole-organisation view. You CAN see all portfolio and " +
+        "application data through your tools. For portfolio, risk, NPA, collection, " +
+        "exposure or anomaly questions, ALWAYS call get_portfolio_metrics FIRST (and " +
+        "list_overdue_emis / count_applications as needed), then give a quantified " +
+        "analysis and flag anomalies (high NPA%, low collection efficiency, large " +
+        "overdue concentration). NEVER claim you lack the tools or can only count " +
+        "applications — you have get_portfolio_metrics, count_applications, " +
+        "list_overdue_emis and get_application_details, plus the snapshot in your " +
+        "context below. " +
         `\n\nExtra context (JSON): ${ctx}`
       );
     default:
@@ -206,7 +225,7 @@ function toolDeclarationsFor(persona: string): any[] {
       {
         name: "get_portfolio_metrics",
         description:
-          "Get live portfolio metrics: active loans, total disbursed, NPA count/%, collection efficiency, pending applications.",
+          "Get live portfolio metrics for risk analysis: active loans, total disbursed, total outstanding principal, average interest rate, NPA count, NPA outstanding amount, NPA %, collection efficiency, pending applications and overdue EMIs. Call this for any portfolio, risk, exposure or health question.",
         parameters: { type: "OBJECT", properties: {}, required: [] },
       },
       {
@@ -601,12 +620,13 @@ async function portfolioMetrics(admin: SupabaseClient) {
   // and emi_status has no `pending`.
   const { data: active } = await admin
     .from("loans")
-    .select("principal_amount")
+    .select("principal_amount, outstanding_principal, interest_rate")
     .eq("status", "active");
-  const { count: npaCount } = await admin
+  const { data: npaLoans } = await admin
     .from("loans")
-    .select("id", { count: "exact", head: true })
+    .select("outstanding_principal")
     .eq("status", "npa");
+  const npaCount = npaLoans?.length ?? 0;
   const { count: pending } = await admin
     .from("loan_applications")
     .select("id", { count: "exact", head: true })
@@ -625,7 +645,19 @@ async function portfolioMetrics(admin: SupabaseClient) {
     (s: number, l: any) => s + (l.principal_amount ?? 0),
     0,
   );
-  const npa = npaCount ?? 0;
+  const totalOutstanding = (active ?? []).reduce(
+    (s: number, l: any) => s + (l.outstanding_principal ?? 0),
+    0,
+  );
+  const avgInterestRate =
+    activeCount === 0
+      ? 0
+      : (active ?? []).reduce((s: number, l: any) => s + (l.interest_rate ?? 0), 0) / activeCount;
+  const npa = npaCount;
+  const npaOutstanding = (npaLoans ?? []).reduce(
+    (s: number, l: any) => s + (l.outstanding_principal ?? 0),
+    0,
+  );
   const npaPct = activeCount + npa === 0 ? 0 : (npa / (activeCount + npa)) * 100;
   const paid = paidCount ?? 0;
   const settled = paid + (overdue ?? 0);
@@ -634,7 +666,10 @@ async function portfolioMetrics(admin: SupabaseClient) {
   return {
     totalActiveLoans: activeCount,
     totalDisbursedAmount: totalDisbursed,
+    totalOutstandingPrincipal: Number(totalOutstanding.toFixed(0)),
+    averageInterestRate: Number(avgInterestRate.toFixed(2)),
     npaCount: npa,
+    npaOutstandingAmount: Number(npaOutstanding.toFixed(0)),
     npaPercentage: Number(npaPct.toFixed(1)),
     collectionEfficiency: Number(collectionEff.toFixed(1)),
     pendingApplications: pending ?? 0,
@@ -782,9 +817,22 @@ async function mockReply(
     return `You have ${r.count ?? 0} ${lower.includes("pending") ? "pending" : ""} applications assigned to you. (Set OPENROUTER_API_KEY for full conversational answers.)`;
   }
 
-  if (admin && (persona === "manager" || persona === "admin") && (lower.includes("portfolio") || lower.includes("npa") || lower.includes("metric"))) {
+  if (
+    admin && (persona === "manager" || persona === "admin") &&
+    (lower.includes("portfolio") || lower.includes("npa") || lower.includes("metric") ||
+      lower.includes("risk") || lower.includes("summar") || lower.includes("collection") ||
+      lower.includes("overdue") || lower.includes("exposure"))
+  ) {
     const m: any = await executeTool(admin, persona, ctx, "get_portfolio_metrics", {});
-    return `Portfolio: ${m.totalActiveLoans} active loans, NPA ${m.npaPercentage}%, collection efficiency ${m.collectionEfficiency}%, ${m.pendingApplications} pending applications. (Set OPENROUTER_API_KEY for full analysis.)`;
+    const riskNote = m.npaPercentage > 5
+      ? "NPA is above the 5% concern threshold — review overdue accounts."
+      : (m.collectionEfficiency < 90 ? "Collection efficiency is below the 90% target." : "Portfolio looks healthy.");
+    return (
+      `Portfolio: ${m.totalActiveLoans} active loans, ₹${m.totalOutstandingPrincipal} outstanding ` +
+      `(₹${m.totalDisbursedAmount} disbursed), NPA ${m.npaPercentage}% (${m.npaCount} loans, ₹${m.npaOutstandingAmount}), ` +
+      `collection efficiency ${m.collectionEfficiency}%, ${m.overdueEmis} overdue EMIs, ${m.pendingApplications} pending applications. ` +
+      `${riskNote} (Set OPENROUTER_API_KEY for full conversational analysis.)`
+    );
   }
 
   if (persona === "borrower") {
