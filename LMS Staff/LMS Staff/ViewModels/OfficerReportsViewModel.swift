@@ -11,21 +11,21 @@ import Combine
 
 // MARK: - Chart Data Models
 
-struct LoanStatusSlice: Identifiable {
+struct OfcLoanStatusSlice: Identifiable {
     let id = UUID()
     let status: String
     let count: Int
     let amount: Double
 }
 
-struct ProductMixItem: Identifiable {
+struct OfcProductMixItem: Identifiable {
     let id = UUID()
     let productName: String
     let count: Int
     let totalAmount: Double
 }
 
-struct OverdueAgingBucket: Identifiable {
+struct OfcOverdueAgingBucket: Identifiable {
     let id = UUID()
     let label: String
     let count: Int
@@ -33,7 +33,7 @@ struct OverdueAgingBucket: Identifiable {
     let sortOrder: Int
 }
 
-struct MonthlyDisbursement: Identifiable {
+struct OfcMonthlyDisbursement: Identifiable {
     let id = UUID()
     let month: String
     let amount: Double
@@ -58,11 +58,11 @@ class OfficerReportsViewModel: ObservableObject {
     @Published var totalOverdueAmount: Double = 0
     
     // Chart data
-    @Published var statusSlices: [LoanStatusSlice] = []
-    @Published var productMix: [ProductMixItem] = []
+    @Published var statusSlices: [OfcLoanStatusSlice] = []
+    @Published var productMix: [OfcProductMixItem] = []
     @Published var collectionTrends: [CollectionTrendItem] = []
-    @Published var overdueAging: [OverdueAgingBucket] = []
-    @Published var monthlyDisbursements: [MonthlyDisbursement] = []
+    @Published var overdueAging: [OfcOverdueAgingBucket] = []
+    @Published var monthlyDisbursements: [OfcMonthlyDisbursement] = []
     
     // Loans table
     @Published var loans: [LoanWithDetails] = []
@@ -171,7 +171,7 @@ class OfficerReportsViewModel: ObservableObject {
             statusGroups[key] = entry
         }
         
-        statusSlices = statusGroups.map { LoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
+        statusSlices = statusGroups.map { OfcLoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
             .sorted { $0.count > $1.count }
         
         self.totalLoansCount = statusSlices.reduce(0) { $0 + $1.count }
@@ -186,7 +186,7 @@ class OfficerReportsViewModel: ObservableObject {
             entry.amount += item.loan.principalAmount
             productGroups[key] = entry
         }
-        productMix = productGroups.map { ProductMixItem(productName: $0.key, count: $0.value.count, totalAmount: $0.value.amount) }
+        productMix = productGroups.map { OfcProductMixItem(productName: $0.key, count: $0.value.count, totalAmount: $0.value.amount) }
             .sorted { $0.totalAmount > $1.totalAmount }
         
         // 3. Overdue Aging Buckets
@@ -209,7 +209,7 @@ class OfficerReportsViewModel: ObservableObject {
         }
         overdueAging = buckets
             .filter { $0.value.count > 0 || true } // Show all buckets for chart context
-            .map { OverdueAgingBucket(label: $0.key, count: $0.value.count, amount: $0.value.amount, sortOrder: $0.value.order) }
+            .map { OfcOverdueAgingBucket(label: $0.key, count: $0.value.count, amount: $0.value.amount, sortOrder: $0.value.order) }
             .sorted { $0.sortOrder < $1.sortOrder }
         
         // 4. Monthly Disbursements
@@ -229,7 +229,7 @@ class OfficerReportsViewModel: ObservableObject {
             monthlyGroups[displayMonth] = entry
         }
         monthlyDisbursements = monthlyGroups
-            .map { MonthlyDisbursement(month: $0.key, amount: $0.value.amount) }
+            .map { OfcMonthlyDisbursement(month: $0.key, amount: $0.value.amount) }
             .sorted { lhs, rhs in
                 let lhsKey = monthlyGroups[lhs.month]?.sortKey ?? ""
                 let rhsKey = monthlyGroups[rhs.month]?.sortKey ?? ""
