@@ -277,9 +277,9 @@ struct ManagerReportsView: View {
             StaffCard {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
-                        Image(systemName: "chart.bar.fill")
+                        Image(systemName: "percent")
                             .foregroundColor(Color.staffTeal)
-                        Text("Product Mix")
+                        Text("Average Profitability")
                             .font(.staffCardTitle)
                             .foregroundColor(.staffTextPrimary)
                     }
@@ -342,175 +342,7 @@ struct ManagerReportsView: View {
     
     // MARK: - Disbursement Trend Section (Full-width)
     
-    private var chartsRow2: some View {
-        HStack(alignment: .top, spacing: StaffSpacing.md) {
-            // Overdue Aging Bar Chart
-            StaffCard {
-                VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                    HStack {
-                        Image(systemName: "clock.badge.exclamationmark")
-                            .foregroundColor(Color(hex: "#D9534F"))
-                        Text("Overdue Aging Analysis")
-                            .font(.staffCardTitle)
-                            .foregroundColor(.staffTextPrimary)
-                        Spacer()
-                        Text(vm.formatCurrency(vm.totalOverdueAmount))
-                            .font(.staffBadge)
-                            .foregroundColor(.staffRed)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.staffRedBg)
-                            .cornerRadius(StaffCorner.xs)
-                    }
-                    
-                    Chart(vm.overdueAging) { bucket in
-                        BarMark(
-                            x: .value("Bucket", bucket.label),
-                            y: .value("Count", bucket.count)
-                        )
-                        .foregroundStyle(agingColors[min(bucket.sortOrder, agingColors.count - 1)])
-                        .cornerRadius(6)
-                        .annotation(position: .top, spacing: 4) {
-                            if bucket.count > 0 {
-                                Text("\(bucket.count)")
-                                    .font(.staffFinePrint.weight(.bold))
-                                    .foregroundColor(.staffTextPrimary)
-                            }
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading) { value in
-                            AxisGridLine()
-                            AxisValueLabel {
-                                if let v = value.as(Int.self) {
-                                    Text("\(v)")
-                                        .font(.staffFinePrint)
-                                }
-                            }
-                        }
-                    }
-                    .chartXAxis {
-                        AxisMarks { value in
-                            AxisValueLabel {
-                                if let label = value.as(String.self) {
-                                    Text(label)
-                                        .font(.staffFinePrint)
-                                }
-                            }
-                        }
-                    }
-                    .frame(height: 200)
-                    
-                    // Aging legend with amounts
-                    HStack(spacing: StaffSpacing.md) {
-                        ForEach(Array(vm.overdueAging.enumerated()), id: \.element.id) { index, bucket in
-                            VStack(spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(agingColors[min(index, agingColors.count - 1)])
-                                        .frame(width: 8, height: 8)
-                                    Text(bucket.label)
-                                        .font(.staffFinePrint)
-                                }
-                                Text(vm.formatCurrency(bucket.amount))
-                                    .font(.staffFinePrint.weight(.semibold))
-                                    .foregroundColor(.staffTextSecondary)
-                            }
-                        }
-                    }
-                    Spacer()
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 380)
-            
-            // Monthly Disbursements Area Chart
-            StaffCard {
-                VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                    HStack {
-                        Image(systemName: "calendar.badge.plus")
-                            .foregroundColor(Color.staffPurple)
-                        Text("Disbursement Timeline")
-                            .font(.staffCardTitle)
-                            .foregroundColor(.staffTextPrimary)
-                        Spacer()
-                        Text(vm.formatCurrency(vm.totalDisbursed))
-                            .font(.staffBadge)
-                            .foregroundColor(.staffGreen)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.staffGreenBg)
-                            .cornerRadius(StaffCorner.xs)
-                    }
-                    
-                    if vm.monthlyDisbursements.isEmpty {
-                        Text("No disbursement data")
-                            .font(.staffCaption)
-                            .foregroundColor(.staffTextTertiary)
-                            .frame(height: 200)
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Chart(vm.monthlyDisbursements) { item in
-                            AreaMark(
-                                x: .value("Month", item.month),
-                                y: .value("Amount", item.amount)
-                            )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.staffAccent.opacity(0.4), Color.staffAccent.opacity(0.05)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.catmullRom)
-                            
-                            LineMark(
-                                x: .value("Month", item.month),
-                                y: .value("Amount", item.amount)
-                            )
-                            .foregroundStyle(Color.staffAccent)
-                            .interpolationMethod(.catmullRom)
-                            .lineStyle(StrokeStyle(lineWidth: 2.5))
-                            
-                            PointMark(
-                                x: .value("Month", item.month),
-                                y: .value("Amount", item.amount)
-                            )
-                            .foregroundStyle(Color.staffAccent)
-                            .symbolSize(30)
-                        }
-                        .chartYAxis {
-                            AxisMarks(position: .leading) { value in
-                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                                AxisValueLabel {
-                                    if let v = value.as(Double.self) {
-                                        Text(vm.formatCurrency(v))
-                                            .font(.staffFinePrint)
-                                    }
-                                }
-                            }
-                        }
-                        .chartXAxis {
-                            AxisMarks { value in
-                                AxisValueLabel {
-                                    if let month = value.as(String.self) {
-                                        Text(month)
-                                            .font(.staffFinePrint)
-                                    }
-                                }
-                            }
-                        }
-                        .frame(height: 200)
-                    }
-                    Spacer()
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 380)
-        }
-    }
-    
-    // MARK: - Collection Efficiency Trend (full-width)
-    
-    private var collectionTrendSection: some View {
+    private var disbursementTrendSection: some View {
         StaffCard {
             VStack(alignment: .leading, spacing: StaffSpacing.md) {
                 HStack {
@@ -546,48 +378,26 @@ struct ManagerReportsView: View {
                         .frame(height: 200)
                         .frame(maxWidth: .infinity)
                 } else {
-                    Chart {
-                        ForEach(vm.collectionTrends) { item in
-                            AreaMark(
-                                x: .value("Month", item.month),
-                                yStart: .value("Base", 0),
-                                yEnd: .value("Efficiency", item.efficiency)
+                    Chart(trendData) { item in
+                        AreaMark(
+                            x: .value("Timeframe", item.label),
+                            yStart: .value("Base", 0),
+                            yEnd: .value("Amount", item.amount)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.staffAccent.opacity(0.3), Color.staffAccent.opacity(0.02)],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.staffAccent.opacity(0.3), Color.staffAccent.opacity(0.02)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.catmullRom)
-                            
-                            LineMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(Color.staffAccent)
-                            .interpolationMethod(.catmullRom)
-                            .lineStyle(StrokeStyle(lineWidth: 3))
-                            
-                            PointMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(item.efficiency >= 95 ? Color.staffAccent : Color(hex: "#D9534F"))
-                            .symbolSize(40)
-                            .annotation(position: .top, spacing: 4) {
-                                Text(String(format: "%.0f%%", item.efficiency))
-                                    .font(.staffFinePrint.weight(.bold))
-                                    .foregroundColor(item.efficiency >= 95 ? .staffGreen : .staffRed)
-                            }
-                        }
+                        )
+                        .interpolationMethod(.catmullRom)
                         
                         LineMark(
                             x: .value("Timeframe", item.label),
                             y: .value("Amount", item.amount)
                         )
-                        .foregroundStyle(Color(hex: "#2E9658"))
+                        .foregroundStyle(Color.staffAccent)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 3))
                         
@@ -595,7 +405,7 @@ struct ManagerReportsView: View {
                             x: .value("Timeframe", item.label),
                             y: .value("Amount", item.amount)
                         )
-                        .foregroundStyle(Color(hex: "#2E9658"))
+                        .foregroundStyle(Color.staffAccent)
                         .symbolSize(40)
                         .annotation(position: .top, spacing: 4) {
                             Text(vm.formatCurrency(item.amount))
