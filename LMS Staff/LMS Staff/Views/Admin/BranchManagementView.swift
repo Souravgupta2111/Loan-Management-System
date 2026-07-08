@@ -133,9 +133,9 @@ struct BranchManagementView: View {
                 // Icon
                 Image(systemName: "building.2.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(isSelected ? .staffAccent : .staffTextTertiary)
+                    .foregroundColor(.staffAccent)
                     .frame(width: 36, height: 36)
-                    .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceLight)
+                    .background(Color.staffAccentBg)
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {

@@ -64,7 +64,11 @@ struct DocumentChecklistView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(product)
-                        .listRowBackground(Color.white)
+                        .listRowBackground(
+                            selectedProduct?.id == product.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.white
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
