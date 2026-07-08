@@ -18,7 +18,7 @@
 // message persistence to ai_conversations / ai_messages.
 //
 // Env (auto-injected in Supabase Edge runtime): SUPABASE_URL,
-// SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY (optional; falls back to a smart mock).
+// SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY (optional; falls back to a smart mock).
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -30,7 +30,7 @@ const corsHeaders = {
 
 const HISTORY_LIMIT = 16; // prior turns replayed for memory
 const MAX_TOOL_HOPS = 4; // safety cap on the tool-calling loop
-const GEMINI_MODEL = "gemini-2.5-flash";
+const AI_MODEL = "google/gemini-2.5-flash-lite";
 
 type StoredRole = "borrower" | "officer" | "manager";
 
@@ -113,14 +113,33 @@ function systemPromptFor(persona: string, context: unknown): string {
     case "manager":
       return (
         `${shared}\n\nYou are a portfolio analytics assistant for a BRANCH MANAGER. ` +
-        "Use tools to pull live portfolio metrics, application counts and overdue " +
-        "EMIs, then give quantified, actionable insight. " +
+        "You CAN see the entire loan portfolio and application pipeline through your " +
+        "tools. For ANY question about portfolio health, risk, NPA, collection " +
+        "efficiency, disbursement, exposure, overdue EMIs, or 'how is my branch/" +
+        "portfolio doing', you MUST call get_portfolio_metrics FIRST (and " +
+        "list_overdue_emis or count_applications when relevant), then give a " +
+        "quantified, actionable assessment. When summarising risk, explicitly " +
+        "interpret the numbers: compare NPA% against a 5% concern threshold, " +
+        "collection efficiency against a 90% target, note overdue-EMI and pending " +
+        "workload, and total vs outstanding exposure. NEVER claim you lack the tools " +
+        "or can only count applications — you have get_portfolio_metrics, " +
+        "count_applications, list_overdue_emis and get_application_details, plus the " +
+        "portfolio snapshot already provided in your context below. If a metric is " +
+        "genuinely zero, report it as a healthy/empty figure rather than an inability. " +
         `\n\nExtra context (JSON): ${ctx}`
       );
     case "admin":
       return (
         `${shared}\n\nYou are an operations assistant for a SYSTEM ADMIN with a ` +
-        "cross-branch view. Use tools for live figures and flag anomalies. " +
+        "cross-branch, whole-organisation view. You CAN see all portfolio and " +
+        "application data through your tools. For portfolio, risk, NPA, collection, " +
+        "exposure or anomaly questions, ALWAYS call get_portfolio_metrics FIRST (and " +
+        "list_overdue_emis / count_applications as needed), then give a quantified " +
+        "analysis and flag anomalies (high NPA%, low collection efficiency, large " +
+        "overdue concentration). NEVER claim you lack the tools or can only count " +
+        "applications — you have get_portfolio_metrics, count_applications, " +
+        "list_overdue_emis and get_application_details, plus the snapshot in your " +
+        "context below. " +
         `\n\nExtra context (JSON): ${ctx}`
       );
     default:
@@ -206,7 +225,7 @@ function toolDeclarationsFor(persona: string): any[] {
       {
         name: "get_portfolio_metrics",
         description:
-          "Get live portfolio metrics: active loans, total disbursed, NPA count/%, collection efficiency, pending applications.",
+          "Get live portfolio metrics for risk analysis: active loans, total disbursed, total outstanding principal, average interest rate, NPA count, NPA outstanding amount, NPA %, collection efficiency, pending applications and overdue EMIs. Call this for any portfolio, risk, exposure or health question.",
         parameters: { type: "OBJECT", properties: {}, required: [] },
       },
       {
@@ -601,12 +620,13 @@ async function portfolioMetrics(admin: SupabaseClient) {
   // and emi_status has no `pending`.
   const { data: active } = await admin
     .from("loans")
-    .select("principal_amount")
+    .select("principal_amount, outstanding_principal, interest_rate")
     .eq("status", "active");
-  const { count: npaCount } = await admin
+  const { data: npaLoans } = await admin
     .from("loans")
-    .select("id", { count: "exact", head: true })
+    .select("outstanding_principal")
     .eq("status", "npa");
+  const npaCount = npaLoans?.length ?? 0;
   const { count: pending } = await admin
     .from("loan_applications")
     .select("id", { count: "exact", head: true })
@@ -625,7 +645,19 @@ async function portfolioMetrics(admin: SupabaseClient) {
     (s: number, l: any) => s + (l.principal_amount ?? 0),
     0,
   );
-  const npa = npaCount ?? 0;
+  const totalOutstanding = (active ?? []).reduce(
+    (s: number, l: any) => s + (l.outstanding_principal ?? 0),
+    0,
+  );
+  const avgInterestRate =
+    activeCount === 0
+      ? 0
+      : (active ?? []).reduce((s: number, l: any) => s + (l.interest_rate ?? 0), 0) / activeCount;
+  const npa = npaCount;
+  const npaOutstanding = (npaLoans ?? []).reduce(
+    (s: number, l: any) => s + (l.outstanding_principal ?? 0),
+    0,
+  );
   const npaPct = activeCount + npa === 0 ? 0 : (npa / (activeCount + npa)) * 100;
   const paid = paidCount ?? 0;
   const settled = paid + (overdue ?? 0);
@@ -634,7 +666,10 @@ async function portfolioMetrics(admin: SupabaseClient) {
   return {
     totalActiveLoans: activeCount,
     totalDisbursedAmount: totalDisbursed,
+    totalOutstandingPrincipal: Number(totalOutstanding.toFixed(0)),
+    averageInterestRate: Number(avgInterestRate.toFixed(2)),
     npaCount: npa,
+    npaOutstandingAmount: Number(npaOutstanding.toFixed(0)),
     npaPercentage: Number(npaPct.toFixed(1)),
     collectionEfficiency: Number(collectionEff.toFixed(1)),
     pendingApplications: pending ?? 0,
@@ -655,67 +690,115 @@ async function generateWithTools(
   admin: SupabaseClient | null,
   ctx: CallerContext,
 ): Promise<string> {
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = "https://openrouter.ai/api/v1/chat/completions";
 
-  const contents: any[] = [
+  const messages: any[] = [
+    { role: "system", content: systemPromptFor(persona, contextData) },
     ...history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content,
     })),
-    { role: "user", parts: [{ text: message }] },
+    { role: "user", content: message },
   ];
 
-  const tools = admin ? [{ functionDeclarations: toolDeclarationsFor(persona) }] : undefined;
+  let openAITools: any[] | undefined = undefined;
+  if (admin) {
+    openAITools = toolDeclarationsFor(persona).map((t) => {
+      const properties: any = {};
+      if (t.parameters?.properties) {
+        for (const [k, v] of Object.entries<any>(t.parameters.properties)) {
+          properties[k] = { ...v, type: v.type ? v.type.toLowerCase() : "string" };
+        }
+      }
+      return {
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: {
+            type: "object",
+            properties,
+            required: t.parameters?.required ?? [],
+          },
+        },
+      };
+    });
+  }
 
   for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
     const body: any = {
-      systemInstruction: { parts: [{ text: systemPromptFor(persona, contextData) }] },
-      contents,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 900 },
+      model: AI_MODEL,
+      messages,
+      temperature: 0.3,
+      max_tokens: 900,
     };
-    if (tools) body.tools = tools;
+    if (openAITools && openAITools.length > 0) {
+      body.tools = openAITools;
+    }
 
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://lms-app.local",
+        "X-Title": "LMS AI Chat"
+      },
       body: JSON.stringify(body),
     });
+    
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`OpenRouter API error: ${resp.status} ${errText}`);
+    }
+    
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message);
 
-    const candidate = data?.candidates?.[0];
-    const parts: any[] = candidate?.content?.parts ?? [];
-    const functionCalls = parts.filter((p) => p.functionCall);
+    const choice = data?.choices?.[0];
+    const responseMessage = choice?.message;
+    if (!responseMessage) {
+        return "I couldn't generate a response just now. Please try again.";
+    }
+
+    const toolCalls = responseMessage.tool_calls || [];
 
     // No tool requested -> return the text answer.
-    if (functionCalls.length === 0) {
-      return (
-        parts.map((p) => p.text).filter(Boolean).join("\n").trim() ||
-        "I couldn't generate a response just now. Please try again."
-      );
+    if (toolCalls.length === 0) {
+      return responseMessage.content?.trim() || "I couldn't generate a response just now. Please try again.";
     }
 
     // Record the model's turn, then execute each requested tool.
-    contents.push({ role: "model", parts });
-    const responseParts: any[] = [];
-    for (const fc of functionCalls) {
+    messages.push(responseMessage);
+    
+    for (const tc of toolCalls) {
+      if (tc.type !== "function") continue;
+      
+      let args = {};
+      try {
+          args = JSON.parse(tc.function.arguments || "{}");
+      } catch (e) {
+          // ignore parsing errors
+      }
+      
       const result = admin
-        ? await executeTool(admin, persona, ctx, fc.functionCall.name, fc.functionCall.args ?? {})
+        ? await executeTool(admin, persona, ctx, tc.function.name, args)
         : { error: "Data tools unavailable." };
-      responseParts.push({
-        functionResponse: { name: fc.functionCall.name, response: { result } },
+        
+      messages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        name: tc.function.name,
+        content: JSON.stringify(result)
       });
     }
-    // Gemini roles are only "user" or "model"; tool results go back as "user".
-    contents.push({ role: "user", parts: responseParts });
   }
 
   return "I wasn't able to finish looking that up. Please try rephrasing your question.";
 }
 
 // ---------------------------------------------------------------------------
-// Offline mock (no GEMINI_API_KEY) — still answers common data questions
+// Offline mock (no OPENROUTER_API_KEY) — still answers common data questions
 // ---------------------------------------------------------------------------
 
 async function mockReply(
@@ -731,12 +814,25 @@ async function mockReply(
     const r: any = await executeTool(admin, persona, ctx, "count_my_applications", {
       status: lower.includes("pending") ? "pending" : undefined,
     });
-    return `You have ${r.count ?? 0} ${lower.includes("pending") ? "pending" : ""} applications assigned to you. (Set GEMINI_API_KEY for full conversational answers.)`;
+    return `You have ${r.count ?? 0} ${lower.includes("pending") ? "pending" : ""} applications assigned to you. (Set OPENROUTER_API_KEY for full conversational answers.)`;
   }
 
-  if (admin && (persona === "manager" || persona === "admin") && (lower.includes("portfolio") || lower.includes("npa") || lower.includes("metric"))) {
+  if (
+    admin && (persona === "manager" || persona === "admin") &&
+    (lower.includes("portfolio") || lower.includes("npa") || lower.includes("metric") ||
+      lower.includes("risk") || lower.includes("summar") || lower.includes("collection") ||
+      lower.includes("overdue") || lower.includes("exposure"))
+  ) {
     const m: any = await executeTool(admin, persona, ctx, "get_portfolio_metrics", {});
-    return `Portfolio: ${m.totalActiveLoans} active loans, NPA ${m.npaPercentage}%, collection efficiency ${m.collectionEfficiency}%, ${m.pendingApplications} pending applications. (Set GEMINI_API_KEY for full analysis.)`;
+    const riskNote = m.npaPercentage > 5
+      ? "NPA is above the 5% concern threshold — review overdue accounts."
+      : (m.collectionEfficiency < 90 ? "Collection efficiency is below the 90% target." : "Portfolio looks healthy.");
+    return (
+      `Portfolio: ${m.totalActiveLoans} active loans, ₹${m.totalOutstandingPrincipal} outstanding ` +
+      `(₹${m.totalDisbursedAmount} disbursed), NPA ${m.npaPercentage}% (${m.npaCount} loans, ₹${m.npaOutstandingAmount}), ` +
+      `collection efficiency ${m.collectionEfficiency}%, ${m.overdueEmis} overdue EMIs, ${m.pendingApplications} pending applications. ` +
+      `${riskNote} (Set OPENROUTER_API_KEY for full conversational analysis.)`
+    );
   }
 
   if (persona === "borrower") {
@@ -749,7 +845,7 @@ async function mockReply(
     }
   }
 
-  return `This is a simulated offline response because GEMINI_API_KEY is not set. You asked: "${message}"`;
+  return `This is a simulated offline response because OPENROUTER_API_KEY is not set. You asked: "${message}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -821,7 +917,7 @@ Deno.serve(async (req) => {
     }
 
     // 4. Generate the reply.
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     let reply = "";
     if (!apiKey) {
       reply = await mockReply(persona, message, contextData, admin, ctx);
