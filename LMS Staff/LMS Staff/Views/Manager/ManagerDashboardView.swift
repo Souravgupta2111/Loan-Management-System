@@ -82,7 +82,7 @@ struct ManagerDashboardView: View {
                         HStack(spacing: StaffSpacing.sm) {
                             ForEach(ManagerQueueSegment.allCases, id: \.self) { seg in
                                 OfficerFilterChip(
-                                    title: "\(seg.rawValue) (\(countFor(seg)))",
+                                    title: seg.rawValue,
                                     isSelected: selectedSegment == seg
                                 ) {
                                     selectedSegment = seg
@@ -212,12 +212,12 @@ struct ManagerDashboardView: View {
     private var kpiCardsSection: some View {
         VStack(spacing: StaffSpacing.sm) {
             HStack(spacing: StaffSpacing.sm) {
-                MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase.fill", color: .staffAccent)
-                MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2.fill", color: .staffAmber)
+                MiniStatCard(title: "Portfolio", value: "₹\(formatAmount(vm.totalDisbursed))", icon: "briefcase", color: .staffAccent)
+                MiniStatCard(title: "Active Loans", value: "\(vm.activeLoansCount)", icon: "person.2", color: .staffAmber)
             }
             HStack(spacing: StaffSpacing.sm) {
-                MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar.fill", color: .staffGreen)
-                MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                MiniStatCard(title: "Collection", value: String(format: "%.1f%%", vm.collectionEfficiency), icon: "chart.bar", color: .staffGreen)
+                MiniStatCard(title: "NPA", value: String(format: "%.1f%%", vm.npaRatio), icon: "exclamationmark.triangle", color: .staffRed)
             }
         }
     }
