@@ -21,12 +21,14 @@ struct LoanProductListView: View {
                         Text("Loan Catalog")
                             .font(.staffTitle)
                             .foregroundColor(.staffTextPrimary)
+                            .accessibilityAddTraits(.isHeader)
                         Spacer()
                         Button(action: { showCreateSheet = true }) {
                             Image(systemName: "text.pad.header.badge.plus")
                                 .font(.system(size: 20))
                                 .foregroundColor(.staffAccent)
                         }
+                        .accessibilityLabel("Add loan product")
                     }
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
@@ -62,6 +64,7 @@ struct LoanProductListView: View {
                                 .frame(width: 36, height: 36)
                                 .background(Color.staffAccentBg)
                                 .clipShape(Circle())
+                                .accessibilityHidden(true)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(product.name)
@@ -91,6 +94,8 @@ struct LoanProductListView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.white
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to open")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -112,9 +117,11 @@ struct LoanProductListView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Product to View Details")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -167,6 +174,7 @@ struct ProductDetailPanel: View {
                     Text(product.name)
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Text("\(product.type.displayName) • \(product.isActive ? "Active" : "Inactive")")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
@@ -422,6 +430,7 @@ struct CreateProductSheet: View {
                         Image(systemName: "scroll.fill")
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundColor(.white)
+                            .accessibilityHidden(true)
                     }
                     .padding(.top, StaffSpacing.xl)
                     
@@ -600,12 +609,14 @@ struct CreateProductSheet: View {
                                 .font(.system(size: 28))
                                 .foregroundColor(.staffAccent)
                         }
+                        .accessibilityLabel("Add document")
                     }
                     
                     ForEach(documentItems, id: \.self) { doc in
                         HStack {
                             Image(systemName: "doc.fill")
                                 .foregroundColor(.staffAccent)
+                                .accessibilityHidden(true)
                             Text(doc.name)
                                 .font(.staffBody)
                                 .foregroundColor(.staffTextPrimary)
@@ -616,6 +627,7 @@ struct CreateProductSheet: View {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.staffRed)
                             }
+                            .accessibilityLabel("Remove document")
                         }
                         .padding(.vertical, 4)
                     }
@@ -639,6 +651,7 @@ struct CreateProductSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -997,6 +1010,7 @@ struct EditProductSheet: View {
                         Image(systemName: "scroll.fill")
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundColor(.white)
+                            .accessibilityHidden(true)
                     }
                     .padding(.top, StaffSpacing.xl)
                     
@@ -1139,15 +1153,18 @@ struct EditProductSheet: View {
                         }) {
                             Image(systemName: "plus.circle.fill").font(.system(size: 28)).foregroundColor(.staffAccent)
                         }
+                        .accessibilityLabel("Add document")
                     }
                     ForEach(documentItems, id: \.self) { doc in
                         HStack {
                             Image(systemName: "doc.fill").foregroundColor(.staffAccent)
+                                .accessibilityHidden(true)
                             Text(doc.name).font(.staffBody).foregroundColor(.staffTextPrimary)
                             Spacer()
                             Button(action: { documentItems.removeAll { $0.id == doc.id } }) {
                                 Image(systemName: "xmark.circle.fill").foregroundColor(.staffRed)
                             }
+                            .accessibilityLabel("Remove document")
                         }.padding(.vertical, 4)
                     }
                 }
@@ -1169,6 +1186,7 @@ struct EditProductSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }

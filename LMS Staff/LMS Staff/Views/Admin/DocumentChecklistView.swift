@@ -23,6 +23,7 @@ struct DocumentChecklistView: View {
                     Text("File Checklists")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                         .padding(.horizontal, StaffSpacing.lg)
                         .padding(.top, StaffSpacing.lg)
                         .padding(.bottom, StaffSpacing.md)
@@ -47,6 +48,7 @@ struct DocumentChecklistView: View {
                                 .frame(width: 36, height: 36)
                                 .background(Color.staffAccentBg)
                                 .clipShape(Circle())
+                                .accessibilityHidden(true)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(product.name)
@@ -61,6 +63,7 @@ struct DocumentChecklistView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.staffTextSecondary)
+                                .accessibilityHidden(true)
                         }
                         .padding(.vertical, 4)
                         .tag(product)
@@ -69,6 +72,8 @@ struct DocumentChecklistView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.white
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to edit checklist")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -91,9 +96,11 @@ struct DocumentChecklistView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Loan Product to Edit Document Checklists")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -118,6 +125,7 @@ struct DocumentChecklistView: View {
                     Text("Checklist Requirements - \(item.name)")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Text("Product category: \(item.type.displayName)")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
@@ -135,6 +143,7 @@ struct DocumentChecklistView: View {
                             Text("Register New Document Requirement")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -170,6 +179,7 @@ struct DocumentChecklistView: View {
                             Text("Current Required Documents Checklist")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -184,6 +194,7 @@ struct DocumentChecklistView: View {
                                             .resizable()
                                             .frame(width: 6, height: 6)
                                             .foregroundColor(.staffAccent)
+                                            .accessibilityHidden(true)
                                         
                                         Text(doc.name)
                                             .font(.staffBody)
@@ -213,6 +224,7 @@ struct DocumentChecklistView: View {
                                             Image(systemName: "trash")
                                                 .foregroundColor(.staffRed)
                                         }
+                                        .accessibilityLabel("Remove \(doc.name)")
                                     }
                                     .padding(.vertical, 4)
                                     

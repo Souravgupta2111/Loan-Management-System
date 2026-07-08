@@ -28,6 +28,7 @@ struct AuditTrailView: View {
                     Text("System Activity Log")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Text("\(logs.count) entries loaded")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
@@ -51,6 +52,7 @@ struct AuditTrailView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.staffTextSecondary)
+                    .accessibilityHidden(true)
                 TextField("Search actions, tables, or descriptions...", text: $searchText)
                     .foregroundColor(.staffTextPrimary)
                 if !searchText.isEmpty {
@@ -58,6 +60,7 @@ struct AuditTrailView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.staffTextSecondary)
                     }
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(12)
@@ -150,6 +153,7 @@ struct AuditTrailView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundColor(actionColor(log.action))
             }
+            .accessibilityHidden(true)
             
             VStack(alignment: .leading, spacing: 4) {
                 // Action title + table badge
@@ -180,6 +184,7 @@ struct AuditTrailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
                             .font(.caption)
+                            .accessibilityHidden(true)
                         if let actorId = log.actorId, let name = actorNames[actorId] {
                             Text(name)
                                 .fontWeight(.medium)
@@ -207,6 +212,7 @@ struct AuditTrailView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "clock")
                             .font(.caption)
+                            .accessibilityHidden(true)
                         Text(formatTimestamp(log.createdAt))
                     }
                     .font(.caption)
@@ -216,6 +222,7 @@ struct AuditTrailView: View {
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
     }
     
     // MARK: - Data Loading
