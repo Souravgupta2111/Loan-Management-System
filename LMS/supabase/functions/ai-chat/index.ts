@@ -30,7 +30,7 @@ const corsHeaders = {
 
 const HISTORY_LIMIT = 16; // prior turns replayed for memory
 const MAX_TOOL_HOPS = 4; // safety cap on the tool-calling loop
-const AI_MODEL = "google/gemini-2.5-flash-lite:free";
+const AI_MODEL = "google/gemini-2.5-flash-lite";
 
 type StoredRole = "borrower" | "officer" | "manager";
 
