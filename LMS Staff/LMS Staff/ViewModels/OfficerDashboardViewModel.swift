@@ -87,8 +87,10 @@ class OfficerDashboardViewModel: ObservableObject {
     private func applyFilters(search: String, filter: String) {
         var result = applications
         
-        // Exclude disbursed loans completely
-        result = result.filter { $0.application.status != .disbursed }
+        // Exclude disbursed loans completely except when viewing All (like in Messages)
+        if filter != "All" {
+            result = result.filter { $0.application.status != .disbursed }
+        }
         
         // Apply status filter
         if filter != "All" {
