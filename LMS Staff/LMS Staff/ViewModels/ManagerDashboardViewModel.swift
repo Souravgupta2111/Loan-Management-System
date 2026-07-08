@@ -106,12 +106,16 @@ class ManagerDashboardViewModel: ObservableObject {
             self.approvedApplications = allApplications.filter {
                 $0.application.status == .approved || $0.application.status == .pendingAcceptance
             }
-            self.chatApplications = allApplications
-            await fetchMessageTimestamps()
-            
-            // 7. Fetch officers
+            // 7. Fetch officers (before chat filtering so we can resolve branch)
             let allStaff = try await StaffManagementService.shared.fetchStaff()
             self.availableOfficers = allStaff.filter { $0.user.role == .officer }
+            
+            // 8. Build manager chat list with branch context
+            let managerBranchId = allStaff
+                .first(where: { $0.staff.userId == SupabaseManager.shared.currentUserId })?
+                .staff.branchId
+            self.chatApplications = allApplications
+            await fetchMessageTimestamps(managerBranchId: managerBranchId, allStaff: allStaff)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -293,54 +297,94 @@ class ManagerDashboardViewModel: ObservableObject {
     
     // MARK: - Message Timestamps
     
-    private func fetchMessageTimestamps() async {
+    private func fetchMessageTimestamps(managerBranchId: UUID?, allStaff: [StaffWithUser]) async {
         let appIds = chatApplications.map { $0.application.id }
         guard !appIds.isEmpty else { return }
         
-        struct MessageTimestamp: Decodable {
+        // Build a lookup of borrower IDs per application so we can
+        // distinguish internal messages from borrower messages.
+        let borrowerIdsByApp: [UUID: UUID] = Dictionary(
+            uniqueKeysWithValues: chatApplications.map { ($0.application.id, $0.borrower.id) }
+        )
+        
+        // Build a set of officer profile IDs that belong to the manager's branch.
+        let branchOfficerProfileIds: Set<UUID> = {
+            guard let branchId = managerBranchId else { return [] }
+            return Set(
+                allStaff
+                    .filter { $0.user.role == .officer && $0.staff.branchId == branchId }
+                    .map { $0.staff.id }
+            )
+        }()
+        
+        struct MessageRecord: Decodable {
             let application_id: UUID
+            let sender_id: UUID
+            let receiver_id: UUID
             let sent_at: String
         }
         
         do {
-            let timestamps: [MessageTimestamp] = try await SupabaseManager.shared.client
+            let records: [MessageRecord] = try await SupabaseManager.shared.client
                 .from("messages")
-                .select("application_id, sent_at")
+                .select("application_id, sender_id, receiver_id, sent_at")
                 .in("application_id", values: appIds.map { $0.uuidString })
                 .execute()
                 .value
                 
-            var latestTimes: [UUID: Date] = [:]
+            var latestInternalTimes: [UUID: Date] = [:]
+            var latestAnyMessageTimes: [UUID: Date] = [:]
             let isoFormatter = ISO8601DateFormatter()
             isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let fallbackFormatter = ISO8601DateFormatter()
             
-            for ts in timestamps {
-                if let date = isoFormatter.date(from: ts.sent_at) ?? fallbackFormatter.date(from: ts.sent_at) {
-                    if let current = latestTimes[ts.application_id] {
-                        if date > current { latestTimes[ts.application_id] = date }
-                    } else {
-                        latestTimes[ts.application_id] = date
-                    }
+            for record in records {
+                guard let date = isoFormatter.date(from: record.sent_at) ?? fallbackFormatter.date(from: record.sent_at) else { continue }
+                
+                // Track latest message of any kind (for sorting)
+                if let current = latestAnyMessageTimes[record.application_id] {
+                    if date > current { latestAnyMessageTimes[record.application_id] = date }
+                } else {
+                    latestAnyMessageTimes[record.application_id] = date
+                }
+                
+                // Track internal messages only (for filtering)
+                let borrowerId = borrowerIdsByApp[record.application_id]
+                guard record.sender_id != borrowerId && record.receiver_id != borrowerId else {
+                    continue
+                }
+                
+                if let current = latestInternalTimes[record.application_id] {
+                    if date > current { latestInternalTimes[record.application_id] = date }
+                } else {
+                    latestInternalTimes[record.application_id] = date
                 }
             }
             
-            // Filter to only show chats with messages or escalated applications
+            // Show an application if:
+            // (a) It was ever escalated to the manager (any status past submitted) — always visible, OR
+            // (b) It belongs to an officer in the manager's branch AND has internal messages.
+            let preManagerStatuses: Set<ApplicationStatus> = [.draft, .submitted]
             self.chatApplications = self.chatApplications.filter { app in
-                let hasMessages = latestTimes[app.application.id] != nil
-                let isEscalated = app.application.status == .underReview
-                return hasMessages || isEscalated
+                let wasEscalated = !preManagerStatuses.contains(app.application.status)
+                let isBranchOfficerLoan = app.application.assignedOfficerId
+                    .map { branchOfficerProfileIds.contains($0) } ?? false
+                let hasInternalMessages = latestInternalTimes[app.application.id] != nil
+                return wasEscalated || (isBranchOfficerLoan && hasInternalMessages)
             }
             
-            // Sort by latest message
+            // Sort by latest message (most recent first).
+            // Falls back to lastUpdatedAt for loans with no messages yet.
             self.chatApplications.sort { app1, app2 in
-                let date1 = latestTimes[app1.application.id] ?? .distantPast
-                let date2 = latestTimes[app2.application.id] ?? .distantPast
+                let date1 = latestAnyMessageTimes[app1.application.id]
+                    ?? app1.application.lastUpdatedAt ?? app1.application.createdAt ?? .distantPast
+                let date2 = latestAnyMessageTimes[app2.application.id]
+                    ?? app2.application.lastUpdatedAt ?? app2.application.createdAt ?? .distantPast
                 return date1 > date2
             }
             
         } catch {
-            print("Failed to fetch message timestamps: \\(error)")
+            print("Failed to fetch message timestamps: \(error)")
         }
     }
     

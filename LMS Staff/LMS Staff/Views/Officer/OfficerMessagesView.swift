@@ -183,14 +183,37 @@ struct ChatSupportConsole: View {
                                 .padding(.horizontal, StaffSpacing.lg)
                                 .padding(.top, 40)
                         } else {
-                            ForEach(activeMessages.filter { msg in
-                                // If Admin, show all messages. Otherwise, filter out deleted ones for the user.
+                            let visibleMessages = activeMessages.filter { msg in
                                 if authViewModel.currentUser?.role == .admin {
                                     return true
                                 }
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
-                            }) { msg in
+                            }
+                            
+                            ForEach(Array(visibleMessages.enumerated()), id: \.element.id) { index, msg in
+                                // Date separator: show when the day changes from the previous message
+                                if let sentDate = msg.sentAt {
+                                    let showSeparator: Bool = {
+                                        if index == 0 { return true }
+                                        guard let prevDate = visibleMessages[index - 1].sentAt else { return true }
+                                        return !Calendar.current.isDate(sentDate, inSameDayAs: prevDate)
+                                    }()
+                                    
+                                    if showSeparator {
+                                        Text(dateSeparatorLabel(for: sentDate))
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.staffTextSecondary)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 6)
+                                            .background(Color.staffSurface)
+                                            .cornerRadius(StaffCorner.lg)
+                                            .frame(maxWidth: .infinity, alignment: .center)
+                                            .padding(.top, index == 0 ? 0 : StaffSpacing.md)
+                                    }
+                                }
+                                
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 let isStaffSender = msg.senderId != appWithBorrower.borrower.id
                                 
@@ -315,6 +338,19 @@ struct ChatSupportConsole: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: d)
+    }
+    
+    private func dateSeparatorLabel(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE, d MMM"
+            return formatter.string(from: date)
+        }
     }
     
     private func getMessageStyling(for msg: Message, isInternalChat: Bool, isMe: Bool, isStaffSender: Bool) -> (isRightAligned: Bool, isManagerInInternalChat: Bool, bgColor: Color, fgColor: Color) {
