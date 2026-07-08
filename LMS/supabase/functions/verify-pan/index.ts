@@ -21,12 +21,12 @@ Deno.serve(async (request) => {
       headers: { "x-api-key": apiKey, "x-api-secret": apiSecret, "x-api-version": "1.0" },
     });
     if (!authResponse.ok) {
-      console.warn(`KYC authentication failed (${authResponse.status}). Using mock response for demo purposes.`);
+      const errorText = await authResponse.text();
       return new Response(JSON.stringify({
         pan: pan,
-        status: "valid",
-        name_as_per_pan_match: true,
-        date_of_birth_match: true
+        status: `Auth Error (${authResponse.status}): ${errorText}`,
+        name_as_per_pan_match: false,
+        date_of_birth_match: false
       }), { status: 200, headers: jsonHeaders });
     }
     const authPayload = await authResponse.json();
