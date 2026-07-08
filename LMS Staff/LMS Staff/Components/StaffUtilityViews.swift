@@ -126,3 +126,179 @@ struct StaffAmountDisplay: View {
         }
     }
 }
+
+// MARK: - Premium Animated Shimmer & Skeleton Views
+
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = -0.5
+    
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    let height = geo.size.height
+                    
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: Color.white.opacity(0.35), location: 0.35),
+                            .init(color: Color.white.opacity(0.65), location: 0.5),
+                            .init(color: Color.white.opacity(0.35), location: 0.65),
+                            .init(color: .clear, location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .rotationEffect(.degrees(30))
+                    .frame(width: width * 3, height: height * 3)
+                    .offset(x: width * (phase - 1), y: -height)
+                    .onAppear {
+                        withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                            phase = 1.5
+                        }
+                    }
+                }
+            )
+            .clipped()
+    }
+}
+
+extension View {
+    func shimmer() -> some View {
+        self.modifier(ShimmerModifier())
+    }
+}
+
+struct SkeletonCell: View {
+    var width: CGFloat? = nil
+    var height: CGFloat
+    var cornerRadius: CGFloat = 8
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color.staffSurfaceMuted)
+            .frame(width: width, height: height)
+            .shimmer()
+    }
+}
+
+struct ReportsSkeletonView: View {
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
+                // Header Skeleton
+                VStack(alignment: .leading, spacing: 8) {
+                    SkeletonCell(width: 200, height: 28, cornerRadius: 6)
+                    SkeletonCell(width: 320, height: 16, cornerRadius: 4)
+                }
+                
+                // Key Metrics Grid Skeleton (3 columns, 2 rows)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: StaffSpacing.md), count: 3), spacing: StaffSpacing.md) {
+                    ForEach(0..<6, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                SkeletonCell(width: 40, height: 40, cornerRadius: 20) // Icon circle
+                                Spacer()
+                            }
+                            SkeletonCell(width: 100, height: 14, cornerRadius: 4) // Title
+                            SkeletonCell(width: 140, height: 24, cornerRadius: 6) // Value
+                            SkeletonCell(width: 80, height: 12, cornerRadius: 3) // Subtitle
+                        }
+                        .padding(StaffSpacing.md)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StaffCorner.md)
+                                .stroke(Color.staffBorder, lineWidth: 1)
+                        )
+                    }
+                }
+                
+                // Charts Row 1 Skeleton (2 cards)
+                HStack(spacing: StaffSpacing.md) {
+                    ForEach(0..<2, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 16) {
+                            SkeletonCell(width: 150, height: 18, cornerRadius: 4) // Title
+                            HStack {
+                                Spacer()
+                                SkeletonCell(width: 180, height: 180, cornerRadius: 90) // Pie/Donut Chart shape
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .padding(StaffSpacing.md)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StaffCorner.md)
+                                .stroke(Color.staffBorder, lineWidth: 1)
+                        )
+                    }
+                }
+                
+                // Charts Row 2 Skeleton (2 cards)
+                HStack(spacing: StaffSpacing.md) {
+                    ForEach(0..<2, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 16) {
+                            SkeletonCell(width: 180, height: 18, cornerRadius: 4) // Title
+                            SkeletonCell(height: 180, cornerRadius: 8) // Chart bars outline
+                        }
+                        .padding(StaffSpacing.md)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StaffCorner.md)
+                                .stroke(Color.staffBorder, lineWidth: 1)
+                        )
+                    }
+                }
+                
+                // Collection Trend Section Skeleton (1 wide card)
+                VStack(alignment: .leading, spacing: 16) {
+                    SkeletonCell(width: 220, height: 18, cornerRadius: 4) // Title
+                    SkeletonCell(height: 220, cornerRadius: 8) // Large chart outline
+                }
+                .padding(StaffSpacing.md)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(Color.staffBorder, lineWidth: 1)
+                )
+                
+                // Recent Loans Table Skeleton (1 wide card)
+                VStack(alignment: .leading, spacing: 16) {
+                    SkeletonCell(width: 180, height: 18, cornerRadius: 4) // Title
+                    VStack(spacing: 12) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            HStack(spacing: 16) {
+                                SkeletonCell(width: 44, height: 44, cornerRadius: 8) // Icon / Thumbnail
+                                VStack(alignment: .leading, spacing: 6) {
+                                    SkeletonCell(width: 120, height: 14, cornerRadius: 4) // Name
+                                    SkeletonCell(width: 80, height: 10, cornerRadius: 3) // Date
+                                }
+                                Spacer()
+                                SkeletonCell(width: 90, height: 16, cornerRadius: 4) // Amount
+                                SkeletonCell(width: 60, height: 18, cornerRadius: 9) // Status Badge
+                            }
+                            Divider()
+                        }
+                    }
+                }
+                .padding(StaffSpacing.md)
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(Color.staffBorder, lineWidth: 1)
+                )
+            }
+            .padding(StaffSpacing.lg)
+            .padding(.bottom, StaffSpacing.mega)
+        }
+        .background(Color.staffBackground)
+    }
+}

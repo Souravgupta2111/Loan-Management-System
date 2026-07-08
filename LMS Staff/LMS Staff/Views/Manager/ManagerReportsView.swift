@@ -46,16 +46,7 @@ struct ManagerReportsView: View {
     var body: some View {
         Group {
             if vm.isLoading {
-                VStack(spacing: StaffSpacing.lg) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .staffAccent))
-                        .scaleEffect(1.4)
-                    Text("Loading analytics...")
-                        .font(.staffBody)
-                        .foregroundColor(.staffTextSecondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.staffBackground)
+                ReportsSkeletonView()
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: StaffSpacing.xxl) {
