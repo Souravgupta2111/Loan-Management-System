@@ -74,7 +74,7 @@ struct EMICalculatorView: View {
                                 .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                         }
                     }
                     .buttonStyle(.plain)
@@ -116,7 +116,7 @@ struct EMICalculatorView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -715,7 +715,7 @@ struct CalculatorAmortizationSheet: View {
                                 Spacer()
                                 Text("₹\(formatIndian(amount))")
                                     .font(.body.weight(.bold))
-                                    .foregroundColor(Color(hex: "#1B6B3A"))
+                                    .foregroundColor(Color(hex: Color.currentPalette.darkerHex))
                             }
                         }
                         .padding(Spacing.xl)
@@ -727,7 +727,7 @@ struct CalculatorAmortizationSheet: View {
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )

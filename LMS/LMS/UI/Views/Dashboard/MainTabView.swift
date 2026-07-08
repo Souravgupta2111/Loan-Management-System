@@ -4,6 +4,8 @@ import UIKit
 /// Main Tab View — uses the native iOS tab bar with a translucent glass appearance.
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
+    @Environment(\.appColorPalette) private var appColorPalette
     @StateObject private var intentRouter = IntentRouter.shared
     @State private var selectedTab: TabType = .home
 
@@ -36,6 +38,10 @@ struct MainTabView: View {
     }
 
     init() {
+        Self.configureTabBar()
+    }
+
+    static func tabBarAppearance() -> UITabBarAppearance {
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
         appearance.backgroundEffect = UIBlurEffect(style: .systemChromeMaterial)
@@ -63,6 +69,11 @@ struct MainTabView: View {
             ]
         }
 
+        return appearance
+    }
+
+    private static func configureTabBar() {
+        let appearance = tabBarAppearance()
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
         UITabBar.appearance().isTranslucent = true
@@ -92,6 +103,7 @@ struct MainTabView: View {
                 .tag(TabType.schedule)
             }
         .tint(.accentGreen)
+        .background(TabBarThemeUpdater(palette: appColorPalette))
         .ignoresSafeArea(.keyboard, edges: .bottom)
         // Siri / Shortcuts intents drive navigation through IntentRouter.
         .onReceive(intentRouter.$selectedTab) { routed in
@@ -110,6 +122,7 @@ struct MainTabView: View {
             }
         }
         .onAppear {
+            Self.configureTabBar()
             Task {
                 // Ask for notification permission (first launch) before subscribing,
                 // then start listening for realtime notification inserts.
@@ -117,5 +130,35 @@ struct MainTabView: View {
                 NotificationService.shared.subscribeToNotifications()
             }
         }
+        .onChange(of: themeManager.selectedPalette) { _, _ in
+            Self.configureTabBar()
+        }
+    }
+}
+
+private struct TabBarThemeUpdater: UIViewRepresentable {
+    let palette: AppColorPalette
+
+    func makeUIView(context: Context) -> UIView {
+        UIView(frame: .zero)
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        DispatchQueue.main.async {
+            guard palette == AppThemeManager.activePalette else { return }
+            let appearance = MainTabView.tabBarAppearance()
+            for tabBar in view.window?.allSubviews.compactMap({ $0 as? UITabBar }) ?? [] {
+                tabBar.standardAppearance = appearance
+                tabBar.scrollEdgeAppearance = appearance
+                tabBar.tintColor = UIColor(Color.accentGreen)
+                tabBar.setNeedsLayout()
+            }
+        }
+    }
+}
+
+private extension UIView {
+    var allSubviews: [UIView] {
+        subviews + subviews.flatMap(\.allSubviews)
     }
 }

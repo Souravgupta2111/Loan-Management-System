@@ -19,25 +19,25 @@ struct ManagerReportsView: View {
     
     // Chart color palettes
     private let statusColors: [Color] = [
-        Color(hex: "#2E9658"), // Green — Active
+        Color.staffAccent, // Green — Active
         Color(hex: "#D9534F"), // Red — NPA
         Color(hex: "#C89A24"), // Amber — Restructured
         Color(hex: "#71786F"), // Gray — Closed
-        Color(hex: "#3A9A61"), // Teal — Other
+        Color.staffPurple, // Teal — Other
         Color(hex: "#B98222"), // Orange
     ]
     
     private let productColors: [Color] = [
-        Color(hex: "#2E9658"),
-        Color(hex: "#409F73"),
+        Color.staffAccent,
+        Color.staffTeal,
         Color(hex: "#C89A24"),
-        Color(hex: "#3A9A61"),
+        Color.staffPurple,
         Color(hex: "#B98222"),
         Color(hex: "#D9534F"),
     ]
     
     private let agingColors: [Color] = [
-        Color(hex: "#2E9658"), // 0-30 green
+        Color.staffAccent, // 0-30 green
         Color(hex: "#C89A24"), // 31-60 amber
         Color(hex: "#B98222"), // 61-90 orange
         Color(hex: "#D9534F"), // 90+ red
@@ -108,13 +108,13 @@ struct ManagerReportsView: View {
                 .padding(.vertical, 8)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: "#2E9658"), Color(hex: "#248149")],
+                        colors: [Color.staffAccent, Color(hex: Color.currentPalette.darkerHex)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(StaffCorner.sm)
-                .shadow(color: Color(hex: "#2E9658").opacity(0.25), radius: 4, x: 0, y: 2)
+                .shadow(color: Color.staffAccent.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .disabled(isExporting || vm.loans.isEmpty)
             
@@ -151,8 +151,8 @@ struct ManagerReportsView: View {
                 title: "Portfolio Value",
                 value: vm.formatCurrency(vm.totalPortfolioValue),
                 subtitle: "\(vm.activeLoansCount + vm.npaCount + vm.restructuredCount) active loans",
-                accentColor: Color(hex: "#2E9658"),
-                gradientEnd: Color(hex: "#248149")
+                accentColor: Color.staffAccent,
+                gradientEnd: Color(hex: Color.currentPalette.darkerHex)
             )
             
             ReportMetricCard(
@@ -160,7 +160,7 @@ struct ManagerReportsView: View {
                 title: "Active Loans",
                 value: "\(vm.activeLoansCount)",
                 subtitle: "of \(vm.totalLoansCount) total",
-                accentColor: Color(hex: "#409F73"),
+                accentColor: Color.staffTeal,
                 gradientEnd: Color(hex: "#2E8A5A")
             )
             
@@ -178,8 +178,8 @@ struct ManagerReportsView: View {
                 title: "Collection Efficiency",
                 value: vm.formatPercent(vm.collectionEfficiency),
                 subtitle: "current period",
-                accentColor: vm.collectionEfficiency >= 95 ? Color(hex: "#2E9658") : Color(hex: "#C89A24"),
-                gradientEnd: vm.collectionEfficiency >= 95 ? Color(hex: "#248149") : Color(hex: "#A67D1C")
+                accentColor: vm.collectionEfficiency >= 95 ? Color.staffAccent : Color(hex: "#C89A24"),
+                gradientEnd: vm.collectionEfficiency >= 95 ? Color(hex: Color.currentPalette.darkerHex) : Color(hex: "#A67D1C")
             )
             
             ReportMetricCard(
@@ -187,7 +187,7 @@ struct ManagerReportsView: View {
                 title: "Total Disbursed",
                 value: vm.formatCurrency(vm.totalDisbursed),
                 subtitle: "\(vm.totalLoansCount) loans",
-                accentColor: Color(hex: "#3A9A61"),
+                accentColor: Color.staffPurple,
                 gradientEnd: Color(hex: "#2D7A4D")
             )
             
@@ -270,7 +270,7 @@ struct ManagerReportsView: View {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
                         Image(systemName: "chart.bar.fill")
-                            .foregroundColor(Color(hex: "#409F73"))
+                            .foregroundColor(Color.staffTeal)
                         Text("Product Mix")
                             .font(.staffCardTitle)
                             .foregroundColor(.staffTextPrimary)
@@ -420,7 +420,7 @@ struct ManagerReportsView: View {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
                         Image(systemName: "calendar.badge.plus")
-                            .foregroundColor(Color(hex: "#3A9A61"))
+                            .foregroundColor(Color.staffPurple)
                         Text("Disbursement Timeline")
                             .font(.staffCardTitle)
                             .foregroundColor(.staffTextPrimary)
@@ -448,7 +448,7 @@ struct ManagerReportsView: View {
                             )
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "#2E9658").opacity(0.4), Color(hex: "#2E9658").opacity(0.05)],
+                                    colors: [Color.staffAccent.opacity(0.4), Color.staffAccent.opacity(0.05)],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
@@ -459,7 +459,7 @@ struct ManagerReportsView: View {
                                 x: .value("Month", item.month),
                                 y: .value("Amount", item.amount)
                             )
-                            .foregroundStyle(Color(hex: "#2E9658"))
+                            .foregroundStyle(Color.staffAccent)
                             .interpolationMethod(.catmullRom)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
                             
@@ -467,7 +467,7 @@ struct ManagerReportsView: View {
                                 x: .value("Month", item.month),
                                 y: .value("Amount", item.amount)
                             )
-                            .foregroundStyle(Color(hex: "#2E9658"))
+                            .foregroundStyle(Color.staffAccent)
                             .symbolSize(30)
                         }
                         .chartYAxis {
@@ -558,7 +558,7 @@ struct ManagerReportsView: View {
                             )
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "#2E9658").opacity(0.3), Color(hex: "#2E9658").opacity(0.02)],
+                                    colors: [Color.staffAccent.opacity(0.3), Color.staffAccent.opacity(0.02)],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
@@ -569,7 +569,7 @@ struct ManagerReportsView: View {
                                 x: .value("Month", item.month),
                                 y: .value("Efficiency", item.efficiency)
                             )
-                            .foregroundStyle(Color(hex: "#2E9658"))
+                            .foregroundStyle(Color.staffAccent)
                             .interpolationMethod(.catmullRom)
                             .lineStyle(StrokeStyle(lineWidth: 3))
                             
@@ -577,7 +577,7 @@ struct ManagerReportsView: View {
                                 x: .value("Month", item.month),
                                 y: .value("Efficiency", item.efficiency)
                             )
-                            .foregroundStyle(item.efficiency >= 95 ? Color(hex: "#2E9658") : Color(hex: "#D9534F"))
+                            .foregroundStyle(item.efficiency >= 95 ? Color.staffAccent : Color(hex: "#D9534F"))
                             .symbolSize(40)
                             .annotation(position: .top, spacing: 4) {
                                 Text(String(format: "%.0f%%", item.efficiency))
@@ -740,7 +740,7 @@ struct ManagerReportsView: View {
         let normalized = status.lowercased().replacingOccurrences(of: " ", with: "_")
         switch normalized {
         case "active":
-            return Color(hex: "#2E9658")
+            return Color.staffAccent
         case "approved":
             return Color(hex: "#1E8A5F")
         case "under_review":
@@ -767,15 +767,15 @@ struct ManagerReportsView: View {
     private func colorForProduct(_ name: String) -> Color {
         let cleaned = name.lowercased()
         if cleaned.contains("personal") {
-            return Color(hex: "#2E9658")
+            return Color.staffAccent
         } else if cleaned.contains("home") {
-            return Color(hex: "#409F73")
+            return Color.staffTeal
         } else if cleaned.contains("vehicle") {
             return Color(hex: "#C89A24")
         } else if cleaned.contains("education") {
             return Color(hex: "#B98222")
         } else if cleaned.contains("business") || cleaned.contains("commercial") {
-            return Color(hex: "#3A9A61")
+            return Color.staffPurple
         } else {
             let index = abs(name.hashValue) % productColors.count
             return productColors[index]
@@ -869,7 +869,7 @@ struct ManagerReportsView: View {
             
             // Title bar
             let titleBarRect = CGRect(x: margin, y: yPos, width: contentWidth, height: 50)
-            UIColor(Color(hex: "#2E9658")).setFill()
+            UIColor(Color.staffAccent).setFill()
             UIBezierPath(roundedRect: titleBarRect, cornerRadius: 8).fill()
             
             let titleAttrs: [NSAttributedString.Key: Any] = [
@@ -977,7 +977,7 @@ struct ManagerReportsView: View {
                 .foregroundColor: UIColor.white
             ]
             let headerRect = CGRect(x: margin, y: yPos, width: contentWidth, height: 22)
-            UIColor(Color(hex: "#2E9658")).setFill()
+            UIColor(Color.staffAccent).setFill()
             UIBezierPath(roundedRect: headerRect, cornerRadius: 4).fill()
             
             let colWidths: [CGFloat] = [100, 130, 140, 90, 100, 60, 80, 60]
@@ -1008,7 +1008,7 @@ struct ManagerReportsView: View {
                 // Alternating row background
                 if index % 2 == 1 {
                     let rowRect = CGRect(x: margin, y: yPos, width: contentWidth, height: 20)
-                    UIColor(Color(hex: "#F1F8F0")).setFill()
+                    UIColor(Color.staffBackground).setFill()
                     UIBezierPath(rect: rowRect).fill()
                 }
                 

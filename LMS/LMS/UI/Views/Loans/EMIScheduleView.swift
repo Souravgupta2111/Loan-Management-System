@@ -18,7 +18,7 @@ struct EMIScheduleView: View {
     var body: some View {
         ZStack {
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )

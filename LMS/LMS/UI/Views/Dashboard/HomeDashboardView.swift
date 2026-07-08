@@ -68,24 +68,48 @@ struct HomeDashboardView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#1A1A1A"))
+                            .fill(.ultraThinMaterial)
                             .frame(width: 60, height: 60)
+                            .overlay(
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                Color.white.opacity(0.55),
+                                                Color.themeGreen.opacity(0.18),
+                                                Color.white.opacity(0.08)
+                                            ],
+                                            center: .topLeading,
+                                            startRadius: 4,
+                                            endRadius: 56
+                                        )
+                                    )
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.accentGreen.opacity(0.28), lineWidth: 1.5)
+                            )
                         
                         Image(systemName: "sparkles")
                             .font(.title2.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(.trailing, 20)
                 .padding(.bottom, 20)
-                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.accentGreen.opacity(0.25), radius: 16, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
                 .accessibilityLabel("Open AI Financial Advisor")
                 .accessibilityHint("Double tap to chat with your personal AI assistant")
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -147,11 +171,11 @@ struct HomeDashboardView: View {
                         Button { } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "#E8F5EC"))
+                                    .fill(Color.accentGreenBg)
                                     .frame(width: 40, height: 40)
                                 Image(systemName: "bell")
                                     .font(.body.weight(.medium))
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
+                                    .foregroundColor(Color.accentGreen)
                             }
                         }
                         .buttonStyle(.plain)
@@ -209,11 +233,11 @@ struct HomeDashboardView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(hex: "#E8F5EC"))
+                        .fill(Color.accentGreenBg)
                         .frame(width: 38, height: 38)
                     Image(systemName: primaryLoan.icon)
                         .font(.body.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
                 Text(primaryLoan.name)
                     .font(.headline.weight(.bold)).fontDesign(.rounded)
@@ -248,10 +272,10 @@ struct HomeDashboardView: View {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(Color(hex: "#C8E6D0").opacity(0.5))
+                                    .fill(Color.themeGreen.opacity(0.5))
                                     .frame(height: 6)
                                 Capsule()
-                                    .fill(Color(hex: "#2D8B4E"))
+                                    .fill(Color.accentGreen)
                                     .frame(width: geo.size.width * CGFloat(min(paidPercent, 1)), height: 6)
                             }
                         }
@@ -259,14 +283,14 @@ struct HomeDashboardView: View {
 
                         Text("\(Int(paidPercent * 100))% repaid")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                             .fixedSize()
                     }
                 } else {
                     HStack(alignment: .center, spacing: 8) {
                         GeometryReader { geo in
                             Capsule()
-                                .fill(Color(hex: "#C8E6D0").opacity(0.5))
+                                .fill(Color.themeGreen.opacity(0.5))
                                 .frame(height: 6)
                         }
                         .frame(height: 6)
@@ -313,7 +337,7 @@ struct HomeDashboardView: View {
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(primaryLoan.status.capitalized.replacingOccurrences(of: "_", with: " "))
                             .font(.body.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
 
                     Spacer()
@@ -335,7 +359,7 @@ struct HomeDashboardView: View {
             }
         }
         .padding(18)
-        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.06)
+        .liquidGlass(cornerRadius: 22, tint: Color.accentGreen, tintOpacity: 0.06)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(primaryLoan.name), \(primaryLoan.status.lowercased() == "active" ? "Outstanding Balance" : "Requested Amount") ₹ \(formatIndian(primaryLoan.remainingAmount)). \(primaryLoan.status.lowercased() == "active" ? "\(Int(primaryLoan.paidPercent * 100))% repaid" : "Status: \(primaryLoan.status)")")
         .accessibilityHint("Double tap to view loan details")
@@ -347,7 +371,7 @@ struct HomeDashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "bolt.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                 Text("QUICK ACTIONS")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#6B6B6B"))
@@ -391,11 +415,11 @@ struct HomeDashboardView: View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#E8F5EC"))
+                    .fill(Color.accentGreenBg)
                     .frame(width: 42, height: 42)
                 Image(systemName: icon)
                     .font(.title3.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
             }
             Text(label)
                 .font(.subheadline.weight(.medium)).fontDesign(.rounded)
@@ -414,7 +438,7 @@ struct HomeDashboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                     Text("TRANSACTION HISTORY")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color(hex: "#6B6B6B"))
@@ -434,7 +458,7 @@ struct HomeDashboardView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption.weight(.bold))
                         }
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                     }
                     .buttonStyle(.plain)
                 }
@@ -445,7 +469,7 @@ struct HomeDashboardView: View {
                 VStack(alignment: .center, spacing: 6) {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.title2)
-                        .foregroundColor(Color(hex: "#C8E6D0"))
+                        .foregroundColor(Color.themeGreen)
                     Text("No transactions yet")
                         .font(.body.weight(.medium))
                         .foregroundColor(Color(hex: "#6B6B6B"))
@@ -508,16 +532,16 @@ struct HomeDashboardView: View {
                 HStack {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#E8F5EC"))
+                            .fill(Color.accentGreenBg)
                             .frame(width: 48, height: 48)
                         Image(systemName: "indianrupeesign.circle.fill")
                             .font(.title2.weight(.bold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
                     Spacer()
                     Image(systemName: "arrow.up.right.circle.fill")
                         .font(.title2)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
@@ -532,7 +556,7 @@ struct HomeDashboardView: View {
             }
             .padding(24)
             .frame(maxWidth: .infinity)
-            .liquidGlass(cornerRadius: 24, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.08)
+            .liquidGlass(cornerRadius: 24, tint: Color.accentGreen, tintOpacity: 0.08)
         }
         .buttonStyle(.plain)
     }
@@ -541,7 +565,7 @@ struct HomeDashboardView: View {
         VStack(spacing: 12) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.title)
-                .foregroundColor(Color(hex: "#C8E6D0"))
+                .foregroundColor(Color.themeGreen)
             Text("No loans yet")
                 .font(.headline.weight(.bold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
@@ -564,7 +588,7 @@ struct HomeDashboardView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(Color(hex: "#2D8B4E"))
+                .background(Color.accentGreen)
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -610,7 +634,7 @@ struct HomeDashboardView: View {
                         direction: .debit,
                         statusIcon: "checkmark",
                         statusColor: .white,
-                        statusBg: Color(hex: "#2D8B4E")
+                        statusBg: Color.accentGreen
                     )
                 )
             }
@@ -767,7 +791,7 @@ enum TxDirection {
 
     var color: Color {
         switch self {
-        case .credit: return Color(hex: "#2D8B4E")
+        case .credit: return Color.accentGreen
         case .debit: return Color(hex: "#D94040")
         }
     }

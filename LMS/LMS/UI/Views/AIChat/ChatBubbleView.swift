@@ -7,6 +7,47 @@
 
 import SwiftUI
 
+struct AIAssistantAvatar: View {
+    let size: CGFloat
+    let iconSize: Font
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: size, height: size)
+                .overlay(
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.white.opacity(0.55),
+                                    Color.themeGreen.opacity(0.22),
+                                    Color.white.opacity(0.08)
+                                ],
+                                center: .topLeading,
+                                startRadius: 2,
+                                endRadius: size
+                            )
+                        )
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.accentGreen.opacity(0.3), lineWidth: 1)
+                )
+                .shadow(color: Color.accentGreen.opacity(0.18), radius: 8, x: 0, y: 4)
+
+            Image(systemName: "sparkles")
+                .font(iconSize)
+                .foregroundColor(Color.accentGreen)
+        }
+    }
+}
+
 struct ChatBubbleView: View {
     let message: AIMessage
     var onSpeakTapped: (() -> Void)? = nil
@@ -21,14 +62,7 @@ struct ChatBubbleView: View {
             
             if !isUser {
                 // AI Avatar
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "#1A1A1A"))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "sparkles")
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
-                }
+                AIAssistantAvatar(size: 32, iconSize: .subheadline)
                 .accessibilityHidden(true)
             }
             
@@ -45,7 +79,7 @@ struct ChatBubbleView: View {
                         } label: {
                             Image(systemName: "speaker.wave.2")
                                 .font(.caption)
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                                 .padding(6)
                                 .background(Color.white.opacity(0.8))
                                 .clipShape(Circle())
@@ -59,7 +93,7 @@ struct ChatBubbleView: View {
                 .background(
                     Group {
                         if isUser {
-                            Color(hex: "#008A45")
+                            Color.accentGreen
                         } else {
                             Color.white.opacity(0.5)
                                 .background(.ultraThinMaterial)
@@ -88,10 +122,10 @@ struct ChatBubbleView: View {
                                     Image(systemName: "chevron.right")
                                 }
                                 .font(.subheadline.weight(.medium))
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
-                                .background(Color(hex: "#E8F5EC"))
+                                .background(Color.accentGreenBg)
                                 .accessibilityLabel("Suggested action: \(action.label)")
                                 .accessibilityHint("Double tap to use this action")
                                 .cornerRadius(12)

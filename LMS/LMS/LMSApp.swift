@@ -35,6 +35,7 @@ struct LMSApp: App {
 
     // Initialize Supabase on app launch
     private let supabase = SupabaseManager.shared
+    @StateObject private var themeManager = AppThemeManager()
 
     // Notification delegate must be retained for the app's lifetime
     private let notificationDelegate = NotificationDelegate()
@@ -47,6 +48,9 @@ struct LMSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .tint(.accentGreen)
+                .environment(\.appColorPalette, themeManager.selectedPalette)
+                .environmentObject(themeManager)
         }
     }
 }

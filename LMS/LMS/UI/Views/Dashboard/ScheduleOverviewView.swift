@@ -61,7 +61,7 @@ struct ScheduleOverviewView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -79,7 +79,7 @@ struct ScheduleOverviewView: View {
                     } label: {
                         Image(systemName: "calendar.badge.plus")
                             .font(.headline.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
                 }
             }
@@ -171,9 +171,9 @@ struct ScheduleOverviewView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                     .frame(width: 34, height: 34)
-                    .background(Color(hex: "#E8F5EC"))
+                    .background(Color.accentGreenBg)
                     .clipShape(Circle())
             }
 
@@ -190,9 +190,9 @@ struct ScheduleOverviewView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                     .frame(width: 34, height: 34)
-                    .background(Color(hex: "#E8F5EC"))
+                    .background(Color.accentGreenBg)
                     .clipShape(Circle())
             }
         }
@@ -258,18 +258,18 @@ struct ScheduleOverviewView: View {
                 ZStack {
                     if isSelected {
                         Circle()
-                            .fill(Color(hex: "#2D8B4E"))
+                            .fill(Color.accentGreen)
                             .frame(width: 34, height: 34)
                     } else if isToday {
                         Circle()
-                            .fill(Color(hex: "#E8F5EC"))
+                            .fill(Color.accentGreenBg)
                             .frame(width: 34, height: 34)
                     }
                     Text("\(calendar.component(.day, from: date))")
                         .font(.body.weight(isToday || isSelected ? .bold : .regular)).fontDesign(.rounded)
                         .foregroundColor(
                             isSelected ? .white :
-                            isToday    ? Color(hex: "#2D8B4E") :
+                            isToday    ? Color.accentGreen :
                                          Color(hex: "#1A1A1A")
                         )
                 }
@@ -277,7 +277,7 @@ struct ScheduleOverviewView: View {
 
                 HStack(spacing: 3) {
                     if hasPaid {
-                        Circle().fill(Color(hex: "#2D8B4E")).frame(width: 5, height: 5)
+                        Circle().fill(Color.accentGreen).frame(width: 5, height: 5)
                     }
                     if hasOverdue {
                         Circle().fill(Color(hex: "#D94040")).frame(width: 5, height: 5)
@@ -307,7 +307,7 @@ struct ScheduleOverviewView: View {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                 Text(sectionDateLabel(selectedDate))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(hex: "#6B6B6B"))
@@ -340,7 +340,7 @@ struct ScheduleOverviewView: View {
         VStack(spacing: 10) {
             Image(systemName: "calendar.badge.checkmark")
                 .font(.title)
-                .foregroundColor(Color(hex: "#C8E6D0"))
+                .foregroundColor(Color.themeGreen)
             Text("No EMIs on this date")
                 .font(.body.weight(.semibold)).fontDesign(.rounded)
                 .foregroundColor(Color(hex: "#1A1A1A"))
@@ -356,13 +356,13 @@ struct ScheduleOverviewView: View {
     }
 
     private func emiDetailRow(_ entry: CalendarEMIEntry) -> some View {
-        let accentColor: Color = entry.isPaid   ? Color(hex: "#2D8B4E")
+        let accentColor: Color = entry.isPaid   ? Color.accentGreen
                                : entry.isOverdue ? Color(hex: "#D94040")
-                               :                   Color(hex: "#2D8B4E")
-        let bgColor: Color     = entry.isPaid   ? Color(hex: "#E8F5EC")
+                               :                   Color.accentGreen
+        let bgColor: Color     = entry.isPaid   ? Color.accentGreenBg
                                : entry.isOverdue ? Color(hex: "#FDE8E8")
                                :                   Color.clear
-        let badgeTextColor: Color = entry.isPaid ? Color(hex: "#2D8B4E")
+        let badgeTextColor: Color = entry.isPaid ? Color.accentGreen
                                : entry.isOverdue ? Color(hex: "#D94040")
                                :                   Color(hex: "#1A1A1A")
         let statusText = entry.isPaid ? "Paid" : entry.isOverdue ? "Overdue" : "Upcoming"
@@ -377,7 +377,7 @@ struct ScheduleOverviewView: View {
                 .padding(.vertical, 4)
 
             ZStack {
-                Circle().fill(entry.isPaid ? Color(hex: "#E8F5EC") : entry.isOverdue ? Color(hex: "#FDE8E8") : Color(hex: "#E8F5EC")).frame(width: 42, height: 42)
+                Circle().fill(entry.isPaid ? Color.accentGreenBg : entry.isOverdue ? Color(hex: "#FDE8E8") : Color.accentGreenBg).frame(width: 42, height: 42)
                 Image(systemName: loanIcon(entry.loanType))
                     .font(.body.weight(.semibold))
                     .foregroundColor(accentColor)
@@ -577,7 +577,7 @@ private struct DateJumpSheet: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color(hex: "#2D8B4E"))
+                    .background(Color.accentGreen)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)

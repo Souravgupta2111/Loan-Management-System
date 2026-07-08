@@ -32,7 +32,7 @@ struct SanctionLetterPreviewView: View {
                         .padding(.horizontal, 28)
                         .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .background(Color(hex: "#2D8B4E"))
+                        .background(Color.accentGreen)
                         .clipShape(Capsule())
                     }
                     .padding(.horizontal, 20)

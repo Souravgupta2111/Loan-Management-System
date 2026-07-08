@@ -14,7 +14,7 @@ struct GlassBackButton: View {
                     .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
             }
         }
         .buttonStyle(.plain)
