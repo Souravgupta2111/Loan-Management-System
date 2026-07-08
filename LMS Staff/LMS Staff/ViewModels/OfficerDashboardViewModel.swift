@@ -115,17 +115,26 @@ class OfficerDashboardViewModel: ObservableObject {
             }
         }
         
-        // Sort by status priority: submitted first, then sentBack, then pendingAcceptance, and then others
-        result.sort { app1, app2 in
-            let p1 = statusPriority(app1.application.status)
-            let p2 = statusPriority(app2.application.status)
-            if p1 != p2 {
-                return p1 < p2
+        if filter != "All" {
+            // Sort by status priority: submitted first, then sentBack, then pendingAcceptance, and then others
+            result.sort { app1, app2 in
+                let p1 = statusPriority(app1.application.status)
+                let p2 = statusPriority(app2.application.status)
+                if p1 != p2 {
+                    return p1 < p2
+                }
+                // Tie-breaker: latest message or date
+                let date1 = lastMessageTimes[app1.application.id] ?? (app1.application.createdAt ?? .distantPast)
+                let date2 = lastMessageTimes[app2.application.id] ?? (app2.application.createdAt ?? .distantPast)
+                return date1 > date2
             }
-            // Tie-breaker: latest message or date
-            let date1 = lastMessageTimes[app1.application.id] ?? (app1.application.createdAt ?? .distantPast)
-            let date2 = lastMessageTimes[app2.application.id] ?? (app2.application.createdAt ?? .distantPast)
-            return date1 > date2
+        } else {
+            // Sort strictly by latest message (or creation date) for the Chat support room list
+            result.sort { app1, app2 in
+                let date1 = lastMessageTimes[app1.application.id] ?? (app1.application.createdAt ?? .distantPast)
+                let date2 = lastMessageTimes[app2.application.id] ?? (app2.application.createdAt ?? .distantPast)
+                return date1 > date2
+            }
         }
         
         self.filteredApplications = result

@@ -10,6 +10,17 @@ import SwiftUI
 struct ManagerMessagesView: View {
     @StateObject private var dashboardVm = ManagerDashboardViewModel()
     @State private var selectedApp: ApplicationWithBorrower?
+    @State private var searchText: String = ""
+    
+    private var filteredChats: [ApplicationWithBorrower] {
+        dashboardVm.chatApplications.filter { app in
+            if searchText.isEmpty { return true }
+            let query = searchText.lowercased()
+            return app.borrower.fullName.lowercased().contains(query) ||
+                   (app.application.applicationNumber ?? "").lowercased().contains(query) ||
+                   app.product.name.lowercased().contains(query)
+        }
+    }
     
     var body: some View {
         HStack(spacing: 0) {
@@ -21,30 +32,41 @@ struct ManagerMessagesView: View {
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
+                TextField("Search chats...", text: $searchText)
+                    .padding(12)
+                    .background(Color.staffSurface)
+                    .cornerRadius(StaffCorner.md)
+                    .foregroundColor(.staffTextPrimary)
+                    .padding(StaffSpacing.lg)
+                
                 Divider()
                     .background(Color.staffBorder)
-                    .padding(.vertical, StaffSpacing.md)
                 
                 if dashboardVm.isLoading {
                     Spacer()
                     ProgressView()
                         .frame(maxWidth: .infinity)
                     Spacer()
-                } else if dashboardVm.chatApplications.isEmpty {
+                } else if filteredChats.isEmpty {
                     Spacer()
-                    EmptyStateView(icon: "bubble.left.and.bubble.right", title: "No Chats", message: "No applications active for discussion.")
+                    EmptyStateView(icon: "bubble.left.and.bubble.right", title: "No Chats", message: "No active chat rooms found.")
                     Spacer()
                 } else {
-                    List(dashboardVm.chatApplications, selection: $selectedApp) { app in
+                    List(filteredChats, selection: $selectedApp) { app in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(app.borrower.fullName)
                                     .font(.staffBody)
                                     .fontWeight(.bold)
                                     .foregroundColor(.staffTextPrimary)
-                                Text("No: \(app.application.applicationNumber ?? "")")
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
+                                HStack(spacing: 4) {
+                                    Text(app.application.applicationNumber ?? "APP-NEW")
+                                        .fontWeight(.semibold)
+                                    Text("•")
+                                    Text(app.product.name)
+                                }
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
