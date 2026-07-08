@@ -235,12 +235,15 @@ class SetuAAService {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime]
         
+        let digitsOnly = mobileNumber.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        let sanitizedPhone = String(digitsOnly.suffix(10))
+        
         let consentBody: [String: Any] = [
             "consentDuration": [
                 "unit": "MONTH",
                 "value": 12
             ],
-            "vua": "\(mobileNumber)@onemoney",
+            "vua": "\(sanitizedPhone)@onemoney",
             "dataRange": [
                 "from": isoFormatter.string(from: oneYearAgo),
                 "to": isoFormatter.string(from: now)
