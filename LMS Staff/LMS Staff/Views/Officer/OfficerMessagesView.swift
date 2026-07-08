@@ -19,6 +19,7 @@ struct OfficerMessagesView: View {
                 Text("Chat Support Rooms")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
+                    .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
@@ -62,6 +63,7 @@ struct OfficerMessagesView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.staffTextSecondary)
+                                .accessibilityHidden(true)
                         }
                         .padding(.vertical, 6)
                         .tag(app)
@@ -70,6 +72,8 @@ struct OfficerMessagesView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.staffSurface
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to open chat")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -94,9 +98,11 @@ struct OfficerMessagesView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Room to Message Client")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -144,6 +150,7 @@ struct ChatSupportConsole: View {
                     Text(forceInternalOnly ? "Officer Review Discussion" : "Messaging Support")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     HStack(spacing: 6) {
                         Text(appWithBorrower.borrower.fullName)
                         Text("•")
@@ -263,6 +270,7 @@ struct ChatSupportConsole: View {
                                                 Image(systemName: msg.isRead ? "checkmark.circle.fill" : "checkmark.circle")
                                                     .font(.caption)
                                                     .foregroundColor(msg.isRead ? .staffAccent : .staffTextSecondary)
+                                                    .accessibilityLabel(msg.isRead ? "Read" : "Delivered")
                                             }
                                         }
                                     }
@@ -339,6 +347,7 @@ struct ChatSupportConsole: View {
                             .background(Color.staffAccent)
                             .cornerRadius(StaffCorner.md)
                     }
+                    .accessibilityLabel("Send message")
                     .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 .padding(StaffSpacing.lg)

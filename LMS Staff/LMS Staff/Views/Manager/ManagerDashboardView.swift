@@ -68,6 +68,7 @@ struct ManagerDashboardView: View {
                         .foregroundColor(.staffTextPrimary)
                         .padding(.horizontal, StaffSpacing.lg)
                         .padding(.top, StaffSpacing.lg)
+                        .accessibilityAddTraits(.isHeader)
                     
                     // KPI Section
                     VStack(spacing: StaffSpacing.sm) {
@@ -150,6 +151,8 @@ struct ManagerDashboardView: View {
                                 }
                                 .padding(.vertical, 6)
                                 .contentShape(Rectangle())
+                                .accessibilityElement(children: .combine)
+                                .accessibilityHint("Double tap to inspect this application")
                             }
                             .buttonStyle(PlainButtonStyle())
                             .listRowBackground(

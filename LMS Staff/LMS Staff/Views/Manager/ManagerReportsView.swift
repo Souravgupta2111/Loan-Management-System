@@ -16,6 +16,15 @@ struct ManagerReportsView: View {
     @State private var showShareSheet = false
     @State private var exportFileURL: URL?
     @State private var isExporting = false
+    @State private var approvedFilter: ApprovedFilter = .weekly
+    
+    private enum ApprovedFilter: String, CaseIterable, Identifiable {
+        case weekly = "Weekly"
+        case monthly = "Monthly"
+        case yearly = "Yearly"
+        
+        var id: String { rawValue }
+    }
     
     // Chart color palettes
     private let statusColors: [Color] = [
@@ -53,8 +62,7 @@ struct ManagerReportsView: View {
                         headerSection
                         keyMetricsGrid
                         chartsRow1
-                        chartsRow2
-                        collectionTrendSection
+                        disbursementTrendSection
                         loansTableSection
                     }
                     .padding(StaffSpacing.lg)
@@ -265,7 +273,7 @@ struct ManagerReportsView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 380)
             
-            // Bar Chart — Product Mix
+            // Average Profitability (Interest Rate)
             StaffCard {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
@@ -276,16 +284,16 @@ struct ManagerReportsView: View {
                             .foregroundColor(.staffTextPrimary)
                     }
                     
-                    if vm.productMix.isEmpty {
+                    if vm.productMetrics.isEmpty {
                         Text("No product data available")
                             .font(.staffCaption)
                             .foregroundColor(.staffTextTertiary)
                             .frame(height: 200)
                             .frame(maxWidth: .infinity)
                     } else {
-                        Chart(vm.productMix) { item in
+                        Chart(vm.productMetrics) { item in
                             BarMark(
-                                x: .value("Amount", item.totalAmount),
+                                x: .value("Interest Rate", item.avgInterestRate),
                                 y: .value("Product", item.productName)
                             )
                             .foregroundStyle(
@@ -297,7 +305,7 @@ struct ManagerReportsView: View {
                             )
                             .cornerRadius(6)
                             .annotation(position: .trailing, spacing: 4) {
-                                Text(vm.formatCurrency(item.totalAmount))
+                                Text(String(format: "%.1f%%", item.avgInterestRate))
                                     .font(.staffFinePrint.weight(.semibold))
                                     .foregroundColor(.staffTextSecondary)
                             }
@@ -306,7 +314,7 @@ struct ManagerReportsView: View {
                             AxisMarks(position: .bottom) { value in
                                 AxisValueLabel {
                                     if let v = value.as(Double.self) {
-                                        Text(vm.formatCurrency(v))
+                                        Text(String(format: "%.0f%%", v))
                                             .font(.staffFinePrint)
                                     }
                                 }
@@ -332,7 +340,7 @@ struct ManagerReportsView: View {
         }
     }
     
-    // MARK: - Charts Row 2: Overdue Aging + Monthly Disbursements
+    // MARK: - Disbursement Trend Section (Full-width)
     
     private var chartsRow2: some View {
         HStack(alignment: .top, spacing: StaffSpacing.md) {
@@ -508,45 +516,34 @@ struct ManagerReportsView: View {
                 HStack {
                     Image(systemName: "chart.xyaxis.line")
                         .foregroundColor(.staffAccent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Collection Efficiency Trend")
-                            .font(.staffCardTitle)
-                            .foregroundColor(.staffTextPrimary)
-                        Text("Monthly collection rate — target ≥ 95%")
-                            .font(.staffFinePrint)
-                            .foregroundColor(.staffTextTertiary)
-                    }
+                    Text("Disbursement Growth Trend")
+                        .font(.staffCardTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
                     Spacer()
-                    if vm.collectionEfficiency < 95 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                            Text("Below Target")
+                    
+                    Picker("Filter", selection: $approvedFilter) {
+                        ForEach(ApprovedFilter.allCases) { f in
+                            Text(f.rawValue).tag(f)
                         }
-                        .font(.staffBadge)
-                        .foregroundColor(.staffRed)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.staffRedBg)
-                        .cornerRadius(StaffCorner.xs)
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.seal.fill")
-                            Text("On Target")
-                        }
-                        .font(.staffBadge)
-                        .foregroundColor(.staffGreen)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.staffGreenBg)
-                        .cornerRadius(StaffCorner.xs)
                     }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 200)
                 }
                 
-                if vm.collectionTrends.isEmpty {
-                    Text("Not enough historical data to generate trend.")
+                let trendData: [ManagerApprovedTrendPoint] = {
+                    switch approvedFilter {
+                    case .weekly: return vm.disbursementWeekly
+                    case .monthly: return vm.disbursementMonthly
+                    case .yearly: return vm.disbursementYearly
+                    }
+                }()
+                
+                if trendData.isEmpty {
+                    Text("No disbursement data available")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextTertiary)
-                        .frame(height: 220)
+                        .frame(height: 200)
                         .frame(maxWidth: .infinity)
                 } else {
                     Chart {
@@ -586,23 +583,32 @@ struct ManagerReportsView: View {
                             }
                         }
                         
-                        // 95% threshold line
-                        RuleMark(y: .value("Target", 95))
-                            .foregroundStyle(Color(hex: "#D9534F").opacity(0.5))
-                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                            .annotation(position: .trailing, alignment: .trailing) {
-                                Text("95% Target")
-                                    .font(.staffFinePrint)
-                                    .foregroundColor(.staffRed)
-                            }
+                        LineMark(
+                            x: .value("Timeframe", item.label),
+                            y: .value("Amount", item.amount)
+                        )
+                        .foregroundStyle(Color(hex: "#2E9658"))
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 3))
+                        
+                        PointMark(
+                            x: .value("Timeframe", item.label),
+                            y: .value("Amount", item.amount)
+                        )
+                        .foregroundStyle(Color(hex: "#2E9658"))
+                        .symbolSize(40)
+                        .annotation(position: .top, spacing: 4) {
+                            Text(vm.formatCurrency(item.amount))
+                                .font(.staffFinePrint.weight(.bold))
+                                .foregroundColor(.staffGreen)
+                        }
                     }
-                    .chartYScale(domain: 0...110)
                     .chartYAxis {
-                        AxisMarks(position: .leading, values: [0, 25, 50, 75, 95, 100]) { value in
+                        AxisMarks(position: .leading) { value in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
                             AxisValueLabel {
                                 if let v = value.as(Double.self) {
-                                    Text("\(Int(v))%")
+                                    Text(vm.formatCurrency(v))
                                         .font(.staffFinePrint)
                                 }
                             }
@@ -611,14 +617,14 @@ struct ManagerReportsView: View {
                     .chartXAxis {
                         AxisMarks { value in
                             AxisValueLabel {
-                                if let month = value.as(String.self) {
-                                    Text(month)
+                                if let label = value.as(String.self) {
+                                    Text(label)
                                         .font(.staffFinePrint)
                                 }
                             }
                         }
                     }
-                    .frame(height: 250)
+                    .frame(height: 200)
                 }
             }
         }
@@ -816,19 +822,33 @@ struct ManagerReportsView: View {
         }
         csv += "\n"
         
-        // Product Mix
-        csv += "PRODUCT MIX\n"
-        csv += "Product,Count,Total Amount\n"
-        for item in vm.productMix {
-            csv += "\"\(item.productName)\",\(item.count),\(String(format: "%.2f", item.totalAmount))\n"
+        // Average Profitability & Loan Size
+        csv += "PRODUCT METRICS (PROFITABILITY & LOAN SIZE)\n"
+        csv += "Product,Average Interest Rate,Average Loan Size\n"
+        for item in vm.productMetrics {
+            csv += "\"\(item.productName)\",\(String(format: "%.2f%%", item.avgInterestRate)),\(String(format: "%.2f", item.avgLoanAmount))\n"
         }
         csv += "\n"
         
-        // Overdue Aging
-        csv += "OVERDUE AGING\n"
-        csv += "Bucket,Count,Amount\n"
-        for bucket in vm.overdueAging {
-            csv += "\(bucket.label),\(bucket.count),\(String(format: "%.2f", bucket.amount))\n"
+        // Disbursement Trend
+        csv += "DISBURSEMENT TREND (WEEKLY)\n"
+        csv += "Week,Amount\n"
+        for item in vm.disbursementWeekly {
+            csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
+        }
+        csv += "\n"
+        
+        csv += "DISBURSEMENT TREND (MONTHLY)\n"
+        csv += "Month,Amount\n"
+        for item in vm.disbursementMonthly {
+            csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
+        }
+        csv += "\n"
+        
+        csv += "DISBURSEMENT TREND (YEARLY)\n"
+        csv += "Year,Amount\n"
+        for item in vm.disbursementYearly {
+            csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
         }
         csv += "\n"
         
@@ -953,17 +973,55 @@ struct ManagerReportsView: View {
             drawLine(at: yPos, from: margin, width: contentWidth, context: context)
             yPos += 15
             
-            // Product Mix
-            "Product Mix".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
+            // Average Profitability by Product
+            "Average Profitability by Product".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
             yPos += 28
             
-            for item in vm.productMix {
-                let text = "\(item.productName): \(item.count) loans — \(vm.formatCurrency(item.totalAmount))"
+            for item in vm.productMetrics {
+                let text = "\(item.productName): Avg Rate: \(String(format: "%.2f%%", item.avgInterestRate)) — Avg Principal: \(vm.formatCurrency(item.avgLoanAmount))"
                 text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
                 yPos += 20
             }
             
-            // PAGE 2 — Detailed Loans Table
+            // PAGE 2 — Disbursement Growth Trend
+            context.beginPage()
+            yPos = margin
+            
+            "Disbursement Growth Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
+            yPos += 28
+            
+            let trendHeaderAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 11, weight: .bold),
+                .foregroundColor: UIColor(Color(hex: "#1A1D1A"))
+            ]
+            
+            "Weekly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            yPos += 18
+            for item in vm.disbursementWeekly {
+                let text = "\(item.label): \(vm.formatCurrency(item.amount))"
+                text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
+                yPos += 18
+            }
+            
+            yPos += 15
+            "Monthly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            yPos += 18
+            for item in vm.disbursementMonthly {
+                let text = "\(item.label): \(vm.formatCurrency(item.amount))"
+                text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
+                yPos += 18
+            }
+            
+            yPos += 15
+            "Yearly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            yPos += 18
+            for item in vm.disbursementYearly {
+                let text = "\(item.label): \(vm.formatCurrency(item.amount))"
+                text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
+                yPos += 18
+            }
+            
+            // PAGE 3 — Detailed Loans Table
             context.beginPage()
             yPos = margin
             

@@ -2,14 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to find the nearest branch and assign a loan officer to your application.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We use speech recognition to allow you to talk to the AI Financial Advisor instead of typing.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need microphone access so you can speak to the AI Financial Advisor.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

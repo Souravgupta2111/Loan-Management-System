@@ -9,6 +9,25 @@
 import Foundation
 import Combine
 
+struct ProductMetricsItem: Identifiable, Hashable {
+    let id = UUID()
+    let productName: String
+    let avgInterestRate: Double
+    let avgLoanAmount: Double
+}
+
+struct ManagerApprovedTrendPoint: Identifiable, Codable {
+    let id: UUID
+    let label: String
+    let amount: Double
+    
+    init(id: UUID = UUID(), label: String, amount: Double) {
+        self.id = id
+        self.label = label
+        self.amount = amount
+    }
+}
+
 @MainActor
 class ManagerReportsViewModel: ObservableObject {
     
@@ -33,6 +52,10 @@ class ManagerReportsViewModel: ObservableObject {
     @Published var collectionTrends: [CollectionTrendItem] = []
     @Published var overdueAging: [OverdueAgingBucket] = []
     @Published var monthlyDisbursements: [MonthlyDisbursement] = []
+    @Published var productMetrics: [ProductMetricsItem] = []
+    @Published var disbursementWeekly: [ManagerApprovedTrendPoint] = []
+    @Published var disbursementMonthly: [ManagerApprovedTrendPoint] = []
+    @Published var disbursementYearly: [ManagerApprovedTrendPoint] = []
     
     // Loans table
     @Published var loans: [LoanWithDetails] = []
@@ -120,9 +143,9 @@ class ManagerReportsViewModel: ObservableObject {
         // 1. Status Distribution (Applications + Loans)
         var statusGroups: [String: (count: Int, amount: Double)] = [:]
         
-        // Add all applications that are NOT disbursed
+        // Add all applications that are NOT disbursed and NOT draft
         for app in applications {
-            if app.application.status != .disbursed {
+            if app.application.status != .disbursed && app.application.status != .draft {
                 let key = app.application.status.displayName
                 var entry = statusGroups[key] ?? (count: 0, amount: 0)
                 entry.count += 1
@@ -202,6 +225,88 @@ class ManagerReportsViewModel: ObservableObject {
                 let rhsKey = monthlyGroups[rhs.month]?.sortKey ?? ""
                 return lhsKey < rhsKey
             }
+        
+        // 5. Product Metrics (Average Interest Rate and Average Loan Size) - Purely Database-Driven
+        var productGroupDetails: [String: (totalInterest: Double, totalAmount: Double, count: Int)] = [:]
+        for item in loans {
+            let name = item.product.name
+            var entry = productGroupDetails[name] ?? (totalInterest: 0, totalAmount: 0, count: 0)
+            entry.totalInterest += item.loan.interestRate
+            entry.totalAmount += item.loan.principalAmount
+            entry.count += 1
+            productGroupDetails[name] = entry
+        }
+        
+        productMetrics = productGroupDetails.map { name, details in
+            ProductMetricsItem(
+                productName: name,
+                avgInterestRate: details.count > 0 ? details.totalInterest / Double(details.count) : 0,
+                avgLoanAmount: details.count > 0 ? details.totalAmount / Double(details.count) : 0
+            )
+        }
+        
+        // 6. Disbursement Trend (Weekly, Monthly, Yearly) - Purely Database-Driven
+        let calendar = Calendar.current
+        let now = Date()
+        
+        var weeklyMap: [String: Double] = ["Week 1": 0, "Week 2": 0, "Week 3": 0, "Week 4": 0, "Week 5": 0]
+        var monthlyMap: [String: Double] = [:]
+        var yearlyMap: [String: Double] = [:]
+        
+        let orderedMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        
+        let dbDateFormatter = DateFormatter()
+        dbDateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        for loan in allLoans {
+            guard let disbDateStr = loan.disbursementDate,
+                  let disbDate = dbDateFormatter.date(from: disbDateStr) else { continue }
+            
+            let amount = loan.principalAmount
+            
+            // Year group
+            let year = String(calendar.component(.year, from: disbDate))
+            yearlyMap[year, default: 0] += amount
+            
+            // Month group
+            let monthIndex = calendar.component(.month, from: disbDate) - 1
+            if monthIndex >= 0 && monthIndex < 12 {
+                let monthName = orderedMonths[monthIndex]
+                monthlyMap[monthName, default: 0] += amount
+            }
+            
+            // Week group
+            if calendar.isDate(disbDate, equalTo: now, toGranularity: .month) &&
+               calendar.isDate(disbDate, equalTo: now, toGranularity: .year) {
+                let day = calendar.component(.day, from: disbDate)
+                let weekKey: String
+                if day <= 7 { weekKey = "Week 1" }
+                else if day <= 14 { weekKey = "Week 2" }
+                else if day <= 21 { weekKey = "Week 3" }
+                else if day <= 28 { weekKey = "Week 4" }
+                else { weekKey = "Week 5" }
+                weeklyMap[weekKey, default: 0] += amount
+            }
+        }
+        
+        disbursementWeekly = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map { week in
+            ManagerApprovedTrendPoint(label: week, amount: weeklyMap[week] ?? 0)
+        }
+        
+        disbursementMonthly = orderedMonths.map { month in
+            ManagerApprovedTrendPoint(label: month, amount: monthlyMap[month] ?? 0)
+        }
+        
+        if yearlyMap.isEmpty {
+            let currentYear = calendar.component(.year, from: now)
+            disbursementYearly = (currentYear-2...currentYear).map { year in
+                ManagerApprovedTrendPoint(label: String(year), amount: 0)
+            }
+        } else {
+            disbursementYearly = yearlyMap.keys.sorted().map { year in
+                ManagerApprovedTrendPoint(label: year, amount: yearlyMap[year] ?? 0)
+            }
+        }
     }
     
     // MARK: - Formatting Helpers
