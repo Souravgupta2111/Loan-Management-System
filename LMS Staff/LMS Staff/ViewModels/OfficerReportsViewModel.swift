@@ -39,6 +39,24 @@ struct OfcMonthlyDisbursement: Identifiable {
     let amount: Double
 }
 
+struct CustomerResponseItem: Identifiable, Hashable {
+    let id = UUID()
+    let status: String
+    let count: Int
+}
+
+struct ApprovedTrendPoint: Identifiable, Codable {
+    let id: UUID
+    let label: String
+    let amount: Double
+    
+    init(id: UUID = UUID(), label: String, amount: Double) {
+        self.id = id
+        self.label = label
+        self.amount = amount
+    }
+}
+
 @MainActor
 class OfficerReportsViewModel: ObservableObject {
     
@@ -63,6 +81,10 @@ class OfficerReportsViewModel: ObservableObject {
     @Published var collectionTrends: [CollectionTrendItem] = []
     @Published var overdueAging: [OfcOverdueAgingBucket] = []
     @Published var monthlyDisbursements: [OfcMonthlyDisbursement] = []
+    @Published var customerResponses: [CustomerResponseItem] = []
+    @Published var approvedWeekly: [ApprovedTrendPoint] = []
+    @Published var approvedMonthly: [ApprovedTrendPoint] = []
+    @Published var approvedYearly: [ApprovedTrendPoint] = []
     
     // Loans table
     @Published var loans: [LoanWithDetails] = []
@@ -151,9 +173,9 @@ class OfficerReportsViewModel: ObservableObject {
         // 1. Status Distribution (Applications + Loans)
         var statusGroups: [String: (count: Int, amount: Double)] = [:]
         
-        // Add all applications that are NOT disbursed
+        // Add all applications that are NOT disbursed and NOT draft
         for app in applications {
-            if app.application.status != .disbursed {
+            if app.application.status != .disbursed && app.application.status != .draft {
                 let key = app.application.status.officerDisplayName
                 var entry = statusGroups[key] ?? (count: 0, amount: 0)
                 entry.count += 1
@@ -235,6 +257,83 @@ class OfficerReportsViewModel: ObservableObject {
                 let rhsKey = monthlyGroups[rhs.month]?.sortKey ?? ""
                 return lhsKey < rhsKey
             }
+        
+        // 5. Customer Responses (waiting status - Purely Database-Driven)
+        let sentBackCount = applications.filter { $0.application.status == .sentBack }.count
+        let pendingAcceptanceCount = applications.filter { $0.application.status == .pendingAcceptance }.count
+        let underReviewCount = applications.filter { $0.application.status == .underReview }.count
+        let submittedCount = applications.filter { $0.application.status == .submitted }.count
+        
+        customerResponses = [
+            CustomerResponseItem(status: "Documents Awaited", count: sentBackCount),
+            CustomerResponseItem(status: "Customer Contacted", count: pendingAcceptanceCount),
+            CustomerResponseItem(status: "Follow-up Scheduled", count: underReviewCount),
+            CustomerResponseItem(status: "Ready for Review", count: submittedCount)
+        ]
+        
+        // 6. Approved Loans Trend (Purely Database-Driven)
+        let calendar = Calendar.current
+        let now = Date()
+        
+        var weeklyMap: [String: Double] = ["Week 1": 0, "Week 2": 0, "Week 3": 0, "Week 4": 0, "Week 5": 0]
+        var monthlyMap: [String: Double] = [:]
+        var yearlyMap: [String: Double] = [:]
+        
+        let orderedMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        
+        let dbDateFormatter = DateFormatter()
+        dbDateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        for loan in allLoans {
+            guard let disbDateStr = loan.disbursementDate,
+                  let disbDate = dbDateFormatter.date(from: disbDateStr) else { continue }
+            
+            let amount = loan.principalAmount
+            
+            // Year group
+            let year = String(calendar.component(.year, from: disbDate))
+            yearlyMap[year, default: 0] += amount
+            
+            // Month group (MMM format, e.g. "Jan")
+            let monthIndex = calendar.component(.month, from: disbDate) - 1
+            if monthIndex >= 0 && monthIndex < 12 {
+                let monthName = orderedMonths[monthIndex]
+                monthlyMap[monthName, default: 0] += amount
+            }
+            
+            // Week group (if it is in the current month and year)
+            if calendar.isDate(disbDate, equalTo: now, toGranularity: .month) &&
+               calendar.isDate(disbDate, equalTo: now, toGranularity: .year) {
+                let day = calendar.component(.day, from: disbDate)
+                let weekKey: String
+                if day <= 7 { weekKey = "Week 1" }
+                else if day <= 14 { weekKey = "Week 2" }
+                else if day <= 21 { weekKey = "Week 3" }
+                else if day <= 28 { weekKey = "Week 4" }
+                else { weekKey = "Week 5" }
+                weeklyMap[weekKey, default: 0] += amount
+            }
+        }
+        
+        approvedWeekly = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map { week in
+            ApprovedTrendPoint(label: week, amount: weeklyMap[week] ?? 0)
+        }
+        
+        approvedMonthly = orderedMonths.map { month in
+            ApprovedTrendPoint(label: month, amount: monthlyMap[month] ?? 0)
+        }
+        
+        // Show years with data, or show last 3 years if empty
+        if yearlyMap.isEmpty {
+            let currentYear = calendar.component(.year, from: now)
+            approvedYearly = (currentYear-2...currentYear).map { year in
+                ApprovedTrendPoint(label: String(year), amount: 0)
+            }
+        } else {
+            approvedYearly = yearlyMap.keys.sorted().map { year in
+                ApprovedTrendPoint(label: year, amount: yearlyMap[year] ?? 0)
+            }
+        }
     }
     
     // MARK: - Formatting Helpers

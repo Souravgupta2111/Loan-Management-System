@@ -231,7 +231,11 @@ struct ActivePortfolioView: View {
                             
                             Divider()
                             
-                            ForEach(amortizationSchedule) { emi in
+                            let sortedSchedule = amortizationSchedule.sorted(by: { $0.installmentNumber < $1.installmentNumber })
+                            let firstUnpaidIndex = sortedSchedule.firstIndex(where: { $0.status != .paid }) ?? sortedSchedule.count
+                            
+                            ForEach(Array(sortedSchedule.enumerated()), id: \.element.id) { index, emi in
+                                let statusInfo = getEmiStatusAndStyle(index: index, firstUnpaidIndex: firstUnpaidIndex, emi: emi)
                                 HStack {
                                     Text("\(emi.installmentNumber)")
                                         .frame(width: 40, alignment: .leading)
@@ -244,13 +248,14 @@ struct ActivePortfolioView: View {
                                     Text(String(format: "%.2f", emi.interestComponent))
                                         .frame(maxWidth: .infinity, alignment: .trailing)
                                     
-                                    Text(emi.status.displayName)
+                                    Text(statusInfo.text)
                                         .frame(width: 100, alignment: .trailing)
                                         .font(.caption.weight(.bold))
-                                        .foregroundColor(emiStatusColor(emi.status))
+                                        .foregroundColor(statusInfo.color)
                                 }
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextPrimary)
+                                .opacity(statusInfo.opacity)
                                 .padding(.vertical, 10)
                                 .padding(.horizontal, StaffSpacing.lg)
                                 
@@ -276,6 +281,22 @@ struct ActivePortfolioView: View {
     }
     
 
+    
+    private struct EmiStatusStyle {
+        let text: String
+        let color: Color
+        let opacity: Double
+    }
+    
+    private func getEmiStatusAndStyle(index: Int, firstUnpaidIndex: Int, emi: EMIScheduleItem) -> EmiStatusStyle {
+        if index < firstUnpaidIndex {
+            return EmiStatusStyle(text: "Paid", color: .staffGreen, opacity: 1.0)
+        } else if index == firstUnpaidIndex {
+            return EmiStatusStyle(text: "Upcoming", color: .orange, opacity: 1.0)
+        } else {
+            return EmiStatusStyle(text: "Scheduled", color: .staffTextSecondary, opacity: 0.6)
+        }
+    }
     
     private func emiStatusColor(_ status: EMIStatus) -> Color {
         switch status {
