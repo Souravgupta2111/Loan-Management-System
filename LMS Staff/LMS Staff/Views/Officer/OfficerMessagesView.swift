@@ -101,6 +101,7 @@ struct OfficerMessagesView: View {
         .onAppear {
             Task {
                 if let staff = authViewModel.currentStaff {
+                    dashboardVm.selectedStatusFilter = "All"
                     await dashboardVm.loadApplications(forOfficerId: staff.id)
                 }
             }

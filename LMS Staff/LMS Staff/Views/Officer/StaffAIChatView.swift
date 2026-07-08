@@ -10,7 +10,6 @@ import SwiftUI
 struct StaffAIChatView: View {
     @StateObject private var viewModel = StaffAIChatViewModel()
     @StateObject private var speechService = SpeechService()
-    @Environment(\.dismiss) var dismiss
     @Environment(\.sizeCategory) var sizeCategory
     
     // Quick questions tailored for Staff (Officers & Managers)
@@ -192,18 +191,6 @@ struct StaffAIChatView: View {
             .background(Color(hex: "#E7EFE5").ignoresSafeArea())
             .navigationTitle("AI Financial Advisor")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(Color(hex: "#1A1A1A"))
-                            .font(.title3.weight(.medium))
-                    }
-                    .accessibilityLabel("Close AI Chat")
-                }
-            }
             .accessibleAnimation(.easeInOut(duration: 0.2), value: speechService.isListening)
         }
         .task {
