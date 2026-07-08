@@ -44,6 +44,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     var npaPercentage: Double
     var collectionEfficiency: Double
     var pendingApprovals: Int
+    var pendingDisbursements: Int
     var overdueEmis: Int
     var npaCount: Int
 
@@ -60,7 +61,7 @@ struct StaffWidgetSnapshotDTO: Codable {
         StaffWidgetSnapshotDTO(
             role: role, officerPending: 0, officerSubmitted: 0, officerUnderReview: 0,
             oldestName: nil, oldestDays: nil, activeLoans: 0, totalDisbursed: 0,
-            npaPercentage: 0, collectionEfficiency: 0, pendingApprovals: 0, overdueEmis: 0,
+            npaPercentage: 0, collectionEfficiency: 0, pendingApprovals: 0, pendingDisbursements: 0, overdueEmis: 0,
             npaCount: 0, totalBorrowers: 0, staffCount: 0, branchCount: 0, auditAlerts24h: 0,
             auditEntries: [],
             generated: Date()
@@ -154,6 +155,7 @@ enum StaffWidgetDataProvider {
 
         snap.npaCount = (try? await count("loans", eq: ("status", "npa"))) ?? 0
         snap.pendingApprovals = (try? await countIn("loan_applications", "status", ["submitted", "under_review"])) ?? 0
+        snap.pendingDisbursements = (try? await count("loan_applications", eq: ("status", "pending_disbursal"))) ?? 0
         snap.overdueEmis = (try? await count("emi_schedule", eq: ("status", "overdue"))) ?? 0
         let paid = (try? await count("emi_schedule", eq: ("status", "paid"))) ?? 0
 
