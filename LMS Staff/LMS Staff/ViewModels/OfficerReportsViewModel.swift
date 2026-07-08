@@ -196,8 +196,9 @@ class OfficerReportsViewModel: ObservableObject {
         statusSlices = statusGroups.map { OfcLoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
             .sorted { $0.count > $1.count }
         
-        self.totalLoansCount = statusSlices.reduce(0) { $0 + $1.count }
-
+        // NOTE: `totalLoansCount` is the actual loan count set in computeMetrics.
+        // Do NOT overwrite it with the status-slice total here — that mixes in
+        // pending applications and makes this KPI disagree with other screens.
         
         // 2. Product Mix
         var productGroups: [String: (count: Int, amount: Double)] = [:]

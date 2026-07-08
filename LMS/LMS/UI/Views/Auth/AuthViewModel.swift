@@ -189,8 +189,12 @@ class AuthViewModel: ObservableObject {
             }
         } catch {
             print("checkKYCStatus error: \(error)")
-            // Profile might not be created immediately, default to kycRequired
-            authState = .kycRequired
+            // A transient network error should NOT demote an already-authenticated
+            // (verified) user back into the KYC flow. Only fall back to
+            // kycRequired when we aren't already authenticated.
+            if authState != .authenticated {
+                authState = .kycRequired
+            }
         }
     }
 

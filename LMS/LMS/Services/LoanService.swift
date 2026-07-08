@@ -69,6 +69,9 @@ class LoanService {
             .execute()
             .value
 
+        // Track uploaded storage paths so we can clean them up if submission
+        // fails partway through (otherwise the blobs are orphaned in storage).
+        var uploadedPaths: [String] = []
         do {
             for (documentType, data) in documents {
                 let safeType = documentType.lowercased().replacingOccurrences(
@@ -78,6 +81,7 @@ class LoanService {
                 try await SupabaseManager.shared.client.storage.from("documents").upload(
                     path: path, file: data, options: FileOptions(contentType: "image/jpeg")
                 )
+                uploadedPaths.append(path)
                 struct DocumentInsert: Encodable {
                     let owner_id: UUID; let owner_type: String; let application_id: UUID
                     let document_type: String; let category: String; let file_name: String
@@ -109,6 +113,12 @@ class LoanService {
                 .delete()
                 .eq("id", value: created.id)
                 .execute()
+            // Clean up any already-uploaded document blobs so they aren't orphaned.
+            if !uploadedPaths.isEmpty {
+                try? await SupabaseManager.shared.client.storage
+                    .from("documents")
+                    .remove(paths: uploadedPaths)
+            }
             throw error
         }
     }
@@ -203,8 +213,8 @@ class LoanService {
                 let current = sortedHistory[i]
                 if i < sortedHistory.count - 1 {
                     let next = sortedHistory[i + 1]
-                    let currentDate = Formatter.iso8601.date(from: current.actioned_at) ?? Date()
-                    let nextDate = Formatter.iso8601.date(from: next.actioned_at) ?? Date()
+                    let currentDate = Formatter.iso8601Flexible.date(from: current.actioned_at) ?? Date()
+                    let nextDate = Formatter.iso8601Flexible.date(from: next.actioned_at) ?? Date()
                     if current.action == next.action && abs(nextDate.timeIntervalSince(currentDate)) <= 60 {
                         continue
                     }
@@ -574,7 +584,7 @@ class LoanService {
     }
     
     private func displayDate(_ value: String) -> String {
-        guard let date = Formatter.iso8601.date(from: value) else { return value }
+        guard let date = Formatter.iso8601Flexible.date(from: value) else { return value }
         return date.formatted(date: .abbreviated, time: .omitted)
     }
 

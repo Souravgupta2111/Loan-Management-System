@@ -154,11 +154,14 @@ class NPAService {
             .eq("id", value: loan.id)
             .execute()
             
-        // Cancel unpaid EMIs
+        // Settle unpaid EMIs as written-off (NOT paid). Marking them 'paid'
+        // previously inflated collection efficiency by counting written-off
+        // installments as collected. Only touch installments that aren't paid.
         try await supabase.database
             .from("emi_schedule")
-            .update(["status": AnyEncodable(EMIStatus.paid.rawValue)]) // mark as settled
+            .update(["status": AnyEncodable(EMIStatus.writtenOff.rawValue)])
             .eq("loan_id", value: loan.id)
+            .neq("status", value: EMIStatus.paid.rawValue)
             .execute()
             
         // Notify Borrower

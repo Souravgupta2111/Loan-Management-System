@@ -12,6 +12,7 @@ struct EMIScheduleView: View {
     @State private var paymentError: String?
     @State private var emiList: [EMIDetail] = []
     @State private var isLoading = true
+    @State private var loadError: String? = nil
     @State private var activeRazorpayOrder: RazorpayOrder? = nil
     @State private var paymentActivity: Activity<PaymentActivityAttributes>? = nil
     
@@ -67,7 +68,32 @@ struct EMIScheduleView: View {
                             }
                             
                             VStack(spacing: Spacing.md) {
-                                if emiList.isEmpty {
+                                if let loadError {
+                                    VStack(spacing: Spacing.md) {
+                                        Image(systemName: "exclamationmark.triangle")
+                                            .font(.title2)
+                                            .foregroundColor(.accentRed)
+                                            .accessibilityHidden(true)
+                                        Text("Couldn't load your EMI schedule")
+                                            .font(.bodyLarge)
+                                            .foregroundColor(.textPrimary)
+                                        Text(loadError)
+                                            .font(.bodyRegular)
+                                            .foregroundColor(.textSecondary)
+                                            .multilineTextAlignment(.center)
+                                        Button("Retry") {
+                                            Task { await fetchEMIs() }
+                                        }
+                                        .font(.bodyRegular.weight(.semibold))
+                                        .padding(.horizontal, Spacing.xl)
+                                        .padding(.vertical, Spacing.sm)
+                                        .background(Color.accentGreen)
+                                        .foregroundColor(.white)
+                                        .clipShape(Capsule())
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, Spacing.xl)
+                                } else if emiList.isEmpty {
                                     Text("No EMI schedule found.")
                                         .foregroundColor(.textSecondary)
                                 } else {
@@ -186,6 +212,8 @@ struct EMIScheduleView: View {
     }
     
     private func fetchEMIs() async {
+        isLoading = true
+        loadError = nil
         do {
             struct EMIFetch: Decodable {
                 let id: UUID
@@ -205,7 +233,7 @@ struct EMIScheduleView: View {
                 .value
             
             if schedule.isEmpty {
-                emiList = getDummyEMIs(for: loanId)
+                emiList = []
                 isLoading = false
                 return
             }
@@ -230,6 +258,10 @@ struct EMIScheduleView: View {
                     emiStatus = .overdue
                 } else if s.status == "due" {
                     emiStatus = .due
+                } else if s.status == "written_off" {
+                    // Written-off installments are settled by the institution;
+                    // never show a Pay Now button for them.
+                    emiStatus = .scheduled
                 } else {
                     emiStatus = .upcoming
                 }
@@ -279,137 +311,12 @@ struct EMIScheduleView: View {
             isLoading = false
         } catch {
             print("Failed to fetch EMIs: \(error)")
-            emiList = getDummyEMIs(for: loanId)
+            emiList = []
+            loadError = "Please check your connection and try again."
             isLoading = false
         }
     }
     
-    private func getDummyEMIs(for loanId: UUID) -> [EMIDetail] {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        
-        let now = Date()
-        var list: [EMIDetail] = []
-        
-        if loanId == UUID(uuidString: "11111111-1111-1111-1111-111111111111") {
-            // Home Loan
-            for i in -5...6 {
-                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-                let dateStr = formatter.string(from: dueDate)
-                let isPaid = i < 0
-                let isOverdue = i == 0
-                let status: EMIDetail.EMIStatus = isPaid ? .paid : (isOverdue ? .overdue : .upcoming)
-                list.append(EMIDetail(
-                    id: UUID(),
-                    date: dateStr,
-                    amount: 38500.0 + (isOverdue ? 500.0 : 0.0),
-                    principal: 28500.0,
-                    interest: 10000.0,
-                    penalty: isOverdue ? 500.0 : 0.0,
-                    status: status
-                ))
-            }
-        } else if loanId == UUID(uuidString: "22222222-2222-2222-2222-222222222222") {
-            // Vehicle Loan
-            for i in -5...6 {
-                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-                let dateStr = formatter.string(from: dueDate)
-                let isPaid = i < 0
-                let status: EMIDetail.EMIStatus = isPaid ? .paid : .upcoming
-                list.append(EMIDetail(
-                    id: UUID(),
-                    date: dateStr,
-                    amount: 16200.0,
-                    principal: 12200.0,
-                    interest: 4000.0,
-                    penalty: 0.0,
-                    status: status
-                ))
-            }
-        } else if loanId == UUID(uuidString: "33333333-3333-3333-3333-333333333333") {
-            // Personal Loan (Closed)
-            for i in -12...(-1) {
-                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-                let dateStr = formatter.string(from: dueDate)
-                list.append(EMIDetail(
-                    id: UUID(),
-                    date: dateStr,
-                    amount: 9500.0,
-                    principal: 8000.0,
-                    interest: 1500.0,
-                    penalty: 0.0,
-                    status: .paid
-                ))
-            }
-        } else if loanId == UUID(uuidString: "44444444-4444-4444-4444-444444444444") {
-            // Education Loan
-            for i in -1...10 {
-                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-                let dateStr = formatter.string(from: dueDate)
-                let isPaid = i < 0
-                let status: EMIDetail.EMIStatus = isPaid ? .paid : .upcoming
-                list.append(EMIDetail(
-                    id: UUID(),
-                    date: dateStr,
-                    amount: 14500.0,
-                    principal: 11000.0,
-                    interest: 3500.0,
-                    penalty: 0.0,
-                    status: status
-                ))
-            }
-        } else {
-            // Generic fallback
-            for i in 1...6 {
-                let dueDate = Calendar.current.date(byAdding: .month, value: i, to: now) ?? now
-                let dateStr = formatter.string(from: dueDate)
-                list.append(EMIDetail(
-                    id: UUID(),
-                    date: dateStr,
-                    amount: 5000.0,
-                    principal: 4000.0,
-                    interest: 1000.0,
-                    penalty: 0.0,
-                    status: .upcoming
-                ))
-            }
-        }
-        if let firstUpcomingIdx = list.firstIndex(where: { $0.status == .upcoming }) {
-            var shouldUnlock = false
-            if firstUpcomingIdx == 0 {
-                shouldUnlock = true
-            } else {
-                if let prevDate = formatter.date(from: list[firstUpcomingIdx - 1].date) {
-                    let today = Calendar.current.startOfDay(for: now)
-                    let prevEmiDay = Calendar.current.startOfDay(for: prevDate)
-                    if today > prevEmiDay {
-                        shouldUnlock = true
-                    }
-                } else {
-                    shouldUnlock = true
-                }
-            }
-            
-            if shouldUnlock {
-                list[firstUpcomingIdx].status = .due
-            }
-        }
-        
-        // Post-process to distinguish first upcoming from scheduled
-        var hasFoundFirstUpcoming = false
-        for idx in 0..<list.count {
-            if list[idx].status == .upcoming {
-                if !hasFoundFirstUpcoming {
-                    list[idx].status = .upcoming
-                    hasFoundFirstUpcoming = true
-                } else {
-                    list[idx].status = .scheduled
-                }
-            }
-        }
-        
-        return list
-    }
 }
 
 struct EMIDetail: Identifiable {

@@ -133,11 +133,54 @@ class LoanPortfolioService {
     
     /// Flags a loan for overdue / NPA tracking (US-37)
     func flagOverdue(loanId: UUID, reason: String) async throws {
+        // Compute the REAL overdue amount and days from the loan's EMIs rather
+        // than writing a hardcoded placeholder. An installment is overdue when
+        // it is explicitly 'overdue', or unpaid with a due date in the past.
+        struct EMIRow: Decodable {
+            let due_date: String
+            let total_emi: Double
+            let penalty_amount: Double
+            let status: String
+        }
+        let emis: [EMIRow] = try await supabase.database
+            .from("emi_schedule")
+            .select("due_date, total_emi, penalty_amount, status")
+            .eq("loan_id", value: loanId)
+            .execute()
+            .value
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let today = Calendar.current.startOfDay(for: Date())
+        let todayStr = dateFormatter.string(from: today)
+
+        let overdueEmis = emis.filter { emi in
+            let unsettled = emi.status != EMIStatus.paid.rawValue && emi.status != EMIStatus.writtenOff.rawValue
+            return emi.status == EMIStatus.overdue.rawValue || (unsettled && String(emi.due_date.prefix(10)) < todayStr)
+        }
+
+        let totalOverdue = overdueEmis.reduce(0.0) { $0 + $1.total_emi + $1.penalty_amount }
+
+        // Don't force a loan into NPA when nothing is actually overdue.
+        guard totalOverdue > 0, !overdueEmis.isEmpty else {
+            throw NSError(domain: "LoanPortfolioService", code: 422, userInfo: [
+                NSLocalizedDescriptionKey: "This loan has no overdue installments, so it can't be flagged as NPA."
+            ])
+        }
+
+        // Overdue days = distance from the oldest overdue due date to today.
+        let oldestDueStr = overdueEmis.map { String($0.due_date.prefix(10)) }.min() ?? todayStr
+        var overdueDays = 0
+        if let oldestDue = dateFormatter.date(from: oldestDueStr) {
+            overdueDays = max(0, Calendar.current.dateComponents([.day], from: oldestDue, to: today).day ?? 0)
+        }
+
         try await supabase.database
             .from("loans")
             .update([
                 "status": AnyEncodable(LoanStatus.npa.rawValue),
-                "total_overdue": AnyEncodable(100.0), // placeholder default if not already parsed
+                "total_overdue": AnyEncodable(totalOverdue),
+                "overdue_days": AnyEncodable(overdueDays),
                 "npa_triggered_at": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
             ])
             .eq("id", value: loanId)

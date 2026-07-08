@@ -42,34 +42,48 @@ class AuthViewModel: ObservableObject {
     // MARK: - Session Management
     
     func checkCurrentSession() async {
+        // A nil session user means there is genuinely no signed-in session.
+        guard let user = try? await supabase.auth.session.user else {
+            self.currentUser = nil
+            self.currentStaff = nil
+            self.authState = .unauthenticated
+            return
+        }
+
         do {
-            if let user = try? await supabase.auth.session.user {
-                // Fetch details
-                let userId = user.id
-                let appUser: AppUser = try await supabase.database
-                    .from("users")
-                    .select()
-                    .eq("id", value: userId)
-                    .single()
-                    .execute()
-                    .value
-                
-                let staffProfile: StaffProfile = try await supabase.database
-                    .from("staff_profiles")
-                    .select()
-                    .eq("user_id", value: userId)
-                    .single()
-                    .execute()
-                    .value
-                
-                self.currentUser = appUser
-                self.currentStaff = staffProfile
-                self.authState = .authenticated(appUser.role)
+            let userId = user.id
+            let appUser: AppUser = try await supabase.database
+                .from("users")
+                .select()
+                .eq("id", value: userId)
+                .single()
+                .execute()
+                .value
+
+            let staffProfile: StaffProfile = try await supabase.database
+                .from("staff_profiles")
+                .select()
+                .eq("user_id", value: userId)
+                .single()
+                .execute()
+                .value
+
+            self.currentUser = appUser
+            self.currentStaff = staffProfile
+            self.authState = .authenticated(appUser.role)
+        } catch {
+            // A valid session exists but loading profile details failed — this
+            // is almost always a transient network error. Do NOT force a logout.
+            // Keep an already-authenticated user signed in; only surface an error.
+            if case .authenticated = self.authState {
+                // Already signed in with details loaded — stay put.
+            } else if let existing = self.currentUser {
+                self.authState = .authenticated(existing.role)
             } else {
+                // First load and we couldn't reach the server at all.
+                self.errorMessage = "Couldn't reach the server. Please check your connection and try again."
                 self.authState = .unauthenticated
             }
-        } catch {
-            self.authState = .unauthenticated
         }
     }
     

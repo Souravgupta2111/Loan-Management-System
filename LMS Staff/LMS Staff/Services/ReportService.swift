@@ -85,20 +85,23 @@ class ReportService {
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
         
-        let historicalDueEMIs = emiItems.filter { $0.dueDate <= todayStr }
+        let historicalDueEMIs = emiItems.filter { $0.dueDate <= todayStr && $0.status != .writtenOff }
         let totalDue = historicalDueEMIs.reduce(0.0) { $0 + $1.totalEmi }
         
-        // Paid components
+        // Collected must be scoped to the SAME set of EMIs as `totalDue` (i.e.
+        // only EMIs that are already due). Counting prepaid/future EMIs here
+        // would push efficiency above 100%. Cap each EMI's collection at its
+        // scheduled amount so an overpayment (e.g. penalty) can't inflate it.
         var totalCollected = 0.0
-        for emi in emiItems {
+        for emi in historicalDueEMIs {
             if let collectedAmount = paidMap[emi.id] {
-                totalCollected += collectedAmount
+                totalCollected += min(collectedAmount, emi.totalEmi)
             } else if emi.status == .paid {
                 totalCollected += emi.totalEmi
             }
         }
         
-        let collectionEfficiency = totalDue > 0 ? (totalCollected / totalDue) * 100.0 : 100.0
+        let collectionEfficiency = totalDue > 0 ? min((totalCollected / totalDue) * 100.0, 100.0) : 100.0
         
         return PortfolioReport(
             totalDisbursed: totalDisbursed,
@@ -155,8 +158,9 @@ class ReportService {
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
         
-        // Include any EMI that is historically due OR has a payment
-        let historicalEMIs = emiItems.filter { $0.dueDate <= todayStr || paidMap[$0.id] != nil }
+        // Include any EMI that is historically due OR has a payment, excluding
+        // written-off installments (they've left the performing book).
+        let historicalEMIs = emiItems.filter { ($0.dueDate <= todayStr || paidMap[$0.id] != nil) && $0.status != .writtenOff }
         
         // Group by YYYY-MM
         var monthlyTotals: [String: (due: Double, collected: Double)] = [:]
@@ -165,15 +169,17 @@ class ReportService {
             let prefix = String(emi.dueDate.prefix(7)) // "2026-06"
             var current = monthlyTotals[prefix] ?? (due: 0.0, collected: 0.0)
             
-            // Only add to due if the EMI is actually due in the past or today
+            // Only count an EMI (both due and collected) once it is actually
+            // due in the past or today. Counting prepaid future EMIs as
+            // collected without a matching "due" would exceed 100%. Cap each
+            // EMI's collection at its scheduled amount.
             if emi.dueDate <= todayStr {
                 current.due += emi.totalEmi
-            }
-            
-            if let collectedAmount = paidMap[emi.id] {
-                current.collected += collectedAmount
-            } else if emi.status == .paid {
-                current.collected += emi.totalEmi
+                if let collectedAmount = paidMap[emi.id] {
+                    current.collected += min(collectedAmount, emi.totalEmi)
+                } else if emi.status == .paid {
+                    current.collected += emi.totalEmi
+                }
             }
             
             monthlyTotals[prefix] = current
@@ -190,7 +196,7 @@ class ReportService {
         
         for key in sortedKeys {
             if let totals = monthlyTotals[key] {
-                let efficiency = totals.due > 0 ? (totals.collected / totals.due) * 100.0 : 100.0
+                let efficiency = totals.due > 0 ? min((totals.collected / totals.due) * 100.0, 100.0) : 100.0
                 
                 if let date = monthFormatter.date(from: key) {
                     let displayMonth = displayFormatter.string(from: date)

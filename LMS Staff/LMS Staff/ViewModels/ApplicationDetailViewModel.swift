@@ -317,6 +317,14 @@ class ApplicationDetailViewModel: ObservableObject {
     
     func sendChatMessage(_ content: String, isInternal: Bool = false) async -> Bool {
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+
+        // Safely resolve the signed-in user instead of force-unwrapping, which
+        // would crash if the session lapsed while the chat was open.
+        guard let currentUserId = supabase.currentUserId else {
+            self.errorMessage = "Your session has expired. Please sign in again."
+            return false
+        }
+
         isSendingMessage = true
         
         do {
@@ -324,7 +332,6 @@ class ApplicationDetailViewModel: ObservableObject {
             if isInternal {
                 // If it's internal, we need to send it to the manager (if current is officer) or officer (if current is manager).
                 // Let's resolve the receiver.
-                let currentUserId = supabase.currentUserId!
                 
                 // Fetch the staff list to find the manager if needed
                 let allStaff = try? await StaffManagementService.shared.fetchStaff()

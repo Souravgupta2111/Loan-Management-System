@@ -897,6 +897,7 @@ struct ApplicationDetailView: View {
         case .paid: return .staffGreen
         case .overdue: return .staffRed
         case .partiallyPaid: return .staffAmber
+        case .writtenOff: return .staffTextSecondary
         }
     }
     

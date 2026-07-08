@@ -26,8 +26,20 @@ class AuditService {
     ) async throws {
         guard let currentUserId = supabase.currentUserId else { return }
         
-        // Fetch current user role
-        let role = AuthService.shared.parseRole(from: supabase.currentUser?.email ?? "") ?? .officer
+        // Fetch the actual role from the users table. Parsing it from the email
+        // was unreliable (e.g. admins were logged as officers when the email
+        // didn't match the expected prefix pattern).
+        struct RoleRow: Decodable { let role: UserRole }
+        let roleRow: RoleRow? = try? await supabase.database
+            .from("users")
+            .select("role")
+            .eq("id", value: currentUserId)
+            .single()
+            .execute()
+            .value
+        let role = roleRow?.role
+            ?? AuthService.shared.parseRole(from: supabase.currentUser?.email ?? "")
+            ?? .officer
         
         let payload: [String: AnyEncodable] = [
             "actor_id": AnyEncodable(currentUserId),

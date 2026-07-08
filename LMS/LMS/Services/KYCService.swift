@@ -316,4 +316,27 @@ extension Formatter {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    /// Parses ISO8601 timestamps whether or not they include fractional seconds.
+    /// The fixed `.withFractionalSeconds` parser above returns nil for Supabase
+    /// timestamps that lack a fractional component, which broke message
+    /// ordering; this tolerant parser tries both formats.
+    static let iso8601Flexible = FlexibleISO8601Parser()
+}
+
+struct FlexibleISO8601Parser {
+    private let withFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private let withoutFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    func date(from string: String) -> Date? {
+        withFractional.date(from: string) ?? withoutFractional.date(from: string)
+    }
 }

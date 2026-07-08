@@ -26,6 +26,17 @@ class LocationService: NSObject, ObservableObject {
 
     private let locationManager = CLLocationManager()
     private var locationContinuation: CheckedContinuation<CLLocationCoordinate2D?, Never>?
+    private var timeoutTask: Task<Void, Never>?
+
+    /// Resumes the pending location continuation exactly once, then clears it.
+    /// Safe to call from any resume site (success, failure, timeout).
+    private func resumeLocation(_ coordinate: CLLocationCoordinate2D?) {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        guard let continuation = locationContinuation else { return }
+        locationContinuation = nil
+        continuation.resume(returning: coordinate)
+    }
 
     // MARK: - Init
 
@@ -65,8 +76,19 @@ class LocationService: NSObject, ObservableObject {
             return nil
         }
 
+        // Guard against concurrent callers: if a request is already in flight,
+        // don't overwrite its continuation (which would leak/hang it).
+        guard locationContinuation == nil else { return nil }
+
         return await withCheckedContinuation { continuation in
             self.locationContinuation = continuation
+            // Safety timeout: CLLocationManager may never call back on some
+            // networks/simulators; resume nil after 10s so callers never hang.
+            self.timeoutTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                guard !Task.isCancelled else { return }
+                await MainActor.run { self?.resumeLocation(nil) }
+            }
             locationManager.requestLocation()
         }
     }
@@ -87,16 +109,14 @@ extension LocationService: @preconcurrency CLLocationManagerDelegate {
         Task { @MainActor in
             self.currentLocation = location.coordinate
             self.locationError = nil
-            self.locationContinuation?.resume(returning: location.coordinate)
-            self.locationContinuation = nil
+            self.resumeLocation(location.coordinate)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
             self.locationError = error.localizedDescription
-            self.locationContinuation?.resume(returning: nil)
-            self.locationContinuation = nil
+            self.resumeLocation(nil)
         }
     }
 

@@ -10,8 +10,15 @@ class NotificationService {
     private var channel: RealtimeChannelV2?
     /// Tracks whether we are currently subscribed
     private var isSubscribed = false
+    /// The user id the current subscription is bound to.
+    private var subscribedUserId: UUID?
 
     private init() {
+        // Notifications are ON by default; users can opt out in settings. Using
+        // register(defaults:) makes `.bool(forKey:)` return true when unset
+        // while still honoring an explicit user choice of false.
+        UserDefaults.standard.register(defaults: ["notificationsEnabled": true])
+
         // Re-subscribe when app returns to foreground
         NotificationCenter.default.addObserver(
             self,
@@ -22,10 +29,10 @@ class NotificationService {
     }
     
     @objc private func appDidBecomeActive() {
-        // Reconnect the realtime channel when user re-opens the app
-        if !isSubscribed {
-            subscribeToNotifications()
-        }
+        // Reconnect / re-bind the realtime channel when the user re-opens the
+        // app. subscribeToNotifications() no-ops if already bound to this user
+        // and re-binds if the signed-in user changed.
+        subscribeToNotifications()
     }
     
     func requestPermission() async throws -> Bool {
@@ -36,10 +43,20 @@ class NotificationService {
     
     func subscribeToNotifications() {
         guard let userId = SupabaseManager.shared.currentUserId else { return }
-        // Avoid duplicate subscriptions
-        if isSubscribed { return }
+        // Already subscribed for THIS user — nothing to do.
+        if isSubscribed && subscribedUserId == userId { return }
+
+        // Subscribed for a different user (e.g. logout → login as someone else):
+        // tear down the stale channel before re-binding to the new user.
+        if let existing = channel {
+            channel = nil
+            isSubscribed = false
+            subscribedUserId = nil
+            Task { await SupabaseManager.shared.client.removeChannel(existing) }
+        }
         
-        channel = SupabaseManager.shared.client.realtimeV2.channel("public:notifications")
+        // Namespace the channel per user so it can't collide across accounts.
+        channel = SupabaseManager.shared.client.realtimeV2.channel("notifications:\(userId.uuidString)")
         
         Task {
             guard let channel = channel else { return }
@@ -54,6 +71,7 @@ class NotificationService {
             do {
                 try await channel.subscribeWithError()
                 isSubscribed = true
+                subscribedUserId = userId
                 print("✅ NotificationService: Realtime subscribed for user \(userId)")
 
                 for await insert in insertions {
@@ -71,6 +89,7 @@ class NotificationService {
             } catch {
                 print("❌ NotificationService: Failed to subscribe — \(error)")
                 isSubscribed = false
+                subscribedUserId = nil
             }
         }
     }
@@ -151,6 +170,8 @@ class NotificationService {
             Task {
                 await SupabaseManager.shared.client.removeChannel(channel)
                 isSubscribed = false
+                subscribedUserId = nil
+                self.channel = nil
                 print("⏹ NotificationService: Realtime unsubscribed")
             }
         }

@@ -16,5 +16,7 @@
 		</dict>
 		<dict/>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We use Face ID to securely log you in to your LMS account.</string>
 </dict>
 </plist>

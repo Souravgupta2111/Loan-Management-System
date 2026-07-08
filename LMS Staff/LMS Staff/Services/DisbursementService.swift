@@ -109,8 +109,15 @@ class DisbursementService {
         }
         
         let loanId = UUID()
-        let loanNumber = "LMS-\(Int.random(in: 100000...999999))"
+        // Derive human-readable identifiers from the (globally unique) loan UUID
+        // instead of Int.random, which had a real collision risk. The UUID hex
+        // guarantees uniqueness; a date prefix keeps it readable/sortable.
+        let idHex = loanId.uuidString.replacingOccurrences(of: "-", with: "").uppercased()
         let disbursementDate = Date()
+        let ymFormatter = DateFormatter()
+        ymFormatter.dateFormat = "yyyyMM"
+        let loanNumber = "LMS-\(ymFormatter.string(from: disbursementDate))-\(idHex.prefix(8))"
+        let disbursementReference = "TXN-\(idHex.prefix(12))"
         let calendar = Calendar.current
         
         // First EMI is due next month
@@ -157,7 +164,7 @@ class DisbursementService {
             "overdue_days": AnyEncodable(0),
             "bank_account_number": AnyEncodable(bankAccount),
             "ifsc_code": AnyEncodable(ifscCode),
-            "disbursement_reference": AnyEncodable("TXN-\(Int.random(in: 10000000...99999999))"),
+            "disbursement_reference": AnyEncodable(disbursementReference),
             "repayment_mode": AnyEncodable(RepaymentMode.autoDebit.rawValue)
         ]
         

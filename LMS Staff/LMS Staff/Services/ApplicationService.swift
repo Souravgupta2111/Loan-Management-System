@@ -49,15 +49,32 @@ class ApplicationService {
             
         let profileId = staffProfile?.id ?? officerId
         let userId = staffProfile?.userId ?? officerId
+        let branchId = staffProfile?.branchId
 
-        // 1. Fetch applications directly assigned to officer or submitted
-        let applications: [LoanApplication] = try await supabase.database
-            .from("loan_applications")
-            .select()
-            .or("assigned_officer_id.eq.\(profileId.uuidString),status.eq.submitted")
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+        // 1. Fetch applications assigned to this officer, plus NEW submitted
+        //    applications — but only within the officer's OWN branch. Previously
+        //    this matched `status.eq.submitted` with no branch scope, which
+        //    exposed every branch's submitted applications to every officer.
+        let applications: [LoanApplication]
+        if let branchId {
+            applications = try await supabase.database
+                .from("loan_applications")
+                .select()
+                .or("assigned_officer_id.eq.\(profileId.uuidString),and(status.eq.submitted,branch_id.eq.\(branchId.uuidString))")
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } else {
+            // No branch assigned → only show applications explicitly assigned to
+            // this officer (never leak unassigned/other-branch submissions).
+            applications = try await supabase.database
+                .from("loan_applications")
+                .select()
+                .eq("assigned_officer_id", value: profileId)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        }
         
         // 2. Fetch applications officer previously actioned (e.g. recommended to manager)
         struct HistoryID: Codable {

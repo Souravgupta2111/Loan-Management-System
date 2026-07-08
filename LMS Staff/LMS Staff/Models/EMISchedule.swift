@@ -15,6 +15,7 @@ enum EMIStatus: String, Codable, CaseIterable, Identifiable {
     case paid
     case overdue
     case partiallyPaid = "partially_paid"
+    case writtenOff = "written_off"
 
     var id: String { rawValue }
 
@@ -25,6 +26,7 @@ enum EMIStatus: String, Codable, CaseIterable, Identifiable {
         case .paid:          return "Paid"
         case .overdue:       return "Overdue"
         case .partiallyPaid: return "Partially Paid"
+        case .writtenOff:    return "Written Off"
         }
     }
 
@@ -35,6 +37,7 @@ enum EMIStatus: String, Codable, CaseIterable, Identifiable {
         case .paid:          return "checkmark.circle.fill"
         case .overdue:       return "exclamationmark.triangle.fill"
         case .partiallyPaid: return "circle.lefthalf.filled"
+        case .writtenOff:    return "xmark.circle.fill"
         }
     }
 }

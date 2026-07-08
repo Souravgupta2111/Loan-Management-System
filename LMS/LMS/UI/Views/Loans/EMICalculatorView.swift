@@ -128,6 +128,7 @@ struct EMICalculatorView: View {
                     amount: amount,
                     tenureMonths: Int(tenureMonths),
                     interestRate: interestRate,
+                    interestType: interestType,
                     emi: calculateEMI()
                 )
             }
@@ -620,6 +621,7 @@ struct CalculatorAmortizationSheet: View {
     let amount: Double
     let tenureMonths: Int
     let interestRate: Double
+    let interestType: String
     let emi: Double
     
     @Environment(\.dismiss) var dismiss
@@ -796,29 +798,46 @@ struct CalculatorAmortizationSheet: View {
     
     // MARK: - Monthly Schedule Generator
     private func generateMonthlySchedule() -> [ScheduleItem] {
+        guard tenureMonths > 0 else { return [] }
         var items: [ScheduleItem] = []
         var remainingPrincipal = amount
         let r = (interestRate / 12) / 100
-        
+
+        // For Fixed/Compound loans the interest is derived up front and spread
+        // evenly, so the schedule split must match how the headline EMI was
+        // computed. Only Reducing/Floating uses a true reducing-balance split.
+        let n = Double(tenureMonths)
+        let flatMonthlyInterest: Double?
+        switch interestType {
+        case "Fixed":
+            flatMonthlyInterest = (amount * (interestRate / 100) * (n / 12)) / n
+        case "Compound":
+            let compounded = amount * pow(1 + (interestRate / 100), (n / 12))
+            flatMonthlyInterest = max(0, compounded - amount) / n
+        default:
+            flatMonthlyInterest = nil // reducing / floating
+        }
+
         for i in 1...tenureMonths {
-            let interest = remainingPrincipal * r
+            let interest = flatMonthlyInterest ?? (remainingPrincipal * r)
             var principal = emi - interest
+            if principal < 0 { principal = 0 }
             if principal > remainingPrincipal || i == tenureMonths {
                 principal = remainingPrincipal
             }
             let closing = max(0, remainingPrincipal - principal)
-            
+
             items.append(ScheduleItem(
                 installmentNumber: i,
                 openingBalance: remainingPrincipal,
                 principalComponent: principal,
-                interestComponent: interest,
+                interestComponent: max(0, interest),
                 totalEmi: principal + interest,
                 closingBalance: closing
             ))
             remainingPrincipal = closing
         }
-        
+
         return items
     }
     
@@ -857,7 +876,8 @@ struct CalculatorAmortizationSheet: View {
     
     // MARK: - Helpers
     private func calculateTotalInterest() -> Double {
-        return (emi * Double(tenureMonths)) - amount
+        let total = (emi * Double(tenureMonths)) - amount
+        return total.isNaN || total.isInfinite ? 0.0 : max(0.0, total)
     }
     
     private func formatIndian(_ value: Double) -> String {

@@ -62,7 +62,8 @@ struct ManagerReportsView: View {
                         headerSection
                         keyMetricsGrid
                         chartsRow1
-                        disbursementTrendSection
+                        chartsRow2
+                        collectionTrendSection
                         loansTableSection
                     }
                     .padding(StaffSpacing.lg)
@@ -546,42 +547,20 @@ struct ManagerReportsView: View {
                         .frame(height: 200)
                         .frame(maxWidth: .infinity)
                 } else {
-                    Chart {
-                        ForEach(vm.collectionTrends) { item in
-                            AreaMark(
-                                x: .value("Month", item.month),
-                                yStart: .value("Base", 0),
-                                yEnd: .value("Efficiency", item.efficiency)
+                    Chart(trendData) { item in
+                        AreaMark(
+                            x: .value("Timeframe", item.label),
+                            yStart: .value("Base", 0),
+                            yEnd: .value("Amount", item.amount)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "#2E9658").opacity(0.3), Color(hex: "#2E9658").opacity(0.02)],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.staffAccent.opacity(0.3), Color.staffAccent.opacity(0.02)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.catmullRom)
-                            
-                            LineMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(Color.staffAccent)
-                            .interpolationMethod(.catmullRom)
-                            .lineStyle(StrokeStyle(lineWidth: 3))
-                            
-                            PointMark(
-                                x: .value("Month", item.month),
-                                y: .value("Efficiency", item.efficiency)
-                            )
-                            .foregroundStyle(item.efficiency >= 95 ? Color.staffAccent : Color(hex: "#D9534F"))
-                            .symbolSize(40)
-                            .annotation(position: .top, spacing: 4) {
-                                Text(String(format: "%.0f%%", item.efficiency))
-                                    .font(.staffFinePrint.weight(.bold))
-                                    .foregroundColor(item.efficiency >= 95 ? .staffGreen : .staffRed)
-                            }
-                        }
+                        )
+                        .interpolationMethod(.catmullRom)
                         
                         LineMark(
                             x: .value("Timeframe", item.label),

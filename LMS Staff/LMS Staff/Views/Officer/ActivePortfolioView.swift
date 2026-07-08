@@ -305,6 +305,7 @@ struct ActivePortfolioView: View {
         case .due: return .staffAmber
         case .upcoming: return .staffAccent
         case .partiallyPaid: return .staffAccent
+        case .writtenOff: return .staffTextSecondary
         }
     }
 }

@@ -12,22 +12,40 @@ class MessageService: ObservableObject {
     init(applicationId: UUID) {
         self.applicationId = applicationId
     }
+
+    private struct MessageRow: Decodable {
+        let id: UUID
+        let application_id: UUID
+        let sender_id: UUID
+        let receiver_id: UUID
+        let content: String
+        let message_type: String
+        let attachment_url: String?
+        let is_read: Bool
+        let sent_at: String?
+    }
+
+    private func makeMessage(from m: MessageRow) -> Message {
+        let sentAtDate = m.sent_at.flatMap { Formatter.iso8601Flexible.date(from: $0) }
+        return Message(
+            id: m.id,
+            applicationId: m.application_id,
+            senderId: m.sender_id,
+            receiverId: m.receiver_id,
+            content: m.content,
+            messageType: MessageType(rawValue: m.message_type) ?? .text,
+            attachmentUrl: m.attachment_url,
+            isRead: m.is_read,
+            readAt: nil,
+            sentAt: sentAtDate,
+            isDeletedBySender: false,
+            isDeletedByReceiver: false
+        )
+    }
     
     func fetchMessages() async {
         do {
-            struct MessageFetch: Decodable {
-                let id: UUID
-                let application_id: UUID
-                let sender_id: UUID
-                let receiver_id: UUID
-                let content: String
-                let message_type: String
-                let attachment_url: String?
-                let is_read: Bool
-                let sent_at: String?
-            }
-            
-            let fetchResult: [MessageFetch] = try await SupabaseManager.shared.client
+            let fetchResult: [MessageRow] = try await SupabaseManager.shared.client
                 .from("messages")
                 .select()
                 .eq("application_id", value: applicationId)
@@ -35,25 +53,7 @@ class MessageService: ObservableObject {
                 .execute()
                 .value
             
-            let formatter = Formatter.iso8601
-            
-            self.messages = fetchResult.map { m in
-                let sentAtDate = m.sent_at != nil ? formatter.date(from: m.sent_at!) : nil
-                return Message(
-                    id: m.id,
-                    applicationId: m.application_id,
-                    senderId: m.sender_id,
-                    receiverId: m.receiver_id,
-                    content: m.content,
-                    messageType: MessageType(rawValue: m.message_type) ?? .text,
-                    attachmentUrl: m.attachment_url,
-                    isRead: m.is_read,
-                    readAt: nil,
-                    sentAt: sentAtDate,
-                    isDeletedBySender: false,
-                    isDeletedByReceiver: false
-                )
-            }
+            self.messages = fetchResult.map { makeMessage(from: $0) }
             
             await self.markUnreadAsRead()
         } catch {
@@ -88,7 +88,9 @@ class MessageService: ObservableObject {
     }
     
     func subscribeToMessages() {
-        channel = SupabaseManager.shared.client.realtimeV2.channel("public:messages")
+        // Namespace the channel per application so multiple open threads don't
+        // collide on a single shared "public:messages" channel.
+        channel = SupabaseManager.shared.client.realtimeV2.channel("messages:\(applicationId.uuidString)")
         
         Task {
             guard let channel = channel else { return }
@@ -103,13 +105,53 @@ class MessageService: ObservableObject {
             do {
                 try await channel.subscribeWithError()
 
-                for await _ in insertions {
-                    await self.fetchMessages()
+                for await insertion in insertions {
+                    // Append the single inserted row instead of refetching the
+                    // whole thread on every message (previously O(n) per insert).
+                    if let message = Self.message(from: insertion.record) {
+                        appendIfNew(message)
+                    } else {
+                        // Fallback if the payload can't be parsed.
+                        await self.fetchMessages()
+                    }
                 }
             } catch {
                 print("Failed to subscribe to messages: \(error)")
             }
         }
+    }
+
+    private func appendIfNew(_ message: Message) {
+        guard !messages.contains(where: { $0.id == message.id }) else { return }
+        messages.append(message)
+        messages.sort { ($0.sentAt ?? .distantPast) < ($1.sentAt ?? .distantPast) }
+        Task { await self.markUnreadAsRead() }
+    }
+
+    /// Builds a Message from a realtime INSERT payload (AnyJSON dictionary).
+    private static func message(from record: [String: AnyJSON]) -> Message? {
+        guard
+            let idStr = record["id"]?.stringValue, let id = UUID(uuidString: idStr),
+            let appStr = record["application_id"]?.stringValue, let appId = UUID(uuidString: appStr),
+            let senderStr = record["sender_id"]?.stringValue, let senderId = UUID(uuidString: senderStr),
+            let receiverStr = record["receiver_id"]?.stringValue, let receiverId = UUID(uuidString: receiverStr),
+            let content = record["content"]?.stringValue
+        else { return nil }
+
+        return Message(
+            id: id,
+            applicationId: appId,
+            senderId: senderId,
+            receiverId: receiverId,
+            content: content,
+            messageType: MessageType(rawValue: record["message_type"]?.stringValue ?? "text") ?? .text,
+            attachmentUrl: record["attachment_url"]?.stringValue,
+            isRead: record["is_read"]?.boolValue ?? false,
+            readAt: nil,
+            sentAt: record["sent_at"]?.stringValue.flatMap { Formatter.iso8601Flexible.date(from: $0) },
+            isDeletedBySender: false,
+            isDeletedByReceiver: false
+        )
     }
     
     func unsubscribe() {
