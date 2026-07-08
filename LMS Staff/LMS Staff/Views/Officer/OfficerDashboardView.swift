@@ -191,7 +191,7 @@ struct MiniStatCard: View {
                     .font(.staffCaption)
                     .foregroundColor(.staffTextSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.7)
             }
             Spacer(minLength: 4)
             Text(value)
@@ -199,6 +199,7 @@ struct MiniStatCard: View {
                 .fontWeight(.bold)
                 .foregroundColor(.staffTextPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
         .padding(.horizontal, StaffSpacing.md)
         .padding(.vertical, StaffSpacing.lg)
