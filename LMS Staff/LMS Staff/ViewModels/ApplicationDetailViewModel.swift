@@ -29,6 +29,9 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var activeLoan: Loan?
     @Published var emiSchedule: [EMIScheduleItem] = []
     
+    @Published var assignedOfficerUserId: UUID?
+    @Published var internalChatParticipantRoles: [UUID: UserRole] = [:]
+    
     @Published var isLoading: Bool = false
     @Published var isActionLoading: Bool = false
     @Published var isSendingMessage: Bool = false
@@ -184,6 +187,30 @@ class ApplicationDetailViewModel: ObservableObject {
             
             // Subscribe to real-time chat
             subscribeToChat()
+            
+            // Map the assigned officer staff ID to their user ID
+            if let officerProfileId = application.assignedOfficerId,
+               let allStaff = try? await StaffManagementService.shared.fetchStaff(),
+               let officerStaff = allStaff.first(where: { $0.staff.id == officerProfileId }) {
+                self.assignedOfficerUserId = officerStaff.user.id
+            }
+            
+            // Map roles for internal chat participants
+            let internalUserIds = Set(self.internalMessages.flatMap { [$0.senderId, $0.receiverId] })
+            if !internalUserIds.isEmpty {
+                if let users: [AppUser] = try? await supabase.database
+                    .from("users")
+                    .select()
+                    .in("id", value: Array(internalUserIds))
+                    .execute()
+                    .value {
+                    var rolesDict: [UUID: UserRole] = [:]
+                    for user in users {
+                        rolesDict[user.id] = user.role
+                    }
+                    self.internalChatParticipantRoles = rolesDict
+                }
+            }
             
             // Calculate initial underwriting suggestion
             calculateSuggestion()

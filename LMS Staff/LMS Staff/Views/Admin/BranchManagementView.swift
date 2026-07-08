@@ -55,38 +55,41 @@ struct BranchManagementView: View {
 
     private var branchListPanel: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Branches")
-                    .font(.staffTitle)
-                    .foregroundColor(.staffTextPrimary)
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Branches")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
 
-                Spacer()
+                    Spacer()
 
-                Button(action: { showCreateSheet = true }) {
-                    Image(systemName: "plus.app")
-                        .font(.system(size: 20))
-                        .foregroundColor(.staffAccent)
+                    Button(action: { showCreateSheet = true }) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 20))
+                            .foregroundColor(.staffAccent)
+                    }
                 }
-            }
-            .padding(.horizontal, StaffSpacing.lg)
-            .padding(.top, StaffSpacing.lg)
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.top, StaffSpacing.lg)
 
-            // Search
-            HStack(spacing: StaffSpacing.sm) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.staffTextTertiary)
-                TextField("Search branches...", text: $vm.searchText)
-                    .font(.staffBody)
-                    .foregroundColor(.staffTextPrimary)
-                    .tint(.staffAccent)
+                // Search
+                HStack(spacing: StaffSpacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.staffTextTertiary)
+                    TextField("Search branches...", text: $vm.searchText)
+                        .font(.staffBody)
+                        .foregroundColor(.staffTextPrimary)
+                        .tint(.staffAccent)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.staffSurfaceMuted)
+                .cornerRadius(StaffCorner.sm)
+                .padding(.horizontal, StaffSpacing.lg)
+                .padding(.bottom, StaffSpacing.md)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.staffSurfaceMuted)
-            .cornerRadius(StaffCorner.sm)
-            .padding(.horizontal, StaffSpacing.lg)
-            .padding(.bottom, StaffSpacing.md)
+            .background(Color.white)
 
             Divider().background(Color.staffBorder)
 
@@ -133,7 +136,7 @@ struct BranchManagementView: View {
                     .foregroundColor(isSelected ? .staffAccent : .staffTextTertiary)
                     .frame(width: 36, height: 36)
                     .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceLight)
-                    .cornerRadius(StaffCorner.sm)
+                    .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(branch.name)
@@ -158,15 +161,10 @@ struct BranchManagementView: View {
                 }
 
                 Spacer()
-
-                // Status dot
-                Circle()
-                    .fill(branch.isActive ? Color.staffGreen : Color.staffRed)
-                    .frame(width: 8, height: 8)
             }
             .padding(.horizontal, StaffSpacing.lg)
             .padding(.vertical, StaffSpacing.md)
-            .background(isSelected ? Color.staffSidebarActive : Color.clear)
+            .background(isSelected ? Color.staffSidebarActive : Color.white)
         }
         .buttonStyle(PlainButtonStyle())
     }

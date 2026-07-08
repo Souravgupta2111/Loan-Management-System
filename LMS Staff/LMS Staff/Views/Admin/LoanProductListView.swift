@@ -16,28 +16,31 @@ struct LoanProductListView: View {
         HStack(spacing: 0) {
             // Left Product List
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("Loan Catalog")
-                        .font(.staffTitle)
-                        .foregroundColor(.staffTextPrimary)
-                    Spacer()
-                    Button(action: { showCreateSheet = true }) {
-                        Image(systemName: "text.pad.header.badge.plus")
-                            .font(.system(size: 20))
-                            .foregroundColor(.staffAccent)
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Loan Catalog")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        Spacer()
+                        Button(action: { showCreateSheet = true }) {
+                            Image(systemName: "text.pad.header.badge.plus")
+                                .font(.system(size: 20))
+                                .foregroundColor(.staffAccent)
+                        }
                     }
-                }
-                .padding(.horizontal, StaffSpacing.lg)
-                .padding(.top, StaffSpacing.lg)
-                
-                TextField("Search products...", text: $vm.searchText)
-                    .padding(12)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
-                    .foregroundColor(.staffTextPrimary)
-                    .tint(.staffAccent)
                     .padding(.horizontal, StaffSpacing.lg)
-                    .padding(.vertical, StaffSpacing.sm)
+                    .padding(.top, StaffSpacing.lg)
+                    
+                    TextField("Search products...", text: $vm.searchText)
+                        .padding(12)
+                        .background(Color.staffSurface)
+                        .cornerRadius(StaffCorner.md)
+                        .foregroundColor(.staffTextPrimary)
+                        .tint(.staffAccent)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        .padding(.vertical, StaffSpacing.sm)
+                }
+                .background(Color.white)
                 
                 Divider().background(Color.staffBorder)
                 
@@ -58,7 +61,7 @@ struct LoanProductListView: View {
                                 .foregroundColor(.staffAccent)
                                 .frame(width: 36, height: 36)
                                 .background(Color.staffAccentBg)
-                                .clipShape(RoundedRectangle(cornerRadius: StaffCorner.sm))
+                                .clipShape(Circle())
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(product.name)
@@ -83,11 +86,7 @@ struct LoanProductListView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(product)
-                        .listRowBackground(
-                            selectedProduct?.id == product.id
-                            ? Color.staffAccent.opacity(0.15)
-                            : Color.staffSurface
-                        )
+                        .listRowBackground(Color.white)
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

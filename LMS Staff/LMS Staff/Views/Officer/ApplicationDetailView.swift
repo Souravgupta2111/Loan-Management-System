@@ -535,22 +535,24 @@ struct ApplicationDetailView: View {
                         Spacer()
                         
                         // Action buttons
-                        Button(action: {
-                            Task {
-                                if let url = await vm.getDocumentUrl(for: doc) {
-                                    openURL(url)
+                        if authViewModel.currentUser?.role != .admin {
+                            Button(action: {
+                                Task {
+                                    if let url = await vm.getDocumentUrl(for: doc) {
+                                        openURL(url)
+                                    }
                                 }
+                            }) {
+                                Text("View")
+                                    .font(.staffCaption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.staffAccent)
+                                    .cornerRadius(StaffCorner.sm)
+                                    .shadow(color: Color.staffAccent.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
-                        }) {
-                            Text("View")
-                                .font(.staffCaption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.staffAccent)
-                                .cornerRadius(StaffCorner.sm)
-                                .shadow(color: Color.staffAccent.opacity(0.3), radius: 2, x: 0, y: 1)
                         }
                         
                         if doc.isVerified {
