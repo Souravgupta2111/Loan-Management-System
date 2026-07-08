@@ -18,7 +18,7 @@
 // message persistence to ai_conversations / ai_messages.
 //
 // Env (auto-injected in Supabase Edge runtime): SUPABASE_URL,
-// SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY (optional; falls back to a smart mock).
+// SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY (optional; falls back to a smart mock).
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -30,7 +30,7 @@ const corsHeaders = {
 
 const HISTORY_LIMIT = 16; // prior turns replayed for memory
 const MAX_TOOL_HOPS = 4; // safety cap on the tool-calling loop
-const GEMINI_MODEL = "gemini-2.5-flash";
+const AI_MODEL = "google/gemini-2.5-flash-lite:free";
 
 type StoredRole = "borrower" | "officer" | "manager";
 
@@ -655,67 +655,115 @@ async function generateWithTools(
   admin: SupabaseClient | null,
   ctx: CallerContext,
 ): Promise<string> {
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = "https://openrouter.ai/api/v1/chat/completions";
 
-  const contents: any[] = [
+  const messages: any[] = [
+    { role: "system", content: systemPromptFor(persona, contextData) },
     ...history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content,
     })),
-    { role: "user", parts: [{ text: message }] },
+    { role: "user", content: message },
   ];
 
-  const tools = admin ? [{ functionDeclarations: toolDeclarationsFor(persona) }] : undefined;
+  let openAITools: any[] | undefined = undefined;
+  if (admin) {
+    openAITools = toolDeclarationsFor(persona).map((t) => {
+      const properties: any = {};
+      if (t.parameters?.properties) {
+        for (const [k, v] of Object.entries<any>(t.parameters.properties)) {
+          properties[k] = { ...v, type: v.type ? v.type.toLowerCase() : "string" };
+        }
+      }
+      return {
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: {
+            type: "object",
+            properties,
+            required: t.parameters?.required ?? [],
+          },
+        },
+      };
+    });
+  }
 
   for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
     const body: any = {
-      systemInstruction: { parts: [{ text: systemPromptFor(persona, contextData) }] },
-      contents,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 900 },
+      model: AI_MODEL,
+      messages,
+      temperature: 0.3,
+      max_tokens: 900,
     };
-    if (tools) body.tools = tools;
+    if (openAITools && openAITools.length > 0) {
+      body.tools = openAITools;
+    }
 
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://lms-app.local",
+        "X-Title": "LMS AI Chat"
+      },
       body: JSON.stringify(body),
     });
+    
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`OpenRouter API error: ${resp.status} ${errText}`);
+    }
+    
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message);
 
-    const candidate = data?.candidates?.[0];
-    const parts: any[] = candidate?.content?.parts ?? [];
-    const functionCalls = parts.filter((p) => p.functionCall);
+    const choice = data?.choices?.[0];
+    const responseMessage = choice?.message;
+    if (!responseMessage) {
+        return "I couldn't generate a response just now. Please try again.";
+    }
+
+    const toolCalls = responseMessage.tool_calls || [];
 
     // No tool requested -> return the text answer.
-    if (functionCalls.length === 0) {
-      return (
-        parts.map((p) => p.text).filter(Boolean).join("\n").trim() ||
-        "I couldn't generate a response just now. Please try again."
-      );
+    if (toolCalls.length === 0) {
+      return responseMessage.content?.trim() || "I couldn't generate a response just now. Please try again.";
     }
 
     // Record the model's turn, then execute each requested tool.
-    contents.push({ role: "model", parts });
-    const responseParts: any[] = [];
-    for (const fc of functionCalls) {
+    messages.push(responseMessage);
+    
+    for (const tc of toolCalls) {
+      if (tc.type !== "function") continue;
+      
+      let args = {};
+      try {
+          args = JSON.parse(tc.function.arguments || "{}");
+      } catch (e) {
+          // ignore parsing errors
+      }
+      
       const result = admin
-        ? await executeTool(admin, persona, ctx, fc.functionCall.name, fc.functionCall.args ?? {})
+        ? await executeTool(admin, persona, ctx, tc.function.name, args)
         : { error: "Data tools unavailable." };
-      responseParts.push({
-        functionResponse: { name: fc.functionCall.name, response: { result } },
+        
+      messages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        name: tc.function.name,
+        content: JSON.stringify(result)
       });
     }
-    // Gemini roles are only "user" or "model"; tool results go back as "user".
-    contents.push({ role: "user", parts: responseParts });
   }
 
   return "I wasn't able to finish looking that up. Please try rephrasing your question.";
 }
 
 // ---------------------------------------------------------------------------
-// Offline mock (no GEMINI_API_KEY) — still answers common data questions
+// Offline mock (no OPENROUTER_API_KEY) — still answers common data questions
 // ---------------------------------------------------------------------------
 
 async function mockReply(
@@ -731,12 +779,12 @@ async function mockReply(
     const r: any = await executeTool(admin, persona, ctx, "count_my_applications", {
       status: lower.includes("pending") ? "pending" : undefined,
     });
-    return `You have ${r.count ?? 0} ${lower.includes("pending") ? "pending" : ""} applications assigned to you. (Set GEMINI_API_KEY for full conversational answers.)`;
+    return `You have ${r.count ?? 0} ${lower.includes("pending") ? "pending" : ""} applications assigned to you. (Set OPENROUTER_API_KEY for full conversational answers.)`;
   }
 
   if (admin && (persona === "manager" || persona === "admin") && (lower.includes("portfolio") || lower.includes("npa") || lower.includes("metric"))) {
     const m: any = await executeTool(admin, persona, ctx, "get_portfolio_metrics", {});
-    return `Portfolio: ${m.totalActiveLoans} active loans, NPA ${m.npaPercentage}%, collection efficiency ${m.collectionEfficiency}%, ${m.pendingApplications} pending applications. (Set GEMINI_API_KEY for full analysis.)`;
+    return `Portfolio: ${m.totalActiveLoans} active loans, NPA ${m.npaPercentage}%, collection efficiency ${m.collectionEfficiency}%, ${m.pendingApplications} pending applications. (Set OPENROUTER_API_KEY for full analysis.)`;
   }
 
   if (persona === "borrower") {
@@ -749,7 +797,7 @@ async function mockReply(
     }
   }
 
-  return `This is a simulated offline response because GEMINI_API_KEY is not set. You asked: "${message}"`;
+  return `This is a simulated offline response because OPENROUTER_API_KEY is not set. You asked: "${message}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -821,7 +869,7 @@ Deno.serve(async (req) => {
     }
 
     // 4. Generate the reply.
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     let reply = "";
     if (!apiKey) {
       reply = await mockReply(persona, message, contextData, admin, ctx);
