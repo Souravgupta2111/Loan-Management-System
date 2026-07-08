@@ -19,6 +19,14 @@ enum SWKeys {
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroupID) }
 }
 
+struct StaffAuditEntryDTO: Codable, Identifiable {
+    var id: String
+    var action: String
+    var actor: String
+    var role: String?
+    var date: Date
+}
+
 struct StaffWidgetSnapshotDTO: Codable {
     var role: String
     var officerPending: Int
@@ -37,13 +45,22 @@ struct StaffWidgetSnapshotDTO: Codable {
     var staffCount: Int
     var branchCount: Int
     var auditAlerts24h: Int
+    var auditEntries: [StaffAuditEntryDTO] = []
     var generated: Date
 
     static let sample = StaffWidgetSnapshotDTO(
-        role: "manager", officerPending: 7, officerSubmitted: 4, officerUnderReview: 3,
+        role: "sample", officerPending: 7, officerSubmitted: 4, officerUnderReview: 3,
         oldestName: "Ravi Kumar", oldestDays: 3, activeLoans: 128, totalDisbursed: 48_500_000,
         npaPercentage: 4.2, collectionEfficiency: 92, pendingApprovals: 9, overdueEmis: 15,
         npaCount: 6, totalBorrowers: 342, staffCount: 18, branchCount: 5, auditAlerts24h: 23,
+        auditEntries: [
+            StaffAuditEntryDTO(id: "1", action: "loan_approved", actor: "Priya Nair", role: "manager", date: Date().addingTimeInterval(-1_200)),
+            StaffAuditEntryDTO(id: "2", action: "application_rejected", actor: "Amit Shah", role: "officer", date: Date().addingTimeInterval(-5_400)),
+            StaffAuditEntryDTO(id: "3", action: "loan_disbursed", actor: "Priya Nair", role: "manager", date: Date().addingTimeInterval(-9_000)),
+            StaffAuditEntryDTO(id: "4", action: "staff_created", actor: "System Admin", role: "admin", date: Date().addingTimeInterval(-18_000)),
+            StaffAuditEntryDTO(id: "5", action: "password_reset", actor: "System Admin", role: "admin", date: Date().addingTimeInterval(-32_000)),
+            StaffAuditEntryDTO(id: "6", action: "application_assigned", actor: "Priya Nair", role: "manager", date: Date().addingTimeInterval(-54_000))
+        ],
         generated: .now
     )
 
@@ -64,8 +81,19 @@ func swInrCompact(_ v: Double) -> String {
     return "₹\(Int(v))"
 }
 
-// MARK: - Glass background (neutral, adaptive)
+// MARK: - Staff theme greens (mirror the staff app's mint palette)
 
+extension Color {
+    static let swMintCanvas = Color(.sRGB, red: 0.945, green: 0.973, blue: 0.941, opacity: 1) // #F1F8F0
+    static let swMintTint   = Color(.sRGB, red: 0.875, green: 0.953, blue: 0.902, opacity: 1) // #DFF3E6
+    static let swGreen      = Color(.sRGB, red: 0.180, green: 0.588, blue: 0.345, opacity: 1) // #2E9658
+    static let swDarkGreen  = Color(.sRGB, red: 0.086, green: 0.220, blue: 0.153, opacity: 1) // deep green
+}
+
+// MARK: - Glass background (mint-tinted, adaptive)
+
+/// Mint-green liquid glass matching the staff app's background, with a green rim.
+/// Stays translucent (frosted material) in both light and dark.
 struct StaffGlassBG: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
@@ -73,16 +101,16 @@ struct StaffGlassBG: View {
             .fill(.ultraThinMaterial)
             .overlay {
                 if scheme == .dark {
-                    LinearGradient(colors: [Color.black.opacity(0.38), Color.black.opacity(0.16)],
-                                   startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [Color.swDarkGreen.opacity(0.62), Color.swDarkGreen.opacity(0.38)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
                 } else {
-                    LinearGradient(colors: [Color.white.opacity(0.40), Color.white.opacity(0.08)],
+                    LinearGradient(colors: [Color.swMintCanvas.opacity(0.82), Color.swMintTint.opacity(0.62)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
                 }
             }
             .overlay(
                 ContainerRelativeShape()
-                    .strokeBorder(Color.primary.opacity(scheme == .dark ? 0.18 : 0.12), lineWidth: 1)
+                    .strokeBorder(Color.swGreen.opacity(scheme == .dark ? 0.40 : 0.28), lineWidth: 1)
             )
     }
 }
@@ -91,8 +119,9 @@ extension View {
     /// Standard glass widget container: consistent inner padding + fill + glass bg.
     func glassWidget(_ alignment: Alignment = .topLeading) -> some View {
         self
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-            .padding(14)
             .containerBackground(for: .widget) { StaffGlassBG() }
     }
 }
@@ -116,7 +145,10 @@ struct SWProvider: TimelineProvider {
 }
 
 private func wrongRole(_ snap: StaffWidgetSnapshotDTO, _ allowed: [String]) -> Bool {
-    !allowed.contains(snap.role)
+    // "sample" is the placeholder/gallery snapshot — show it for every widget so
+    // the gallery preview never shows a "Sign in as…" hint on unrelated roles.
+    if snap.role == "sample" { return false }
+    return !allowed.contains(snap.role)
 }
 
 private struct SignInHint: View {
@@ -367,15 +399,17 @@ struct SystemOverviewView: View {
     var body: some View {
         let s = entry.snapshot
         if wrongRole(s, ["admin"]) { SignInHint(role: "admin") } else {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 swHeader("System Overview", "square.grid.2x2.fill")
-                HStack(spacing: 12) {
-                    tile("Active Loans", "\(s.activeLoans)", "indianrupeesign.circle")
-                    tile("Borrowers", "\(s.totalBorrowers)", "person.2.fill")
-                }
-                HStack(spacing: 12) {
-                    tile("Staff", "\(s.staffCount)", "person.3.fill")
-                    tile("Branches", "\(s.branchCount)", "building.2.fill")
+                Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                    GridRow {
+                        tile("Active Loans", "\(s.activeLoans)", "indianrupeesign.circle.fill")
+                        tile("Borrowers", "\(s.totalBorrowers)", "person.2.fill")
+                    }
+                    GridRow {
+                        tile("Staff", "\(s.staffCount)", "person.3.fill")
+                        tile("Branches", "\(s.branchCount)", "building.2.fill")
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -383,17 +417,24 @@ struct SystemOverviewView: View {
         }
     }
     private func tile(_ title: String, _ value: String, _ icon: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).font(.title3).foregroundStyle(.secondary).frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value).font(.title3.weight(.bold)).minimumScaleFactor(0.6).lineLimit(1)
-                Text(title).font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer()
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .font(.headline)
+                .foregroundStyle(Color.swGreen)
+            Text(value)
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(.primary)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .padding(14)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -406,29 +447,111 @@ struct SystemOverviewWidget: Widget {
     }
 }
 
-struct AuditAlertsView: View {
+struct AuditTrailView: View {
+    @Environment(\.widgetFamily) var family
     var entry: SWEntry
     var body: some View {
         let s = entry.snapshot
         if wrongRole(s, ["admin"]) { SignInHint(role: "admin") } else {
-            VStack(alignment: .leading, spacing: 6) {
-                swHeader("Audit Activity", "clock.arrow.circlepath")
-                Text("\(s.auditAlerts24h)").font(.system(size: 40, weight: .bold)).minimumScaleFactor(0.5)
-                Text("critical actions · 24h").font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 8) {
+                swHeader("System Audit Trail", "clock.arrow.circlepath")
+                let rows = Array(s.auditEntries.prefix(family == .systemLarge ? 6 : 3))
+                if rows.isEmpty {
+                    Spacer(minLength: 0)
+                    Text("No recent activity")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                    Spacer(minLength: 0)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { idx, e in
+                            auditRow(e)
+                            if idx < rows.count - 1 {
+                                Divider().overlay(Color.swGreen.opacity(0.12))
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
             }
             .glassWidget()
+            .widgetURL(URL(string: "lmsstaffapp://audit"))
         }
+    }
+
+    private func auditRow(_ e: StaffAuditEntryDTO) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: swAuditIcon(e.action))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(swAuditColor(e.action))
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(swPrettyAction(e.action))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(e.actor)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text(swRelative(e.date))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 6)
     }
 }
 
-struct AuditAlertsWidget: Widget {
+struct AuditTrailWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "AuditAlertsWidget", provider: SWProvider()) { AuditAlertsView(entry: $0) }
-            .configurationDisplayName("Audit Activity")
-            .description("Critical actions logged in the last 24 hours.")
-            .supportedFamilies([.systemSmall, .systemMedium])
+        StaticConfiguration(kind: "AuditAlertsWidget", provider: SWProvider()) { AuditTrailView(entry: $0) }
+            .configurationDisplayName("System Audit Trail")
+            .description("Most recent critical actions across the system.")
+            .supportedFamilies([.systemMedium, .systemLarge])
     }
+}
+
+// MARK: - Audit formatting helpers
+
+private func swPrettyAction(_ action: String) -> String {
+    action.replacingOccurrences(of: "_", with: " ")
+        .split(separator: " ")
+        .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+        .joined(separator: " ")
+}
+
+private func swAuditIcon(_ action: String) -> String {
+    let a = action.uppercased()
+    if a.contains("CREATE") || a.contains("INSERT") { return "plus.circle.fill" }
+    if a.contains("UPDATE") || a.contains("EDIT") { return "pencil.circle.fill" }
+    if a.contains("DELETE") || a.contains("REMOVE") { return "trash.circle.fill" }
+    if a.contains("APPROVE") { return "checkmark.seal.fill" }
+    if a.contains("REJECT") { return "xmark.seal.fill" }
+    if a.contains("RESET") { return "key.fill" }
+    if a.contains("ASSIGN") { return "person.badge.plus" }
+    if a.contains("DISBURSE") { return "banknote.fill" }
+    if a.contains("LOGIN") || a.contains("AUTH") { return "lock.shield.fill" }
+    if a.contains("SEND_BACK") || a.contains("SENT_BACK") { return "arrow.uturn.left.circle.fill" }
+    return "doc.text.fill"
+}
+
+private func swAuditColor(_ action: String) -> Color {
+    let a = action.uppercased()
+    if a.contains("APPROVE") || a.contains("DISBURSE") || a.contains("CREATE") || a.contains("INSERT") { return .swGreen }
+    if a.contains("DELETE") || a.contains("REJECT") { return .red }
+    if a.contains("RESET") || a.contains("SEND_BACK") || a.contains("SENT_BACK") { return .orange }
+    return .secondary
+}
+
+private func swRelative(_ date: Date) -> String {
+    let secs = max(0, Date().timeIntervalSince(date))
+    if secs < 60 { return "now" }
+    if secs < 3_600 { return "\(Int(secs / 60))m" }
+    if secs < 86_400 { return "\(Int(secs / 3_600))h" }
+    return "\(Int(secs / 86_400))d"
 }
 
 // ============================================================================
@@ -495,7 +618,7 @@ struct StaffWidgetsBundle: WidgetBundle {
         PendingApprovalsWidget()
         NPAAlertWidget()
         SystemOverviewWidget()
-        AuditAlertsWidget()
+        AuditTrailWidget()
         StaffLockWidget()
     }
 }

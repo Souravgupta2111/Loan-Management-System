@@ -44,6 +44,7 @@ struct NotificationTemplatesView: View {
                     Text("Alert Templates")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     
                     Spacer()
                     
@@ -58,6 +59,7 @@ struct NotificationTemplatesView: View {
                             .font(.title3)
                             .foregroundColor(.staffAccent)
                     }
+                    .accessibilityLabel("Add template")
                 }
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
@@ -97,6 +99,8 @@ struct NotificationTemplatesView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.white
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to edit")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -119,9 +123,11 @@ struct NotificationTemplatesView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Template to Edit")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -184,6 +190,7 @@ struct NotificationTemplatesView: View {
                     Text(item.eventName.replacingOccurrences(of: "_", with: " ").capitalized)
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Text("Event trigger: \(item.eventName)")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextSecondary)
@@ -210,6 +217,7 @@ struct NotificationTemplatesView: View {
                         .foregroundColor(.staffRed)
                 }
                 .padding(.leading, StaffSpacing.md)
+                .accessibilityLabel("Delete template")
             }
             .padding(StaffSpacing.lg)
             .background(Color.staffBackground)
@@ -223,6 +231,7 @@ struct NotificationTemplatesView: View {
                             Text("Event Name")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Text("The unique event trigger identifier (use snake_case).")
                                 .font(.staffCaption)
@@ -246,6 +255,7 @@ struct NotificationTemplatesView: View {
                             Text("Template Description")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -264,6 +274,7 @@ struct NotificationTemplatesView: View {
                             Text("Supported Dynamic Tags")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Text("Comma-separated list of placeholder tags (e.g. {{borrower_name}}, {{amount}}).")
                                 .font(.staffCaption)
@@ -287,6 +298,7 @@ struct NotificationTemplatesView: View {
                             Text("Template Message Text")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -396,6 +408,7 @@ struct NotificationTemplatesView: View {
                         .font(.system(size: 56))
                         .foregroundColor(.staffAccent)
                         .padding(.top, StaffSpacing.xl)
+                        .accessibilityHidden(true)
                     
                     Text("Create New Notification Template")
                         .font(.staffSectionTitle)
@@ -441,6 +454,7 @@ struct NotificationTemplatesView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }

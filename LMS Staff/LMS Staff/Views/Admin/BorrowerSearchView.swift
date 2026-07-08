@@ -25,6 +25,7 @@ struct BorrowerSearchView: View {
                     Text("Borrower Database")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
                         .padding(.horizontal, StaffSpacing.lg)
                         .padding(.top, StaffSpacing.lg)
                     
@@ -81,6 +82,8 @@ struct BorrowerSearchView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.white
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to open")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -103,9 +106,11 @@ struct BorrowerSearchView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Borrower to Inspect Profile")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -153,6 +158,7 @@ struct BorrowerSearchView: View {
                             Text("KYC Verification Details")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             
@@ -170,6 +176,7 @@ struct BorrowerSearchView: View {
                             Text("Borrower Repayment History")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             Divider()
                             

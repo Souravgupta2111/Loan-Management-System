@@ -27,7 +27,7 @@ struct ChatBubbleView: View {
                         .frame(width: 32, height: 32)
                     Image(systemName: "sparkles")
                         .font(.subheadline)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.staffAccent)
                 }
                 .accessibilityHidden(true)
             }
@@ -45,7 +45,7 @@ struct ChatBubbleView: View {
                         } label: {
                             Image(systemName: "speaker.wave.2")
                                 .font(.caption)
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.staffAccent)
                                 .padding(6)
                                 .background(Color.white.opacity(0.8))
                                 .clipShape(Circle())
@@ -88,10 +88,10 @@ struct ChatBubbleView: View {
                                     Image(systemName: "chevron.right")
                                 }
                                 .font(.subheadline.weight(.medium))
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.staffAccent)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
-                                .background(Color(hex: "#E8F5EC"))
+                                .background(Color.staffAccentBg)
                                 .accessibilityLabel("Suggested action: \(action.label)")
                                 .accessibilityHint("Double tap to use this action")
                                 .cornerRadius(12)

@@ -27,7 +27,7 @@ struct AICopilotPanel: View {
                         .frame(width: 32, height: 32)
                     Image(systemName: "sparkles")
                         .font(.subheadline)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.staffAccent)
                 }
                 
                 Text("AI Copilot")
@@ -85,7 +85,7 @@ struct AICopilotPanel: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Color(hex: "#2D8B4E"))
+                                .background(Color.staffAccent)
                                 .cornerRadius(8)
                         }
                     }
@@ -132,10 +132,10 @@ struct CopilotActionButton: View {
                 Text(title)
             }
             .font(.subheadline.weight(.medium))
-            .foregroundColor(Color(hex: "#2D8B4E"))
+            .foregroundColor(Color.staffAccent)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color(hex: "#E8F5EC"))
+            .background(Color.staffAccentBg)
             .cornerRadius(8)
         }
     }

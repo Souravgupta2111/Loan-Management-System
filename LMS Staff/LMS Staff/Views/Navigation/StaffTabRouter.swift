@@ -114,6 +114,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 
 struct StaffTabRouter: View {
     let role: UserRole
+    @EnvironmentObject private var themeManager: AppThemeManager
     @State private var selectedItem: SidebarItem?
     @StateObject private var intentRouter = StaffIntentRouter.shared
 
@@ -138,22 +139,26 @@ struct StaffTabRouter: View {
             SidebarView(role: role, selectedItem: $selectedItem)
                 .navigationTitle("LMS Portal")
         } detail: {
-            if let item = selectedItem {
-                detailView(for: item)
-            } else {
-                VStack(spacing: StaffSpacing.md) {
-                    Image(systemName: "building.columns.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.staffTextSecondary.opacity(0.3))
-                    Text("Select a Workspace Item")
-                        .font(.staffTitle)
-                        .foregroundColor(.staffTextSecondary)
+            Group {
+                if let item = selectedItem {
+                    detailView(for: item)
+                } else {
+                    VStack(spacing: StaffSpacing.md) {
+                        Image(systemName: "building.columns.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        Text("Select a Workspace Item")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.staffBackground)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.staffBackground)
             }
+            .environment(\.appColorPalette, themeManager.selectedPalette)
+            .id(themeManager.selectedPalette.id)
         }
         .accentColor(.staffAccent)
         // Siri / Shortcuts intents route here.

@@ -3,6 +3,7 @@ import Supabase
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject private var themeManager: AppThemeManager
     @State private var showPasswordResetAlert = false
     @State private var newPassword = ""
     
@@ -33,6 +34,8 @@ struct ContentView: View {
                     ContentView.notifyInteraction()
                 }
         )
+        .environment(\.appColorPalette, themeManager.selectedPalette)
+        .tint(.staffAccent)
         .onOpenURL { url in
             // Widget / Siri deep links (lmsstaffapp://...)
             if url.scheme == "lmsstaffapp" {
@@ -94,5 +97,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .environmentObject(AuthViewModel())
+            .environmentObject(AppThemeManager())
     }
 }

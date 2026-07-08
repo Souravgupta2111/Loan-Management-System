@@ -35,6 +35,7 @@ struct LMS_StaffApp: App {
     // Initialize Supabase on app launch
     private let supabase = SupabaseManager.shared
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var themeManager = AppThemeManager()
     
     // Notification delegate must be retained for the app's lifetime
     private let notificationDelegate = NotificationDelegate()
@@ -49,7 +50,9 @@ struct LMS_StaffApp: App {
             ContentView()
                 .preferredColorScheme(.light)
                 .tint(.staffAccent)
+                .environment(\.appColorPalette, themeManager.selectedPalette)
                 .environmentObject(authViewModel)
+                .environmentObject(themeManager)
 
         }
     }

@@ -20,6 +20,14 @@ enum StaffWidgetKeys {
     static let snapshot = "staffwidget.snapshot"
 }
 
+struct StaffAuditEntryDTO: Codable, Identifiable {
+    var id: String
+    var action: String
+    var actor: String
+    var role: String?
+    var date: Date
+}
+
 struct StaffWidgetSnapshotDTO: Codable {
     var role: String
 
@@ -44,6 +52,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     var staffCount: Int
     var branchCount: Int
     var auditAlerts24h: Int
+    var auditEntries: [StaffAuditEntryDTO]
 
     var generated: Date
 
@@ -53,6 +62,7 @@ struct StaffWidgetSnapshotDTO: Codable {
             oldestName: nil, oldestDays: nil, activeLoans: 0, totalDisbursed: 0,
             npaPercentage: 0, collectionEfficiency: 0, pendingApprovals: 0, overdueEmis: 0,
             npaCount: 0, totalBorrowers: 0, staffCount: 0, branchCount: 0, auditAlerts24h: 0,
+            auditEntries: [],
             generated: Date()
         )
     }
@@ -165,6 +175,49 @@ enum StaffWidgetDataProvider {
             .from("audit_log").select("id", head: true, count: .exact)
             .gte("created_at", value: since).execute()
         snap.auditAlerts24h = resp.count ?? 0
+
+        // Recent audit entries for the list widget (last ~10 actions).
+        snap.auditEntries = (try? await fetchRecentAudit()) ?? []
+    }
+
+    private struct AuditLogRow: Decodable {
+        let id: UUID
+        let action: String
+        let actor_id: UUID?
+        let actor_role: String?
+        let created_at: Date?
+    }
+
+    private static func fetchRecentAudit() async throws -> [StaffAuditEntryDTO] {
+        let rows: [AuditLogRow] = try await supabase.client
+            .from("audit_log")
+            .select("id, action, actor_id, actor_role, created_at")
+            .order("created_at", ascending: false)
+            .limit(10)
+            .execute().value
+
+        // Resolve actor display names in one batch.
+        let ids = Array(Set(rows.compactMap { $0.actor_id }))
+        var names: [UUID: String] = [:]
+        if !ids.isEmpty {
+            struct NameRow: Decodable { let id: UUID; let full_name: String }
+            let people: [NameRow] = (try? await supabase.client
+                .from("users").select("id, full_name")
+                .in("id", values: ids.map { $0.uuidString })
+                .execute().value) ?? []
+            for p in people { names[p.id] = p.full_name }
+        }
+
+        return rows.map { row in
+            let actor = row.actor_id.flatMap { names[$0] } ?? "System"
+            return StaffAuditEntryDTO(
+                id: row.id.uuidString,
+                action: row.action,
+                actor: actor,
+                role: row.actor_role,
+                date: row.created_at ?? Date()
+            )
+        }
     }
 
     // MARK: - Count helpers
