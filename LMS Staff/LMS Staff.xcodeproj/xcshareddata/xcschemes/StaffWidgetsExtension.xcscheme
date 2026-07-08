@@ -18,6 +18,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "18D183732FFD328F001A39E0"
                BuildableName = "StaffWidgetsExtension.appex"
+               BlueprintName = "StaffWidgetsExtension"
                ReferencedContainer = "container:LMS Staff.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,6 +32,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "188A21232FEA263200169450"
                BuildableName = "LMS Staff.app"
+               BlueprintName = "LMS Staff"
                ReferencedContainer = "container:LMS Staff.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -63,6 +65,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "18D183732FFD328F001A39E0"
             BuildableName = "StaffWidgetsExtension.appex"
+            BlueprintName = "StaffWidgetsExtension"
             ReferencedContainer = "container:LMS Staff.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
@@ -71,6 +74,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "188A21232FEA263200169450"
             BuildableName = "LMS Staff.app"
+            BlueprintName = "LMS Staff"
             ReferencedContainer = "container:LMS Staff.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -106,6 +110,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "188A21232FEA263200169450"
             BuildableName = "LMS Staff.app"
+            BlueprintName = "LMS Staff"
             ReferencedContainer = "container:LMS Staff.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
