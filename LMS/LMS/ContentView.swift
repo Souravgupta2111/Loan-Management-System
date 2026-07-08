@@ -16,8 +16,10 @@ struct ContentView: View {
                 LoginView()
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             case .kycRequired:
-                KYCDashboardView(allowsSkip: true)
-                    .transition(.opacity.combined(with: .scale))
+                NavigationStack {
+                    KYCDashboardView(allowsSkip: true)
+                }
+                .transition(.opacity.combined(with: .scale))
             case .authenticated:
                 MainTabView()
                     .transition(.opacity.combined(with: .scale))
