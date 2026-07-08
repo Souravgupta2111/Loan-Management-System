@@ -18,6 +18,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1823CA002FFD19060005B9F7"
                BuildableName = "LMSWidgetsExtension.appex"
+               BlueprintName = "LMSWidgetsExtension"
                ReferencedContainer = "container:LMS.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,6 +32,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1819DAC82FE9A8D200822398"
                BuildableName = "LMS.app"
+               BlueprintName = "LMS"
                ReferencedContainer = "container:LMS.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -63,6 +65,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1823CA002FFD19060005B9F7"
             BuildableName = "LMSWidgetsExtension.appex"
+            BlueprintName = "LMSWidgetsExtension"
             ReferencedContainer = "container:LMS.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
@@ -71,6 +74,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1819DAC82FE9A8D200822398"
             BuildableName = "LMS.app"
+            BlueprintName = "LMS"
             ReferencedContainer = "container:LMS.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -106,6 +110,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1819DAC82FE9A8D200822398"
             BuildableName = "LMS.app"
+            BlueprintName = "LMS"
             ReferencedContainer = "container:LMS.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

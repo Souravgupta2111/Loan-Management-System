@@ -129,7 +129,7 @@ struct StaffTabRouter: View {
         case .npa:
             return .managerNpa
         case .disbursements:
-            return .managerDisbursements
+            return .managerBranchLoans
         }
     }
 
