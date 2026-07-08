@@ -1088,7 +1088,7 @@ struct ManagerReportsView: View {
 }
 
 // MARK: - ReportMetricCard View Component
-struct ReportMetricCard: View {
+fileprivate struct ReportMetricCard: View {
     let icon: String
     let title: String
     let value: String

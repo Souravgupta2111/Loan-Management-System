@@ -1093,7 +1093,7 @@ struct OfficerReportsView: View {
 
 // MARK: - Report Metric Card (Colorful Gradient)
 
-struct ReportMetricCard: View {
+fileprivate struct ReportMetricCard: View {
     let icon: String
     let title: String
     let value: String
