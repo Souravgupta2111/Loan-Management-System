@@ -76,7 +76,11 @@ struct BorrowerSearchView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(borrower)
-                        .listRowBackground(Color.white)
+                        .listRowBackground(
+                            selectedBorrower?.id == borrower.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.white
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)

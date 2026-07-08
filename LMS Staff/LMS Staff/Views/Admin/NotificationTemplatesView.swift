@@ -92,7 +92,11 @@ struct NotificationTemplatesView: View {
                         }
                         .padding(.vertical, 4)
                         .tag(template)
-                        .listRowBackground(Color.white)
+                        .listRowBackground(
+                            selectedTemplate?.id == template.id
+                            ? Color.staffAccent.opacity(0.15)
+                            : Color.white
+                        )
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
