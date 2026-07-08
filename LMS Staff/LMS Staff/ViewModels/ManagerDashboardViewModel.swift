@@ -334,8 +334,8 @@ class ManagerDashboardViewModel: ObservableObject {
             
             // Sort by latest message
             self.chatApplications.sort { app1, app2 in
-                let date1 = latestTimes[app1.application.id] ?? .distantPast
-                let date2 = latestTimes[app2.application.id] ?? .distantPast
+                let date1 = latestTimes[app1.application.id] ?? (app1.application.createdAt ?? .distantPast)
+                let date2 = latestTimes[app2.application.id] ?? (app2.application.createdAt ?? .distantPast)
                 return date1 > date2
             }
             

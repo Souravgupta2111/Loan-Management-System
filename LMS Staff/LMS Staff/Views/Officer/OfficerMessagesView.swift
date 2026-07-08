@@ -49,9 +49,14 @@ struct OfficerMessagesView: View {
                                     .font(.staffBody)
                                     .fontWeight(.bold)
                                     .foregroundColor(.staffTextPrimary)
-                                Text(app.product.name)
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
+                                HStack(spacing: 4) {
+                                    Text(app.application.applicationNumber ?? "APP-NEW")
+                                        .fontWeight(.semibold)
+                                    Text("•")
+                                    Text(app.product.name)
+                                }
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -139,9 +144,14 @@ struct ChatSupportConsole: View {
                     Text(forceInternalOnly ? "Officer Review Discussion" : "Messaging Support")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
-                    Text(appWithBorrower.borrower.fullName)
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextSecondary)
+                    HStack(spacing: 6) {
+                        Text(appWithBorrower.borrower.fullName)
+                        Text("•")
+                        Text(appWithBorrower.application.applicationNumber ?? "APP-NEW")
+                            .fontWeight(.semibold)
+                    }
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
                 }
                 
                 Spacer()
@@ -175,8 +185,15 @@ struct ChatSupportConsole: View {
                 ScrollView {
                     VStack(spacing: StaffSpacing.md) {
                         let activeMessages = isInternalChat ? detailVm.internalMessages : detailVm.borrowerMessages
+                        let filteredMessages = activeMessages.filter { msg in
+                            if authViewModel.currentUser?.role == .admin {
+                                return true
+                            }
+                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                            return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
+                        }
                         
-                        if activeMessages.isEmpty {
+                        if filteredMessages.isEmpty {
                             Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
@@ -184,14 +201,11 @@ struct ChatSupportConsole: View {
                                 .padding(.horizontal, StaffSpacing.lg)
                                 .padding(.top, 40)
                         } else {
-                            ForEach(activeMessages.filter { msg in
-                                // If Admin, show all messages. Otherwise, filter out deleted ones for the user.
-                                if authViewModel.currentUser?.role == .admin {
-                                    return true
+                            ForEach(Array(filteredMessages.enumerated()), id: \.element.id) { index, msg in
+                                if index == 0 || !Calendar.current.isDate(filteredMessages[index - 1].sentAt ?? Date(), inSameDayAs: msg.sentAt ?? Date()) {
+                                    DateSeparatorHeader(date: msg.sentAt ?? Date())
                                 }
-                                let isMe = msg.senderId == SupabaseManager.shared.currentUserId
-                                return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
-                            }) { msg in
+                                
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 let isStaffSender = msg.senderId != appWithBorrower.borrower.id
                                 
@@ -372,6 +386,42 @@ struct ChatSupportConsole: View {
             } else {
                 return "Borrower"
             }
+        }
+    }
+}
+
+// MARK: - DateSeparatorHeader Subview
+struct DateSeparatorHeader: View {
+    let date: Date
+    
+    var body: some View {
+        HStack {
+            Spacer()
+            Text(dateHeaderString(for: date))
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.staffTextSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.85))
+                .cornerRadius(10)
+                .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
+                .padding(.vertical, 6)
+                .accessibilityLabel("Date: \(dateHeaderString(for: date))")
+            Spacer()
+        }
+    }
+    
+    private func dateHeaderString(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE, MMM d"
+            return formatter.string(from: date)
         }
     }
 }
