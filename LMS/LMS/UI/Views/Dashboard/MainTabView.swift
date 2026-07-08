@@ -107,11 +107,6 @@ struct MainTabView: View {
         .fullScreenCover(item: $intentRouter.paymentTarget) { target in
             NavigationStack {
                 EMIScheduleView(loanId: target.loanId)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("Close") { intentRouter.paymentTarget = nil }
-                        }
-                    }
             }
         }
         .onAppear {

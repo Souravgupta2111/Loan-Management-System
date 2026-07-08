@@ -145,7 +145,7 @@ struct LiquidGlassBG: View {
             }
             .overlay(
                 ContainerRelativeShape()
-                    .strokeBorder(Color.lmsGreen.opacity(scheme == .dark ? 0.40 : 0.28), lineWidth: 1)
+                    .strokeBorder(Color.lmsGreen.opacity(scheme == .dark ? 0.40 : 0.28), lineWidth: 2)
             )
     }
 }
@@ -155,8 +155,8 @@ extension View {
     /// Use instead of hand-writing `.frame(...).containerBackground(...)`.
     func glassWidget(_ alignment: Alignment = .topLeading) -> some View {
         self
-            .padding(.horizontal, 16)
-            .padding(.vertical, 22)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 28)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             .containerBackground(for: .widget) { LiquidGlassBG() }
     }
@@ -263,8 +263,11 @@ struct NextEMIView: View {
             }
 
             if let loan {
-                Text(inr(loan.emiAmount)).font(.title2.weight(.bold)).minimumScaleFactor(0.6).lineLimit(1)
-                Text(dueText(loan.nextDue)).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(inr(loan.emiAmount)).font(.title2.weight(.bold)).minimumScaleFactor(0.6).lineLimit(1)
+                    Spacer()
+                    Text(dueText(loan.nextDue)).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                }
                 Text(loan.name).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
 
                 if family == .systemMedium {
@@ -276,7 +279,7 @@ struct NextEMIView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(.thinMaterial, in: Capsule())
-                            .overlay(Capsule().stroke(Color.lmsGreen.opacity(0.35)))
+                            .overlay(Capsule().stroke(Color.lmsGreen.opacity(0.35), lineWidth: 2))
                     }
                     .padding(.bottom, 6)
                 } else {
@@ -306,6 +309,7 @@ struct NextEMIWidget: Widget {
             .configurationDisplayName("Next EMI")
             .description("Your upcoming EMI, with a quick Pay action.")
             .supportedFamilies([.systemSmall, .systemMedium])
+            .contentMarginsDisabled()
     }
 }
 
