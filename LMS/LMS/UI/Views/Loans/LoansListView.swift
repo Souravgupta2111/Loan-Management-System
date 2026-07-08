@@ -138,7 +138,7 @@ struct LoansListView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -183,12 +183,12 @@ struct LoansListView: View {
 
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#E8F5EC"))
+                        .fill(Color.accentGreenBg)
                         .frame(width: 40, height: 40)
 
                     Image(systemName: "indianrupeesign.circle.fill")
                         .font(.title3.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
 
                 Text("Total Balance")
@@ -214,7 +214,7 @@ struct LoansListView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.06)
+        .liquidGlass(cornerRadius: 22, tint: Color.accentGreen, tintOpacity: 0.06)
     }
 
     //
@@ -228,7 +228,7 @@ struct LoansListView: View {
             HStack(spacing: 6) {
                 Image(systemName: "line.3.horizontal.decrease")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                 Text("FILTER LOANS")
                     .font(.subheadline.weight(.semibold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#6B6B6B"))
@@ -273,7 +273,7 @@ struct LoansListView: View {
                 .padding(.vertical, 8)
                 .background(
                     isSelected
-                    ? Color(hex: "#2D8B4E")
+                    ? Color.accentGreen
                     : Color.clear
                 )
                 .clipShape(Capsule())
@@ -282,7 +282,7 @@ struct LoansListView: View {
                         .stroke(
                             isSelected
                             ? Color.clear
-                            : Color(hex: "#2D8B4E").opacity(0.3),
+                            : Color.accentGreen.opacity(0.3),
                             lineWidth: 1
                         )
                 )
@@ -388,12 +388,12 @@ struct LoansListView: View {
                 ZStack {
 
                     Circle()
-                        .fill(Color(hex: "#E8F5EC"))
+                        .fill(Color.accentGreenBg)
                         .frame(width: 38, height: 38)
 
                     Image(systemName: loanIcon(for: loan.loanType))
                         .font(.headline.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -455,14 +455,14 @@ struct LoansListView: View {
                         ZStack(alignment: .leading) {
 
                             Capsule()
-                                .fill(Color(hex: "#C8E6D0").opacity(0.5))
+                                .fill(Color.themeGreen.opacity(0.5))
                                 .frame(height: 5)
 
                             Capsule()
                                 .fill(
                                     loan.status.lowercased() == "closed"
                                     ? Color.gray.opacity(0.45)
-                                    : Color(hex: "#2D8B4E")
+                                    : Color.accentGreen
                                 )
                                 .frame(
                                     width: geo.size.width * CGFloat(min(loan.paidPercent, 1)),
@@ -474,7 +474,7 @@ struct LoansListView: View {
 
                     Text("\(Int(loan.paidPercent * 100))% repaid")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                         .fixedSize()
                 }
             }
@@ -534,8 +534,8 @@ struct LoansListView: View {
             case "active":
                 return (
                     "Active",
-                    Color(hex: "#2D8B4E"),
-                    Color(hex: "#E8F5EC")
+                    Color.accentGreen,
+                    Color.accentGreenBg
                 )
 
             case "closed":
@@ -614,7 +614,7 @@ struct LoansListView: View {
 
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.title)
-                .foregroundColor(Color(hex: "#C8E6D0"))
+                .foregroundColor(Color.themeGreen)
 
             Text(selectedFilter == .all ? "No loans yet" : "No \(selectedFilter.rawValue.lowercased()) loans")
                 .font(

@@ -30,7 +30,7 @@ struct FinancialHealthCard: View {
     }
     
     private var scoreColor: Color {
-        if healthScore >= 70 { return Color(hex: "#2D8B4E") } // Green
+        if healthScore >= 70 { return Color.accentGreen } // Green
         if healthScore >= 40 { return Color.orange }
         return Color.red
     }

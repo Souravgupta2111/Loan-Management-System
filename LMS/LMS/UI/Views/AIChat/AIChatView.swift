@@ -60,14 +60,7 @@ struct AIChatView: View {
                             
                             if viewModel.isTyping {
                                 HStack {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color(hex: "#1A1A1A"))
-                                            .frame(width: 32, height: 32)
-                                        Image(systemName: "sparkles")
-                                            .font(.subheadline)
-                                            .foregroundColor(Color(hex: "#2D8B4E"))
-                                    }
+                                    AIAssistantAvatar(size: 32, iconSize: .subheadline)
                                     .accessibilityHidden(true)
                                     
                                     TypingIndicatorView()
@@ -142,12 +135,12 @@ struct AIChatView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(speechService.isListening ? Color.red.opacity(0.15) : Color(hex: "#F5F6F5"))
+                                    .fill(speechService.isListening ? Color.red.opacity(0.15) : Color.accentGreenBg.opacity(0.55))
                                     .frame(width: 44, height: 44) // Match Send button dimension
                                 
                                 Image(systemName: speechService.isListening ? "stop.fill" : "mic")
                                     .font(.system(size: 20))
-                                    .foregroundColor(speechService.isListening ? .red : Color(hex: "#2D8B4E"))
+                                    .foregroundColor(speechService.isListening ? .red : Color.accentGreen)
                             }
                         }
                         .accessibilityLabel(speechService.isListening ? "Stop recording" : "Start recording voice")
@@ -169,7 +162,7 @@ struct AIChatView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "#008A45"))
+                                    .fill(Color.accentGreen)
                                     .frame(width: 44, height: 44)
                                 
                                 Image(systemName: "paperplane.fill")
@@ -194,9 +187,9 @@ struct AIChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 }
-                .background(Color(hex: "#E7EFE5"))
+                .background(Color.gradientMintStart)
             }
-            .background(Color(hex: "#E7EFE5").ignoresSafeArea())
+            .background(Color.gradientMintStart.ignoresSafeArea())
             .navigationTitle("AI Financial Advisor")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

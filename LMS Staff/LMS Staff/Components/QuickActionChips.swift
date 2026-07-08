@@ -20,14 +20,14 @@ struct QuickActionChips: View {
                     } label: {
                         Text(action)
                             .font(.subheadline.weight(.medium))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.staffAccent)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color(hex: "#E8F5EC"))
+                            .background(Color.staffAccentBg)
                             .clipShape(Capsule())
                             .overlay(
                                 Capsule()
-                                    .stroke(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1)
+                                    .stroke(Color.staffAccent.opacity(0.3), lineWidth: 1)
                             )
                     }
                 }

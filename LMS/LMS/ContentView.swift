@@ -3,6 +3,7 @@ import Supabase
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
+    @EnvironmentObject private var themeManager: AppThemeManager
     @State private var showPasswordResetAlert = false
     @State private var newPassword = ""
 
@@ -26,6 +27,8 @@ struct ContentView: View {
             }
         }
         .environmentObject(authViewModel)
+        .environment(\.appColorPalette, themeManager.selectedPalette)
+        .tint(.accentGreen)
         .accessibleAnimation(.spring(response: 0.6, dampingFraction: 0.8), value: authViewModel.authState)
         .onOpenURL { url in
             // Widget / Siri deep links: lmsapp://emi, lmsapp://loans, lmsapp://advisor
@@ -93,4 +96,5 @@ struct ContentView: View {
 }
 #Preview{
     ContentView()
+        .environmentObject(AppThemeManager())
 }

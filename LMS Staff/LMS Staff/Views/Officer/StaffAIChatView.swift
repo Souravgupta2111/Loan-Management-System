@@ -58,7 +58,7 @@ struct StaffAIChatView: View {
                                             .frame(width: 32, height: 32)
                                         Image(systemName: "sparkles")
                                             .font(.subheadline)
-                                            .foregroundColor(Color(hex: "#2D8B4E"))
+                                            .foregroundColor(Color.staffAccent)
                                     }
                                     .accessibilityHidden(true)
                                     
@@ -139,7 +139,7 @@ struct StaffAIChatView: View {
                                 
                                 Image(systemName: speechService.isListening ? "stop.fill" : "mic")
                                     .font(.system(size: 20))
-                                    .foregroundColor(speechService.isListening ? .red : Color(hex: "#2D8B4E"))
+                                    .foregroundColor(speechService.isListening ? .red : Color.staffAccent)
                             }
                         }
                         .accessibilityLabel(speechService.isListening ? "Stop recording" : "Start recording voice")
@@ -186,9 +186,9 @@ struct StaffAIChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 }
-                .background(Color(hex: "#E7EFE5"))
+                .background(Color.staffGradientEnd)
             }
-            .background(Color(hex: "#E7EFE5").ignoresSafeArea())
+            .background(Color.staffGradientEnd.ignoresSafeArea())
             .navigationTitle("AI Financial Advisor")
             .navigationBarTitleDisplayMode(.inline)
             .accessibleAnimation(.easeInOut(duration: 0.2), value: speechService.isListening)

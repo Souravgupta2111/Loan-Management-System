@@ -11,6 +11,7 @@ struct SidebarView: View {
     let role: UserRole
     @Binding var selectedItem: SidebarItem?
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
     @State private var showLogoutAlert: Bool = false
     
     var body: some View {
@@ -77,6 +78,49 @@ struct SidebarView: View {
             
             Spacer()
             
+            Divider()
+                .background(Color.staffBorder)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: StaffSpacing.sm) {
+                    Image(systemName: "paintpalette.fill")
+                        .foregroundColor(.staffAccent)
+                        .frame(width: 24)
+                    Text("Color Palette")
+                        .font(.staffCaption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.staffTextSecondary)
+                    Spacer()
+
+                    Menu {
+                        ForEach(AppColorPalette.allCases) { palette in
+                            Button {
+                                themeManager.selectedPalette = palette
+                            } label: {
+                                if themeManager.selectedPalette == palette {
+                                    Label(palette.title, systemImage: "checkmark")
+                                } else {
+                                    Text(palette.title)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(themeManager.selectedPalette.title)
+                                .font(.staffCaption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.staffAccent)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(.staffTextTertiary)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, StaffSpacing.lg)
+            .padding(.vertical, StaffSpacing.md)
+            .background(Color.staffSurface.opacity(0.2))
+
             Divider()
                 .background(Color.staffBorder)
             

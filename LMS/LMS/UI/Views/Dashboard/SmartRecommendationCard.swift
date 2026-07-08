@@ -18,18 +18,18 @@ struct SmartRecommendationCard: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#E8F5EC"))
+                        .fill(Color.accentGreenBg)
                         .frame(width: 40, height: 40)
                     Image(systemName: "sparkle")
                         .font(.body.weight(.bold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
                 .accessibilityHidden(true)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Pre-Approved Offer")
                         .font(.caption.weight(.bold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                         .textCase(.uppercase)
                     
                     Text(productName)
@@ -67,9 +67,9 @@ struct SmartRecommendationCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1)
+                .stroke(Color.accentGreen.opacity(0.3), lineWidth: 1)
         )
-        .shadow(color: Color(hex: "#2D8B4E").opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: Color.accentGreen.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
     private func formatAmount(_ amount: Double) -> String {
