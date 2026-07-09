@@ -636,23 +636,6 @@ struct ApplicationDetailView: View {
                                         .background(Color.staffGreen)
                                         .cornerRadius(StaffCorner.sm)
                                 }
-                                
-                                Button(action: {
-                                    Task {
-                                        await vm.verifyDocument(documentId: doc.id, isVerified: false, reason: "Illegible document scan.")
-                                    }
-                                }) {
-                                    Text("Reject")
-                                        .font(.staffCaption)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.staffRed)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: StaffCorner.sm)
-                                                .stroke(Color.staffRed, lineWidth: 1)
-                                        )
-                                }
                             } else {
                                 Text("Not Verified")
                                     .font(.staffCaption)
