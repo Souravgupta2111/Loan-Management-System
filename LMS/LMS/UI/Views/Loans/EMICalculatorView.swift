@@ -79,7 +79,7 @@ struct EMICalculatorView: View {
                                 .fill(.ultraThinMaterial)
                                 .frame(width: 44, height: 44)
                                 .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-                            Image(systemName: "chevron.left")
+                            Image(systemName: "chevron.backward")
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(Color.accentGreen)
                         }
@@ -458,7 +458,7 @@ struct EMICalculatorView: View {
 
             breakdownRow("Principal", value: formatIndian(amount), color: .accentGreen)
             breakdownRow("Total Interest", value: formatIndian(calculateTotalInterest()), color: .red)
-            breakdownRow("Total Payable", value: formatIndian(amount + calculateTotalInterest()), color: .gray)
+            breakdownRow("Total Payable", value: formatIndian(amount + calculateTotalInterest()), color: .white)
 
             Button(action: {
                 if !hasErrors {
@@ -655,9 +655,15 @@ struct CalculatorAmortizationSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.textSecondary)
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 34, height: 34)
+                                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.textSecondary)
+                        }
                     }
                     Spacer()
                     Text("Amortization Schedule")

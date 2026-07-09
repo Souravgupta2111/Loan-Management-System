@@ -263,7 +263,18 @@ struct EMIScheduleView: View {
                     // never show a Pay Now button for them.
                     emiStatus = .scheduled
                 } else {
-                    emiStatus = .upcoming
+                    // Check if the EMI's due date is today or has passed — mark as due
+                    let today = Calendar.current.startOfDay(for: Date())
+                    if let emiDate = formatter.date(from: String(s.due_date.prefix(10))) {
+                        let emiDay = Calendar.current.startOfDay(for: emiDate)
+                        if emiDay <= today {
+                            emiStatus = .due
+                        } else {
+                            emiStatus = .upcoming
+                        }
+                    } else {
+                        emiStatus = .upcoming
+                    }
                 }
                 
                 return EMIDetail(

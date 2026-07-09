@@ -256,11 +256,18 @@ struct HomeDashboardView: View {
                     Text("₹ \(formatIndian(outstanding))")
                         .font(.title.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
+                } else if primaryLoan.status.lowercased() == "closed" {
+                    Text("Finalized Amount")
+                        .font(.subheadline.weight(.regular))
+                        .foregroundColor(Color(hex: "#6B6B6B"))
+                    Text("₹ \(formatIndian(primaryLoan.amount))")
+                        .font(.title.weight(.bold)).fontDesign(.rounded)
+                        .foregroundColor(Color(hex: "#1A1A1A"))
                 } else {
                     Text("Requested Amount")
                         .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
-                    Text("₹ \(formatIndian(outstanding))")
+                    Text("₹ \(formatIndian(primaryLoan.amount))")
                         .font(.title.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                 }
@@ -281,7 +288,7 @@ struct HomeDashboardView: View {
                     }
                     .frame(height: 6)
 
-                    Text("\(paidEMIs)/\(totalEMIs) paid")
+                    Text("\(Int(paidPercent * 100))% repaid")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color.accentGreen)
                         .fixedSize()
@@ -322,7 +329,7 @@ struct HomeDashboardView: View {
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(primaryLoan.status.capitalized.replacingOccurrences(of: "_", with: " "))
                             .font(.body.weight(.semibold))
-                            .foregroundColor(Color.accentGreen)
+                            .foregroundColor(primaryLoan.status.lowercased() == "rejected" ? .red : Color.accentGreen)
                     }
 
                     Spacer()
@@ -330,7 +337,7 @@ struct HomeDashboardView: View {
                     NavigationLink {
                         LoanDetailView(loan: primaryLoan)
                     } label: {
-                        Text("View Updates")
+                        Text("View Details")
                             .font(.body.weight(.bold))
                             .foregroundColor(.accentDarkText)
                             .padding(.horizontal, 18)
@@ -673,6 +680,25 @@ struct HomeDashboardView: View {
         do {
             if let userId = authViewModel.currentUser?.id {
                 loans = try await LoanService.shared.fetchDetailedUserLoans(userId: userId)
+                
+                // Sort loans by nearest date from current date
+                let today = Date()
+                loans.sort { loan1, loan2 in
+                    let date1 = loan1.nextDueDate.flatMap { LoansListView.parseDateString($0) }
+                    let date2 = loan2.nextDueDate.flatMap { LoansListView.parseDateString($0) }
+                    
+                    switch (date1, date2) {
+                    case let (.some(d1), .some(d2)):
+                        // Sort by absolute distance from today (nearest first)
+                        return abs(d1.timeIntervalSince(today)) < abs(d2.timeIntervalSince(today))
+                    case (.some, .none):
+                        return true
+                    case (.none, .some):
+                        return false
+                    case (.none, .none):
+                        return false
+                    }
+                }
 
                 struct ProfileRow: Decodable {
                     let fullName: String

@@ -249,6 +249,10 @@ class LoanService {
                 if h.action.lowercased() == "send_back" && (remarks == nil || remarks?.isEmpty == true) {
                     remarks = sentBackReason
                 }
+                // Ensure we always use the latest sent_back_reason if available (manager's actual input)
+                if h.action.lowercased() == "send_back", let sbReason = sentBackReason, !sbReason.isEmpty {
+                    remarks = sbReason
+                }
                 
                 return LoanTimelineEvent(title: title, date: date, remarks: remarks)
             }

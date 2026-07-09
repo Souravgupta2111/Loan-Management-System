@@ -667,7 +667,7 @@ private struct TimelineCard: View {
             managerStatus = .active
         } else if isManagerSendBackActive {
             managerTitle = "Sent Back by Manager"
-            managerRemarks = loan.sentBackReason ?? "Manager requested correction/clarification."
+            managerRemarks = managerEvent?.remarks ?? loan.sentBackReason ?? "Manager requested correction/clarification."
             managerStatus = .active
         } else if ["approved", "pending_acceptance", "pending_disbursal", "disbursed", "active", "closed"].contains(lowerStatus) || isRejectedByBorrower {
             managerTitle = "Approved by Manager"
