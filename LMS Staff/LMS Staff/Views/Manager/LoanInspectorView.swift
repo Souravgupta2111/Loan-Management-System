@@ -118,7 +118,7 @@ struct LoanInspectorView: View {
             // Content Body based on selected Tab
             if activeTab == .chat {
                 if let appWithBorrower = vm.appWithBorrower {
-                    ChatSupportConsole(appWithBorrower: appWithBorrower, forceInternalOnly: true)
+                    ChatSupportConsole(appWithBorrower: appWithBorrower, forceInternalOnly: authViewModel.currentUser?.role == .manager)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ProgressView()
@@ -277,7 +277,9 @@ struct LoanInspectorView: View {
                     KYCRow(label: "Maturity Date", value: vm.loanWithDetails.loan.maturityDate ?? "N/A")
                     KYCRow(label: "Repayment Mode", value: vm.loanWithDetails.loan.repaymentMode.rawValue.uppercased())
                     
-                    KYCRow(label: "Assigned Loan Officer", value: vm.assignedOfficer?.fullName ?? "Unassigned")
+                    if authViewModel.currentUser?.role != .officer {
+                        KYCRow(label: "Assigned Loan Officer", value: vm.assignedOfficer?.fullName ?? "Unassigned")
+                    }
                 }
             }
         }
