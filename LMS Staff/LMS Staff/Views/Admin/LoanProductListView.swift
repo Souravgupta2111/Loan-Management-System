@@ -657,7 +657,6 @@ struct CreateProductSheet: View {
         }
         }
         .presentationBackground(Color.staffBackground)
-        .preferredColorScheme(.dark)
     }
     
     private func createProduct() {
@@ -1196,7 +1195,6 @@ struct EditProductSheet: View {
         }
         }
         .presentationBackground(Color.staffBackground)
-        .preferredColorScheme(.dark)
     }
     
     private func saveProduct() {
