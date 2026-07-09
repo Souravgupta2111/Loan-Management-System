@@ -31,7 +31,7 @@ Deno.serve(async (request) => {
     const { data: emi, error: emiError } = await supabase.from("emi_schedule")
       .select("id, loan_id, total_emi, penalty_amount, status")
       .eq("id", emiId).eq("loan_id", loanId).single();
-    if (emiError || !emi || !["upcoming", "overdue"].includes(emi.status)) {
+    if (emiError || !emi || !["upcoming", "overdue", "due"].includes(emi.status)) {
       return new Response(JSON.stringify({ error: "EMI is not payable" }), { status: 422, headers: jsonHeaders });
     }
 

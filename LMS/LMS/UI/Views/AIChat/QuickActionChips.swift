@@ -21,6 +21,8 @@ struct QuickActionChips: View {
                         Text(action)
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(Color.accentGreen)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(Color.accentGreenBg)
@@ -34,5 +36,6 @@ struct QuickActionChips: View {
             }
             .padding(.horizontal, 16)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
