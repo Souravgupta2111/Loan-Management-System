@@ -463,8 +463,6 @@ struct LoansListView: View {
                             )
                             .foregroundColor(Color(hex: "#1A1A1A"))
                     }
-                            .foregroundColor(Color(hex: "#1A1A1A"))
-                    }
                 }
             }
 
