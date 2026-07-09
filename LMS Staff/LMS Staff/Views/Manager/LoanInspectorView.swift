@@ -167,7 +167,6 @@ struct LoanInspectorView: View {
                 activeTab = .profile
             }
         }
-        .navigationTitle("Loan Inspector")
         .navigationBarTitleDisplayMode(.inline)
         // MODALS/SHEETS LIST
         .sheet(isPresented: $showRestructureSheet) {
