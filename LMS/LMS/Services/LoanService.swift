@@ -76,7 +76,7 @@ class LoanService {
                 )
                 let path = "\(userId.uuidString.lowercased())/applications/\(created.id.uuidString.lowercased())/\(safeType)_\(UUID().uuidString.lowercased()).jpg"
                 try await SupabaseManager.shared.client.storage.from("documents").upload(
-                    path: path, file: data, options: FileOptions(contentType: "image/jpeg")
+                    path, data: data, options: FileOptions(contentType: "image/jpeg")
                 )
                 struct DocumentInsert: Encodable {
                     let owner_id: UUID; let owner_type: String; let application_id: UUID
@@ -105,7 +105,7 @@ class LoanService {
             return created.application_number
         } catch {
             // Discard draft loan completely if submission fails
-            try? await SupabaseManager.shared.client.from("loan_applications")
+            _ = try? await SupabaseManager.shared.client.from("loan_applications")
                 .delete()
                 .eq("id", value: created.id)
                 .execute()

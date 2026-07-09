@@ -57,7 +57,7 @@ struct TransactionHistoryView: View {
                 Text("₹\(formatIndian(abs(item.amount)))")
                     .font(.body.weight(.bold))
                     .fontDesign(.rounded)
-                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    .foregroundColor(item.direction == .credit ? item.direction.color : Color(hex: "#1A1A1A"))
             }
         }
         .padding(.horizontal, 14)

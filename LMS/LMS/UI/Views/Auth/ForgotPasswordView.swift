@@ -11,7 +11,12 @@ struct ForgotPasswordView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.appBackground.ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color.gradientMintStart, Color.surface],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
                 VStack(spacing: Spacing.xxl) {
                     Spacer().frame(height: 40)
@@ -47,7 +52,7 @@ struct ForgotPasswordView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 48, height: 48)
-                                .foregroundColor(.accentAmber)
+                                .foregroundColor(.accentGreen)
 
                             Text("Reset Password")
                                 .font(.sectionTitle)
@@ -66,9 +71,17 @@ struct ForgotPasswordView: View {
                             )
 
                             if let error = authViewModel.errorMessage {
-                                Text(error)
-                                    .font(.caption2)
-                                    .foregroundColor(.accentRed)
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                    Text(error)
+                                        .font(.caption.weight(.medium))
+                                }
+                                .foregroundColor(.accentRed)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.accentRed.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                             }
 
                             PillButton(title: "Reset Password", style: .primary) {
@@ -96,7 +109,7 @@ struct ForgotPasswordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    GlassBackButton { dismiss() }
+                    GlassBackButton(iconName: "xmark") { dismiss() }
                 }
             }
         }

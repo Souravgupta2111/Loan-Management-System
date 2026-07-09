@@ -73,27 +73,11 @@ struct SplashView: View {
 
             // 3. Central Logo & Name (Visible immediately, animates scale)
             VStack(spacing: 16) {
-                if let uiImage = UIImage(named: "Logo") {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 120)
-                } else {
-                    // Fallback logo if the asset is missing
-                    ZStack {
-                        Image(systemName: "creditcard.fill")
-                            .font(.system(size: 70))
-                            .foregroundColor(Color(red: 0.45, green: 0.75, blue: 0.45))
-                            .offset(x: 20, y: 15)
-                        
-                        Text("Z")
-                            .font(.system(size: 110, weight: .heavy, design: .rounded))
-                            .foregroundColor(Color(red: 0.3, green: 0.65, blue: 0.4))
-                            .italic()
-                            .offset(x: -20, y: -10)
-                    }
+                Image("loanz")
+                    .resizable()
+                    .scaledToFit()
                     .frame(height: 120)
-                }
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
                 
                 Text("LOANZ")
                     .font(.system(size: 42, weight: .heavy, design: .rounded))

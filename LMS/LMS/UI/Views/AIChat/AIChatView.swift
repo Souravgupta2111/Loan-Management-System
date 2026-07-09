@@ -118,7 +118,7 @@ struct AIChatView: View {
                 
                 // Input Area
                 VStack(spacing: 0) {
-                    HStack(alignment: .bottom, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
                         // Mic Button (Tap to toggle)
                         Button {
                             HapticManager.shared.impact(style: .medium)

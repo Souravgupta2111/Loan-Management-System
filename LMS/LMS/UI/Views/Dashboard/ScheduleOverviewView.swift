@@ -77,7 +77,7 @@ struct ScheduleOverviewView: View {
                         pickerDate = selectedDate
                         showDatePicker = true
                     } label: {
-                        Image(systemName: "calendar.badge.plus")
+                        Image(systemName: "clock.arrow.trianglehead.clockwise.rotate.90.path.dotted")
                             .font(.headline.weight(.semibold))
                             .foregroundColor(Color.accentGreen)
                     }
@@ -371,11 +371,6 @@ struct ScheduleOverviewView: View {
                        : "clock.fill"
 
         return HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(accentColor)
-                .frame(width: 4)
-                .padding(.vertical, 4)
-
             ZStack {
                 Circle().fill(entry.isPaid ? Color.accentGreenBg : entry.isOverdue ? Color(hex: "#FDE8E8") : Color.accentGreenBg).frame(width: 42, height: 42)
                 Image(systemName: loanIcon(entry.loanType))
