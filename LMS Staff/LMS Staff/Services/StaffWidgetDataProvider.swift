@@ -98,6 +98,19 @@ enum StaffWidgetDataProvider {
         }
     }
 
+    /// Clear the shared snapshot on logout so all widgets show "Sign in" hints.
+    static func clearSnapshot() {
+        guard let defaults else { return }
+        // Write a snapshot with role "none" — wrongRole() in the widget extension
+        // treats this the same as "sample" (no user) and shows sign-in hints.
+        var empty = StaffWidgetSnapshotDTO.empty(role: "none")
+        empty.generated = Date()
+        if let data = try? JSONEncoder().encode(empty) {
+            defaults.set(data, forKey: StaffWidgetKeys.snapshot)
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     private static func write(_ snap: StaffWidgetSnapshotDTO) {
         guard let defaults else { return }
         if let data = try? JSONEncoder().encode(snap) {
