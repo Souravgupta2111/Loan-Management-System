@@ -8,6 +8,7 @@
 import Foundation
 import Supabase
 import UserNotifications
+import UIKit
 
 @MainActor
 class NotificationService {
@@ -16,10 +17,28 @@ class NotificationService {
     private let supabase = SupabaseManager.shared
     private var channel: RealtimeChannelV2?
     
+    /// Tracks whether we are currently subscribed
+    private var isSubscribed = false
+    /// The user id the current subscription is bound to.
+    private var subscribedUserId: UUID?
+    
     // Track recently sent message contents to prevent echo notifications
     var recentlySentMessages: Set<String> = []
     
-    private init() {}
+    private init() {
+        // Re-subscribe when app returns to foreground (iPad sleep/wake cycle
+        // kills the WebSocket — this ensures reconnection).
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appDidBecomeActive() {
+        subscribeToNotifications()
+    }
     
     /// Fetches notifications for the logged in staff member
     func fetchNotifications() async throws -> [LMSNotification] {
@@ -93,7 +112,20 @@ class NotificationService {
     func subscribeToNotifications() {
         guard let userId = supabase.currentUserId else { return }
         
-        channel = supabase.client.realtimeV2.channel("public:notifications")
+        // Already subscribed for THIS user — nothing to do.
+        if isSubscribed && subscribedUserId == userId { return }
+        
+        // Subscribed for a different user (e.g. logout → login as someone else):
+        // tear down the stale channel before re-binding.
+        if let existing = channel {
+            channel = nil
+            isSubscribed = false
+            subscribedUserId = nil
+            Task { await supabase.client.removeChannel(existing) }
+        }
+        
+        // Namespace the channel per user so it can't collide across accounts.
+        channel = supabase.client.realtimeV2.channel("notifications:\(userId.uuidString)")
         
         Task {
             guard let channel = channel else { return }
@@ -107,28 +139,28 @@ class NotificationService {
             
             do {
                 try await channel.subscribeWithError()
+                isSubscribed = true
+                subscribedUserId = userId
+                print("✅ [LMS Staff] NotificationService: Realtime subscribed for user \(userId)")
 
                 for await insert in insertions {
                     let record = insert.record
-                    if let recordUserIdString = record["user_id"]?.stringValue,
-                       recordUserIdString.caseInsensitiveCompare(userId.uuidString) == .orderedSame {
-                        if let title = record["title"]?.stringValue,
-                           let body = record["body"]?.stringValue {
-                            
-                            // Prevent triggering local push if the message was sent by the current user
-                            if (title == "New Message" || title == "New Message from Borrower") && self.recentlySentMessages.contains(body) {
-                                print("🔔 [LMS Staff] Ignored echo notification for sent message: \(body)")
-                                continue
-                            }
-                            
-                            await MainActor.run {
-                                self.triggerLocalPush(title: title, body: body)
-                            }
+                    if let title = record["title"]?.stringValue,
+                       let body = record["body"]?.stringValue {
+                        
+                        // Prevent triggering local push if the message was sent by the current user
+                        if (title == "New Message" || title == "New Message from Borrower") && self.recentlySentMessages.contains(body) {
+                            print("🔔 [LMS Staff] Ignored echo notification for sent message: \(body)")
+                            continue
                         }
+                        
+                        self.triggerLocalPush(title: title, body: body)
                     }
                 }
             } catch {
-                print("Failed to subscribe to notifications: \(error)")
+                print("❌ [LMS Staff] NotificationService: Failed to subscribe — \(error)")
+                isSubscribed = false
+                subscribedUserId = nil
             }
         }
     }
@@ -141,7 +173,6 @@ class NotificationService {
         content.sound = .default
         content.categoryIdentifier = "LMS_NOTIFICATION"
         
-        // Use a tiny time-interval trigger instead of nil for reliable simulator delivery
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
@@ -155,6 +186,10 @@ class NotificationService {
         if let channel = channel {
             Task {
                 await supabase.client.removeChannel(channel)
+                self.channel = nil
+                self.isSubscribed = false
+                self.subscribedUserId = nil
+                print("⏹ [LMS Staff] NotificationService: Realtime unsubscribed")
             }
         }
     }

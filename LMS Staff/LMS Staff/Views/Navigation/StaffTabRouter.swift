@@ -185,9 +185,6 @@ struct StaffTabRouter: View {
             // Publish role metrics for the home-screen widgets.
             Task { await StaffWidgetDataProvider.refresh(role: role) }
         }
-        .onDisappear {
-            NotificationService.shared.unsubscribe()
-        }
     }
     
     @ViewBuilder
