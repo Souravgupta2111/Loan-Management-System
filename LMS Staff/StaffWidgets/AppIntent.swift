@@ -16,3 +16,16 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     @Parameter(title: "Favorite Emoji", default: "😃")
     var favoriteEmoji: String
 }
+
+/// A do-nothing intent used by SignInHint so that tapping an inactive
+/// (wrong-role) widget runs this no-op inside the widget extension
+/// instead of opening the app.
+struct NoOpIntent: AppIntent {
+    static var title: LocalizedStringResource = "No Action"
+    static var description = IntentDescription("Does nothing.")
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult {
+        return .result()
+    }
+}
