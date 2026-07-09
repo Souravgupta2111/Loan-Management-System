@@ -145,10 +145,23 @@ function systemPromptFor(persona: string, context: unknown): string {
     default:
       return (
         `${shared}\n\nYou are a friendly PERSONAL FINANCIAL ADVISOR for a BORROWER. ` +
-        "Use tools to check their loans, next EMI and credit score. If they ask why " +
-        "an application was approved/rejected/sent back, call get_my_application_status " +
-        "and explain the decision clearly and kindly. Explain terms simply and never " +
-        "be judgemental. " +
+        "Use tools to check their existing loans, next EMI and credit score. " +
+        "PRODUCT & NEW-LOAN QUESTIONS: For ANY question about which loan to take, the " +
+        "best loan, comparing loans, interest rates on offer, eligibility, or applying " +
+        "for a NEW loan, you MUST call list_loan_products (pass `type` and/or `amount` " +
+        "when the user mentions them) and answer ONLY from its results. NEVER invent " +
+        "product names, amounts, tenures, rates or fees. When the user gives an amount " +
+        "(e.g. '50L' means ₹50 lakh = ₹5,000,000, '2Cr' = ₹20,000,000) while asking about " +
+        "a new loan, treat it as the DESIRED amount: list the matching products with " +
+        "their rate band, tenure range, processing fee, and whether they're likely " +
+        "eligible (using their credit score), then point them to apply. Do NOT answer a " +
+        "new-loan or comparison question by reporting their existing outstanding balance. " +
+        "If asked to 'compare all', call list_loan_products and present a concise " +
+        "comparison of the relevant products yourself — do not ask them to name products " +
+        "you can look up. " +
+        "If they ask why an application was approved/rejected/sent back, call " +
+        "get_my_application_status and explain the decision clearly and kindly. Explain " +
+        "terms simply and never be judgemental. " +
         `\n\nThe borrower's financial context (JSON): ${ctx}`
       );
   }
@@ -292,6 +305,27 @@ function toolDeclarationsFor(persona: string): any[] {
       description:
         "Get the borrower's most recent loan application, its status, and the officer's decision reason / remarks. Use this to explain WHY an application was approved, rejected, or sent back.",
       parameters: { type: "OBJECT", properties: {}, required: [] },
+    },
+    {
+      name: "list_loan_products",
+      description:
+        "List/compare the loan PRODUCTS the borrower can apply for (name, type, amount range, tenure range, interest-rate band, processing fee, minimum credit score, whether collateral is required, and a likely-eligibility flag based on the borrower's credit score). Call this for ANY question about available loans, which loan to take, the best loan, comparing products, eligibility, offered interest rates, or applying for a new loan. Never invent product details — always use this.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          type: {
+            type: "STRING",
+            description:
+              "Optional product type filter: personal, home, vehicle, education, business, gold, agriculture, other. Omit or use 'all' for every product.",
+          },
+          amount: {
+            type: "NUMBER",
+            description:
+              "Optional desired loan amount in rupees. When provided, only products whose amount range supports it are returned.",
+          },
+        },
+        required: [],
+      },
     },
   ];
 }
@@ -444,6 +478,63 @@ async function executeTool(
             sentBackReason: app.sent_back_reason,
           },
           decisionHistory: history ?? [],
+        };
+      }
+      if (name === "list_loan_products") {
+        let q = admin
+          .from("loan_products")
+          .select(
+            "name, type, description, min_amount, max_amount, min_tenure_months, max_tenure_months, min_interest_rate, max_interest_rate, processing_fee_pct, requires_collateral, eligibility_criteria",
+          )
+          .eq("is_active", true);
+        const t = args.type ? String(args.type).toLowerCase().trim() : null;
+        if (t && t !== "all" && t !== "any") q = q.eq("type", t);
+        const { data } = await q;
+        let products = data ?? [];
+
+        const amount = args.amount != null ? Number(args.amount) : null;
+        if (amount != null && !Number.isNaN(amount)) {
+          products = products.filter(
+            (p: any) => amount >= Number(p.min_amount) && amount <= Number(p.max_amount),
+          );
+        }
+
+        // Borrower's credit score / income for an eligibility flag.
+        const { data: prof } = await admin
+          .from("borrower_profiles")
+          .select("credit_score, monthly_income")
+          .eq("user_id", ctx.userId)
+          .single();
+        const score = prof?.credit_score ?? null;
+        const income = prof?.monthly_income != null ? Number(prof.monthly_income) : null;
+
+        const result = products.map((p: any) => {
+          const minScore = p.eligibility_criteria?.min_credit_score ?? null;
+          const minIncome = p.eligibility_criteria?.min_income ?? null;
+          const eligible =
+            (minScore == null || (score != null && score >= minScore)) &&
+            (minIncome == null || (income != null && income >= minIncome));
+          return {
+            name: p.name,
+            type: p.type,
+            amountRange: [Number(p.min_amount), Number(p.max_amount)],
+            tenureMonths: [p.min_tenure_months, p.max_tenure_months],
+            interestRatePct: [Number(p.min_interest_rate), Number(p.max_interest_rate)],
+            processingFeePct: Number(p.processing_fee_pct),
+            requiresCollateral: p.requires_collateral,
+            minCreditScore: minScore,
+            likelyEligible: eligible,
+          };
+        });
+
+        return {
+          yourCreditScore: score,
+          requestedAmount: amount,
+          count: result.length,
+          products: result,
+          note: result.length === 0
+            ? "No active products match that filter/amount."
+            : undefined,
         };
       }
     }
@@ -837,6 +928,22 @@ async function mockReply(
 
   if (persona === "borrower") {
     const score = context?.profile?.creditScore;
+    // Product / new-loan / comparison questions — pull the real catalog.
+    if (admin && ctx.userId && (
+      lower.includes("product") || lower.includes("which loan") || lower.includes("best loan") ||
+      lower.includes("compare") || lower.includes("new loan") || lower.includes("take a loan") ||
+      lower.includes("eligible") || lower.includes("apply") || lower.includes("suggest") ||
+      lower.includes("recommend")
+    )) {
+      const r: any = await executeTool(admin, "borrower", ctx, "list_loan_products", {});
+      const items = (r?.products ?? []).slice(0, 4);
+      if (items.length > 0) {
+        const lines = items.map((p: any) =>
+          `• ${p.name} (${p.type}): ₹${p.amountRange[0]}–₹${p.amountRange[1]}, ${p.tenureMonths[0]}–${p.tenureMonths[1]} mo, ${p.interestRatePct[0]}–${p.interestRatePct[1]}% p.a.${p.likelyEligible ? " — likely eligible" : ""}`
+        ).join("\n");
+        return `Here are loan products you can apply for:\n${lines}\n(Set OPENROUTER_API_KEY for full conversational comparisons.)`;
+      }
+    }
     if (lower.includes("credit score") || lower.includes("improve"))
       return `Your current credit score is ${score ?? "unavailable"}. Pay EMIs on time and keep utilisation low to improve it.`;
     if (lower.includes("emi") || lower.includes("due")) {
