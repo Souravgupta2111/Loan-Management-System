@@ -36,13 +36,25 @@ struct StaffLoginView: View {
                 VStack(alignment: .leading, spacing: StaffSpacing.xl) {
                     Spacer()
                     
-                    Image(systemName: "building.columns.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.staffAccent)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.10, green: 0.20, blue: 0.14),
+                                        Color(red: 0.05, green: 0.12, blue: 0.08)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 80, height: 80)
+                            .shadow(color: Color.staffAccent.opacity(0.2), radius: 12, x: 0, y: 6)
+                        
+                        StaffLoanzAnimatedLogo(size: 64, accentColor: Color.staffAccent)
+                    }
                     
-                    Text("LMS Enterprise Portal")
+                    Text("Loanz Enterprise Portal")
                         .font(.title.weight(.bold))
                         .foregroundColor(.staffTextPrimary)
                     

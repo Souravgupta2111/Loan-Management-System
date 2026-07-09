@@ -20,11 +20,23 @@ struct LoginView: View {
 
                     // Logo
                     VStack(spacing: Spacing.md) {
-                        Image("loanz")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.10, green: 0.20, blue: 0.14),
+                                            Color(red: 0.05, green: 0.12, blue: 0.08)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 80, height: 80)
+                                .shadow(color: Color.accentGreen.opacity(0.2), radius: 12, x: 0, y: 6)
+                            
+                            LoanzAnimatedLogo(size: 64, accentColor: Color.accentGreen)
+                        }
                         Text("Loanz")
                             .font(.sectionTitle)
                             .foregroundColor(.textPrimary)

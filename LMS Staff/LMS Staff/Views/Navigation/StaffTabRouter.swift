@@ -145,7 +145,7 @@ struct StaffTabRouter: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(role: role, selectedItem: $selectedItem)
-                .navigationTitle("LMS Portal")
+                .navigationTitle("Loanz Portal")
         } detail: {
             Group {
                 if let item = selectedItem {

@@ -30,7 +30,7 @@ struct SplashView: View {
                         }
                     }
                 
-                Text("LMS STAFF PORTAL")
+                Text("LOANZ STAFF PORTAL")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
                     .tracking(4)
