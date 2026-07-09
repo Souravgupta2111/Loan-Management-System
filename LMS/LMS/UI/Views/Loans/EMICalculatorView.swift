@@ -60,7 +60,7 @@ struct EMICalculatorView: View {
     private let fallbackTenureRange: ClosedRange<Double> = 6...360
     private let fallbackInterestRateRange: ClosedRange<Double> = 5.0...24.0
     private var inputBackground: Color {
-        colorScheme == .dark ? Color.surfaceMuted.opacity(0.92) : Color.black.opacity(0.05)
+        colorScheme == .dark ? Color.surfaceMuted.opacity(0.92) : Color(hex: "#F5F5F5")
     }
     private var inputBorder: Color {
         colorScheme == .dark ? Color.border.opacity(0.75) : Color.clear

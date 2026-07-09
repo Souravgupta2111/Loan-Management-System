@@ -393,39 +393,6 @@ struct ProfileView: View {
                                 }
                             }
 
-                            HStack(spacing: Spacing.md) {
-                                Button { isEditingAddress = false } label: {
-                                    Text("Cancel")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.textSecondary)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.surfaceMuted)
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-
-                                Button {
-                                    Task { await saveAddress() }
-                                } label: {
-                                    HStack {
-                                        if isSaving {
-                                            ProgressView().tint(.accentDarkText)
-                                        } else {
-                                            Text("Save")
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.accentDarkText)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                                    .background(Color.accentGreen)
-                                    .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(isSaving)
-                            }
-                            .padding(.top, 4)
                         }
                         .transition(.opacity)
                     }
@@ -444,11 +411,11 @@ struct ProfileView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color.surfaceMuted)
+                                .fill(Color(hex: "#E0E0E0"))
                                 .frame(width: 28, height: 28)
                             Image(systemName: "pencil")
                                 .font(.subheadline.weight(.bold))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.black)
                         }
                     }
                 }

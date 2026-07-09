@@ -97,9 +97,11 @@ struct EMIScheduleView: View {
                                     Text("No EMI schedule found.")
                                         .foregroundColor(.textSecondary)
                                 } else {
+                                    let highlightedEmiId = emiList.first(where: { $0.status == .due })?.id ?? emiList.first(where: { $0.status == .upcoming })?.id
                                     ForEach($emiList) { $emi in
                                         let shouldShowPayNow = emi.status == .overdue || emi.status == .due
-                                        EMIRow(emi: emi, isProcessing: processingEMIId == emi.id, showPayNow: shouldShowPayNow) {
+                                        let isHighlighted = emi.id == highlightedEmiId
+                                        EMIRow(emi: emi, isProcessing: processingEMIId == emi.id, showPayNow: shouldShowPayNow, isHighlighted: isHighlighted) {
                                             Task {
                                                 await startPaymentFlow(for: emi)
                                             }
@@ -352,6 +354,7 @@ struct EMIRow: View {
     let emi: EMIDetail
     let isProcessing: Bool
     let showPayNow: Bool
+    let isHighlighted: Bool
     let onPay: () -> Void
     
     var body: some View {
@@ -422,7 +425,7 @@ struct EMIRow: View {
         .padding(Spacing.lg)
         .background(
             emi.status == .overdue ? Color.accentRed.opacity(0.05) :
-            (emi.status == .upcoming || emi.status == .due) ? Color.accentGreenBg : Color.clear
+            isHighlighted ? Color.accentGreenBg : Color.clear
         )
         .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
@@ -430,7 +433,7 @@ struct EMIRow: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(
                     emi.status == .overdue ? Color.accentRed.opacity(0.3) :
-                    (emi.status == .upcoming || emi.status == .due) ? Color.accentGreen.opacity(0.3) : Color.clear,
+                    isHighlighted ? Color.accentGreen.opacity(0.3) : Color.clear,
                     lineWidth: 1
                 )
         )
