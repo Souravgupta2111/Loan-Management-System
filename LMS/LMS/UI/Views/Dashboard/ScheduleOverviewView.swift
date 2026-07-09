@@ -7,6 +7,7 @@ import Supabase
 struct ScheduleOverviewView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
 
     // Calendar entries built from all backend EMI schedule rows.
     @State private var emiEntries: [CalendarEMIEntry] = []
@@ -97,6 +98,7 @@ struct ScheduleOverviewView: View {
                 Task { await loadScheduleEntries() }
             }
         }
+        .id(themeManager.selectedPalette)
     }
 
     // MARK: - Reset to today

@@ -6,6 +6,7 @@ struct LoansListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
 
     @State private var selectedFilter: LoanFilter = .all
     @State private var loans: [LoanListItem] = []
@@ -171,6 +172,7 @@ struct LoansListView: View {
                 messagesChannel = nil
             }
         }
+        .id(themeManager.selectedPalette)
     }
     // MARK: - Balance Hero Card
 

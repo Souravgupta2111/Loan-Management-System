@@ -204,6 +204,19 @@ final class AppThemeManager: ObservableObject {
         Self.activePalette = palette
         UserDefaults.standard.set(palette.rawValue, forKey: Self.storageKey)
         paletteStorage = palette
+        
+        // Force redraw of all windows to apply the new theme colors immediately
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                for window in windowScene.windows {
+                    let style = window.overrideUserInterfaceStyle
+                    window.overrideUserInterfaceStyle = (style == .dark) ? .light : .dark
+                    DispatchQueue.main.async {
+                        window.overrideUserInterfaceStyle = style
+                    }
+                }
+            }
+        }
     }
 }
 
