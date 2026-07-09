@@ -91,7 +91,7 @@ struct BranchLoansView: View {
                 // Mini stat summary
                 HStack(spacing: StaffSpacing.md) {
                     MiniStatCard(title: "Active", value: "\(countFor(.active))", icon: "checkmark.circle", color: .staffGreen)
-                    MiniStatCard(title: "Pending", value: "\(countFor(.pendingDisbursement))", icon: "hourglass", color: .staffAmber)
+                    MiniStatCard(title: "Pending", value: "\(countFor(.pendingDisbursement))", icon: "clock.badge.questionmark", color: .staffAmber)
                     MiniStatCard(title: "NPA", value: "\(countFor(.npa))", icon: "exclamationmark.triangle", color: .staffRed)
                 }
                 .padding(StaffSpacing.lg)
