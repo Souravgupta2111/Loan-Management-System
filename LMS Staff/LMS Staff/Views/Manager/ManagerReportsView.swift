@@ -158,10 +158,10 @@ struct ManagerReportsView: View {
     private var keyMetricsGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: StaffSpacing.md), count: 3), spacing: StaffSpacing.md) {
             ReportMetricCard(
-                icon: "briefcase.fill",
-                title: "Portfolio Value",
-                value: vm.formatCurrency(vm.totalPortfolioValue),
-                subtitle: "\(vm.activeLoansCount + vm.npaCount + vm.restructuredCount) active loans",
+                icon: "banknote.fill",
+                title: "Total Disbursed",
+                value: vm.formatCurrency(vm.totalDisbursed),
+                subtitle: "\(vm.activeLoansCount) active loans",
                 accentColor: Color.staffAccent,
                 gradientEnd: Color(hex: Color.currentPalette.darkerHex)
             )
@@ -170,7 +170,7 @@ struct ManagerReportsView: View {
                 icon: "checkmark.circle.fill",
                 title: "Active Loans",
                 value: "\(vm.activeLoansCount)",
-                subtitle: "of \(vm.totalLoansCount) total",
+                subtitle: "performing assets",
                 accentColor: Color.staffTeal,
                 gradientEnd: Color(hex: "#2E8A5A")
             )
@@ -179,7 +179,7 @@ struct ManagerReportsView: View {
                 icon: "exclamationmark.triangle.fill",
                 title: "NPA Ratio",
                 value: vm.formatPercent(vm.npaRatio),
-                subtitle: "\(vm.npaCount) NPA loans",
+                subtitle: "\(vm.npaCount) all-time NPA loans",
                 accentColor: vm.npaRatio > 5 ? Color(hex: "#D9534F") : Color(hex: "#C89A24"),
                 gradientEnd: vm.npaRatio > 5 ? Color(hex: "#C0392B") : Color(hex: "#A67D1C")
             )
@@ -188,16 +188,16 @@ struct ManagerReportsView: View {
                 icon: "chart.line.uptrend.xyaxis",
                 title: "Collection Efficiency",
                 value: vm.formatPercent(vm.collectionEfficiency),
-                subtitle: "current period",
+                subtitle: "all time",
                 accentColor: vm.collectionEfficiency >= 95 ? Color.staffAccent : Color(hex: "#C89A24"),
                 gradientEnd: vm.collectionEfficiency >= 95 ? Color(hex: Color.currentPalette.darkerHex) : Color(hex: "#A67D1C")
             )
             
             ReportMetricCard(
-                icon: "banknote.fill",
-                title: "Total Disbursed",
-                value: vm.formatCurrency(vm.totalDisbursed),
-                subtitle: "\(vm.totalLoansCount) loans",
+                icon: "calendar.badge.exclamationmark",
+                title: "Overdue Amount",
+                value: vm.formatCurrency(vm.totalOverdueAmount),
+                subtitle: "delinquent payments",
                 accentColor: Color.staffPurple,
                 gradientEnd: Color(hex: "#2D7A4D")
             )
@@ -812,27 +812,33 @@ struct ManagerReportsView: View {
         let normalized = status.lowercased().replacingOccurrences(of: " ", with: "_")
         switch normalized {
         case "active":
-            return Color.staffAccent
-        case "approved":
-            return Color(hex: "#1E8A5F")
-        case "under_review":
-            return Color(hex: "#E1B12C")
+            return Color(hex: "#2ECC71") // Vibrant Green
         case "submitted":
-            return Color(hex: "#4F9DDF")
+            return Color(hex: "#34495E") // Slate Navy
+        case "under_review":
+            return Color(hex: "#F1C40F") // Bright Gold
         case "sent_back":
-            return Color(hex: "#F39C12")
-        case "rejected":
-            return Color(hex: "#D9534F")
-        case "npa", "written_off":
-            return Color(hex: "#C0392B")
+            return Color(hex: "#E67E22") // Orange
+        case "approved":
+            return Color(hex: "#16A085") // Deep Teal
         case "pending_acceptance":
-            return Color(hex: "#8E44AD")
+            return Color(hex: "#9B59B6") // Purple
         case "pending_disbursal":
-            return Color(hex: "#00A8FF")
-        case "closed", "draft":
-            return Color(hex: "#7F8C8D")
+            return Color(hex: "#3498DB") // Bright Blue
+        case "restructured":
+            return Color(hex: "#FD79A8") // Warm Pink
+        case "closed":
+            return Color(hex: "#95A5A6") // Medium Gray
+        case "rejected":
+            return Color(hex: "#E74C3C") // Crimson Red
+        case "npa":
+            return Color(hex: "#C0392B") // Dark Burgundy
+        case "written_off":
+            return Color(hex: "#2C3E50") // Charcoal
+        case "draft":
+            return Color(hex: "#BDC3C7") // Light Silver
         default:
-            return Color(hex: "#2E86DE")
+            return Color(hex: "#7F8C8D") // Default Gray
         }
     }
     

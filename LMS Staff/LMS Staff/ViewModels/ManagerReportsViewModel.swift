@@ -80,13 +80,14 @@ class ManagerReportsViewModel: ObservableObject {
             async let loansTask = portfolioService.fetchLoans()
             async let appsTask = ApplicationService.shared.fetchAllApplications()
             async let trendsTask = reportService.fetchCollectionTrends()
+            async let efficiencyTask = reportService.fetchOverallCollectionEfficiency()
             
-            let (fetchedLoans, fetchedApps, trends) = try await (loansTask, appsTask, trendsTask)
+            let (fetchedLoans, fetchedApps, trends, overallEfficiency) = try await (loansTask, appsTask, trendsTask, efficiencyTask)
             
             self.loans = fetchedLoans
             self.collectionTrends = trends
             
-            computeMetrics(from: fetchedLoans)
+            computeMetrics(from: fetchedLoans, overallEfficiency: overallEfficiency)
             computeChartData(from: fetchedLoans, applications: fetchedApps)
             
         } catch {
@@ -98,7 +99,7 @@ class ManagerReportsViewModel: ObservableObject {
     
     // MARK: - Metric Computation
     
-    private func computeMetrics(from loans: [LoanWithDetails]) {
+    private func computeMetrics(from loans: [LoanWithDetails], overallEfficiency: Double) {
         let allLoans = loans.map { $0.loan }
         totalLoansCount = allLoans.count
         
@@ -129,12 +130,8 @@ class ManagerReportsViewModel: ObservableObject {
         // Total overdue
         totalOverdueAmount = portfolioLoans.reduce(0.0) { $0 + $1.totalOverdue }
         
-        // Collection efficiency from EMI data
-        if let lastTrend = collectionTrends.last {
-            collectionEfficiency = lastTrend.efficiency
-        } else {
-            collectionEfficiency = 100.0
-        }
+        // Collection efficiency from EMI data (all-time overall calculation)
+        collectionEfficiency = overallEfficiency
     }
     
     private func computeChartData(from loans: [LoanWithDetails], applications: [ApplicationWithBorrower]) {

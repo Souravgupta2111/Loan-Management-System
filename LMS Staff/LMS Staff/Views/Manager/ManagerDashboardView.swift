@@ -228,13 +228,20 @@ struct ManagerDashboardView: View {
     
     private func colorForStatus(_ status: String) -> Color {
         switch status.lowercased() {
-        case "active": return .staffGreen
-        case "npa": return .staffRed
-        case "restructured": return .staffAmber
-        case "closed": return .staffTextSecondary
-        case "written off": return .staffRed.opacity(0.6)
-        case "pending acceptance": return .staffAccent
-        default: return .staffTextSecondary
+        case "active":
+            return Color(hex: "#2ECC71") // Vibrant Green
+        case "npa":
+            return Color(hex: "#C0392B") // Dark Burgundy
+        case "restructured":
+            return Color(hex: "#FD79A8") // Warm Pink
+        case "closed":
+            return Color(hex: "#95A5A6") // Medium Gray
+        case "written off":
+            return Color(hex: "#2C3E50") // Charcoal
+        case "pending acceptance":
+            return Color(hex: "#9B59B6") // Purple
+        default:
+            return Color(hex: "#7F8C8D") // Default Gray
         }
     }
     
