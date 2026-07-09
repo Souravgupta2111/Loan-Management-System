@@ -131,6 +131,8 @@ class AuthViewModel: ObservableObject {
         } catch {
             print("Error signing out: \(error)")
         }
+        // Clear widget snapshot so all home-screen widgets show "Sign in" hints.
+        StaffWidgetDataProvider.clearSnapshot()
         self.currentUser = nil
         self.currentStaff = nil
         self.authState = .unauthenticated
