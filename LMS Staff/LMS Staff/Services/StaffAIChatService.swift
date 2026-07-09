@@ -24,10 +24,8 @@ final class StaffAIChatService {
         let role = await fetchUserRole(userId: userId)
         
         if role == "manager" || role == "admin" {
-            // Use real manager context with portfolio data
             return try await sendWithManagerContext(content: content, userId: userId, role: role, conversationId: conversationId)
         } else {
-            // Officer — use officer context
             return try await sendWithOfficerContext(content: content, userId: userId, conversationId: conversationId)
         }
     }
@@ -75,9 +73,8 @@ final class StaffAIChatService {
     // MARK: - Role Detection
     
     private func fetchUserRole(userId: UUID) async -> String {
-        struct RoleRow: Decodable { let role: String }
         do {
-            let rows: [RoleRow] = try await supabase.database
+            let rows: [ChatRoleRow] = try await supabase.database
                 .from("users")
                 .select("role")
                 .eq("id", value: userId.uuidString)
@@ -91,22 +88,22 @@ final class StaffAIChatService {
     
     // MARK: - Build Manager Context
     
-    private func buildManagerContext() async throws -> ManagerContext {
-        let activeLoans: [LoanRow] = try await supabase.database
+    private func buildManagerContext() async throws -> ChatManagerContext {
+        let activeLoans: [ChatLoanRow] = try await supabase.database
             .from("loans")
             .select("id, status, principal_amount, interest_rate")
             .eq("status", value: "active")
             .execute()
             .value
         
-        let npaLoans: [LoanRow] = try await supabase.database
+        let npaLoans: [ChatLoanRow] = try await supabase.database
             .from("loans")
             .select("id, status, principal_amount, interest_rate")
             .eq("status", value: "npa")
             .execute()
             .value
         
-        let pendingApps: [IdRow] = try await supabase.database
+        let pendingApps: [ChatIdRow] = try await supabase.database
             .from("loan_applications")
             .select("id")
             .in("status", values: ["submitted", "under_review", "approved", "pending_acceptance", "pending_disbursal"])
@@ -115,16 +112,16 @@ final class StaffAIChatService {
         
         let totalDisbursed = activeLoans.reduce(0.0) { $0 + ($1.principalAmount ?? 0) }
         let totalLoans = activeLoans.count + npaLoans.count
-        let npaPercentage = totalLoans == 0 ? 0 : (Double(npaLoans.count) / Double(totalLoans)) * 100
+        let npaPercentage = totalLoans == 0 ? 0.0 : (Double(npaLoans.count) / Double(totalLoans)) * 100
         
-        let overdueEmis: [IdRow] = try await supabase.database
+        let overdueEmis: [ChatIdRow] = try await supabase.database
             .from("emi_schedule")
             .select("id")
             .eq("status", value: "overdue")
             .execute()
             .value
         
-        let paidEmis: [IdRow] = try await supabase.database
+        let paidEmis: [ChatIdRow] = try await supabase.database
             .from("emi_schedule")
             .select("id")
             .eq("status", value: "paid")
@@ -134,14 +131,14 @@ final class StaffAIChatService {
         let settledCount = paidEmis.count + overdueEmis.count
         let collectionEfficiency = settledCount == 0 ? 100.0 : (Double(paidEmis.count) / Double(settledCount)) * 100
         
-        return ManagerContext(
-            portfolioSummary: ManagerPortfolioSummary(
+        return ChatManagerContext(
+            portfolioSummary: ChatPortfolioSummary(
                 totalActiveLoans: activeLoans.count,
                 totalDisbursedAmount: totalDisbursed,
                 npaCount: npaLoans.count,
                 npaPercentage: npaPercentage
             ),
-            branchMetrics: ManagerBranchMetrics(
+            branchMetrics: ChatBranchMetrics(
                 collectionEfficiency: collectionEfficiency,
                 pendingApplicationsCount: pendingApps.count,
                 overdueEmiCount: overdueEmis.count,
@@ -152,8 +149,7 @@ final class StaffAIChatService {
     
     // MARK: - Build Officer Context
     
-    private func buildOfficerContext(userId: UUID) async throws -> OfficerContext {
-        // Get officer's staff profile
+    private func buildOfficerContext(userId: UUID) async throws -> ChatOfficerContext {
         struct ProfileRow: Decodable { let id: UUID }
         let profiles: [ProfileRow] = try await supabase.database
             .from("staff_profiles")
@@ -163,11 +159,11 @@ final class StaffAIChatService {
             .value
         
         guard let profileId = profiles.first?.id else {
-            return OfficerContext(assignedApplications: 0, underReview: 0, sentBack: 0, activeLoans: 0)
+            return ChatOfficerContext(assignedApplications: 0, underReview: 0, sentBack: 0, activeLoans: 0)
         }
         
-        struct AppRow: Decodable { let status: String }
-        let apps: [AppRow] = try await supabase.database
+        struct AppStatusRow: Decodable { let status: String }
+        let apps: [AppStatusRow] = try await supabase.database
             .from("loan_applications")
             .select("status")
             .eq("assigned_officer_id", value: profileId.uuidString)
@@ -177,15 +173,14 @@ final class StaffAIChatService {
         let underReview = apps.filter { $0.status == "under_review" }.count
         let sentBack = apps.filter { $0.status == "sent_back" }.count
         
-        // Active loans assigned to this officer
-        let activeLoans: [IdRow] = try await supabase.database
+        let activeLoans: [ChatIdRow] = try await supabase.database
             .from("loans")
             .select("id")
             .eq("status", value: "active")
             .execute()
             .value
         
-        return OfficerContext(
+        return ChatOfficerContext(
             assignedApplications: apps.count,
             underReview: underReview,
             sentBack: sentBack,
@@ -194,9 +189,13 @@ final class StaffAIChatService {
     }
 }
 
-// MARK: - Private Row Models
+// MARK: - Private Models (prefixed to avoid conflicts with ManagerAIService)
 
-private struct LoanRow: Codable {
+private struct ChatRoleRow: Decodable {
+    let role: String
+}
+
+private struct ChatLoanRow: Decodable {
     let id: UUID
     let status: String
     let principalAmount: Double?
@@ -209,13 +208,32 @@ private struct LoanRow: Codable {
     }
 }
 
-private struct IdRow: Codable {
+private struct ChatIdRow: Decodable {
     let id: UUID
 }
 
-// MARK: - Officer Context
+// MARK: - Context Models (prefixed to avoid conflicts)
 
-struct OfficerContext: Codable {
+struct ChatManagerContext: Codable {
+    let portfolioSummary: ChatPortfolioSummary
+    let branchMetrics: ChatBranchMetrics
+}
+
+struct ChatPortfolioSummary: Codable {
+    let totalActiveLoans: Int
+    let totalDisbursedAmount: Double
+    let npaCount: Int
+    let npaPercentage: Double
+}
+
+struct ChatBranchMetrics: Codable {
+    let collectionEfficiency: Double
+    let pendingApplicationsCount: Int
+    let overdueEmiCount: Int
+    let totalEmiCount: Int
+}
+
+struct ChatOfficerContext: Codable {
     let assignedApplications: Int
     let underReview: Int
     let sentBack: Int
