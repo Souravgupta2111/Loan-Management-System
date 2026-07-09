@@ -133,23 +133,37 @@ enum StaffWidgetDataProvider {
     private static func fillOfficer(_ snap: inout StaffWidgetSnapshotDTO) async throws {
         guard let userId = supabase.currentUserId else { return }
 
-        struct ProfileRow: Decodable { let id: UUID }
+        struct ProfileRow: Decodable { 
+            let id: UUID
+            let branch_id: UUID?
+        }
         let profile: ProfileRow? = try? await supabase.database
             .from("staff_profiles")
-            .select("id")
+            .select("id, branch_id")
             .eq("user_id", value: userId.uuidString)
             .single()
             .execute()
             .value
         guard let profileId = profile?.id else { return }
 
-        let apps: [AppRow] = try await supabase.database
+        let appsQuery = supabase.database
             .from("loan_applications")
             .select("id, application_number, borrower_id, created_at, status, assigned_officer_id")
-            .or("assigned_officer_id.eq.\(profileId.uuidString),status.eq.submitted")
-            .order("created_at", ascending: true)
-            .execute()
-            .value
+            
+        let apps: [AppRow]
+        if let branchId = profile?.branch_id {
+            apps = try await appsQuery
+                .or("assigned_officer_id.eq.\(profileId.uuidString),and(status.eq.submitted,branch_id.eq.\(branchId.uuidString))")
+                .order("created_at", ascending: true)
+                .execute()
+                .value
+        } else {
+            apps = try await appsQuery
+                .eq("assigned_officer_id", value: profileId.uuidString)
+                .order("created_at", ascending: true)
+                .execute()
+                .value
+        }
 
         struct HistoryID: Codable {
             let application_id: UUID
@@ -180,10 +194,11 @@ enum StaffWidgetDataProvider {
             }
         }
 
-        snap.officerPending = allApps.filter { $0.status == "submitted" }.count
-        snap.officerSubmitted = allApps.filter { $0.status == "under_review" }.count
-        snap.officerUnderReview = allApps.filter { $0.status == "submitted" }.count
-        snap.officerSentBack = allApps.filter { $0.status == "sent_back" }.count
+        let activeApps = allApps.filter { $0.status != "disbursed" }
+        snap.officerPending = activeApps.filter { $0.status == "submitted" }.count
+        snap.officerSubmitted = activeApps.filter { $0.status == "under_review" }.count
+        snap.officerUnderReview = snap.officerPending
+        snap.officerSentBack = activeApps.filter { $0.status == "sent_back" }.count
 
         if let oldest = allApps.first(where: { $0.status == "submitted" }) {
             snap.oldestDays = oldest.created_at.map {
@@ -211,7 +226,7 @@ enum StaffWidgetDataProvider {
         snap.totalDisbursed = active.reduce(0) { $0 + ($1.principal_amount ?? 0) }
 
         snap.npaCount = (try? await count("loans", eq: ("status", "npa"))) ?? 0
-        snap.pendingApprovals = (try? await countIn("loan_applications", "status", ["submitted", "under_review"])) ?? 0
+        snap.pendingApprovals = (try? await count("loan_applications", eq: ("status", "under_review"))) ?? 0
         snap.pendingDisbursements = (try? await count("loan_applications", eq: ("status", "pending_disbursal"))) ?? 0
         snap.overdueEmis = (try? await count("emi_schedule", eq: ("status", "overdue"))) ?? 0
         let paid = (try? await count("emi_schedule", eq: ("status", "paid"))) ?? 0
