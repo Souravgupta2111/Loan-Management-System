@@ -310,7 +310,7 @@ struct ManagerReportsView: View {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
                         Image(systemName: "percent")
-                            .foregroundColor(Color.staffTeal)
+                            .foregroundColor(Color.staffAccent)
                         Text("Average Profitability")
                             .font(.staffCardTitle)
                             .foregroundColor(.staffTextPrimary)
@@ -331,8 +331,8 @@ struct ManagerReportsView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        colorForProduct(item.productName, in: vm.productMetrics.map { $0.productName }),
-                                        colorForProduct(item.productName, in: vm.productMetrics.map { $0.productName }).opacity(0.8)
+                                        Color.staffAccent,
+                                        Color.staffAccent.opacity(0.8)
                                     ],
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -1213,13 +1213,13 @@ fileprivate struct ReportMetricCard: View {
     let icon: String
     let title: String
     let value: String
-    let subtitle: String
+    var subtitle: String? = nil
     let accentColor: Color
-    let gradientEnd: Color
+    var gradientEnd: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
-            HStack {
+        HStack(alignment: .center, spacing: StaffSpacing.md) {
+            VStack(alignment: .leading, spacing: 4) {
                 ZStack {
                     Circle()
                         .fill(LinearGradient(colors: [accentColor.opacity(0.15), gradientEnd.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -1228,35 +1228,38 @@ fileprivate struct ReportMetricCard: View {
                         .font(.body)
                         .foregroundColor(accentColor)
                 }
-                Spacer()
+                .padding(.bottom, 2)
+                
+                Text(title)
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
+                
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.staffFinePrint)
+                        .foregroundColor(.staffTextTertiary)
+                }
             }
-            .padding(.bottom, 4)
             
-            Text(title)
-                .font(.staffCaption)
-                .fontWeight(.medium)
-                .foregroundColor(.staffTextSecondary)
-                .lineLimit(1)
+            Spacer()
             
             Text(value)
-                .font(.staffTitle)
-                .fontWeight(.bold)
+                .font(.staffLargeAmount)
                 .foregroundColor(.staffTextPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundColor(.staffTextTertiary)
-                .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
-        .padding(StaffSpacing.md)
-        .background(Color.staffSurface)
-        .cornerRadius(StaffCorner.md)
-        .overlay(
+        .padding(.horizontal, StaffSpacing.md)
+        .padding(.vertical, 12)
+        .background(
             RoundedRectangle(cornerRadius: StaffCorner.md)
-                .stroke(Color.staffBorder, lineWidth: 1)
+                .fill(Color(hex: "#FAFAF8"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StaffCorner.md)
+                        .stroke(accentColor.opacity(0.15), lineWidth: 1)
+                )
         )
+        .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
     }
 }
 
