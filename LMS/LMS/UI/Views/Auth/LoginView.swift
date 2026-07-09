@@ -12,13 +12,7 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            // Gradient background (gradientMint)
-            LinearGradient(
-                colors: [Color.gradientMintStart, Color.surface, Color.gradientLavenderStart],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color.appBackground.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: Spacing.xxl) {
@@ -26,12 +20,12 @@ struct LoginView: View {
 
                     // Logo
                     VStack(spacing: Spacing.md) {
-                        Image(systemName: "building.columns.fill")
+                        Image("loanz")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 56, height: 56)
-                            .foregroundColor(.accentGreen)
-                        Text("Loan Management")
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        Text("Loanz")
                             .font(.sectionTitle)
                             .foregroundColor(.textPrimary)
                     }
@@ -75,10 +69,17 @@ struct LoginView: View {
 
                         // Error message
                         if let error = authViewModel.errorMessage {
-                            Text(error)
-                                .font(.caption2)
-                                .foregroundColor(.accentRed)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption)
+                                Text(error)
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundColor(.accentRed)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.accentRed.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                         }
 
                         // Sign In / Face ID Row
@@ -130,7 +131,7 @@ struct LoginView: View {
                         } label: {
                             Text("Forgot Password?")
                                 .font(.bodyRegular)
-                                .foregroundColor(.accentBeigeDk)
+                                .foregroundColor(.accentGreen)
                         }
 
                         // Divider
