@@ -384,10 +384,11 @@
 				CODE_SIGN_ENTITLEMENTS = "LMS Staff/LMSStaff.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 42D7UMUD94;
+				DEVELOPMENT_TEAM = A92V46D8LJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Loanz Enterprise";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "We use Face ID to securely log you in to your staff account.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone so you can talk to the AI Assistant.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need speech recognition to convert your voice into text for the AI Assistant.";
@@ -400,9 +401,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				INFOPLIST_KEY_CFBundleDisplayName = "Loanz Enterprise";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.LMS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.s;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -422,10 +422,11 @@
 				CODE_SIGN_ENTITLEMENTS = "LMS Staff/LMSStaff.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 42D7UMUD94;
+				DEVELOPMENT_TEAM = A92V46D8LJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Loanz Enterprise";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "We use Face ID to securely log you in to your staff account.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone so you can talk to the AI Assistant.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need speech recognition to convert your voice into text for the AI Assistant.";
@@ -438,9 +439,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				INFOPLIST_KEY_CFBundleDisplayName = "Loanz Enterprise";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.LMS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.s;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
