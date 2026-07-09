@@ -22,7 +22,7 @@ struct LoanDetailView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -74,7 +74,7 @@ struct LoanDetailView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 14)
-                            .background(Color(hex: "#2D8B4E"))
+                            .background(Color.accentGreen)
                             .clipShape(Capsule())
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                         }
@@ -150,7 +150,7 @@ struct LoanDetailView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.clock")
                         .font(.title)
-                        .foregroundColor(Color(hex: "#C8E6D0"))
+                        .foregroundColor(Color.themeGreen)
                     Text("Schedule Not Generated")
                         .font(.body.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
@@ -357,17 +357,17 @@ private struct LoanSummaryCard: View {
 
                         Text(detail.progressText)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
 
                     // Progress bar
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color(hex: "#C8E6D0").opacity(0.5))
+                                .fill(Color.themeGreen.opacity(0.5))
                                 .frame(height: 6)
                             Capsule()
-                                .fill(Color(hex: "#2D8B4E"))
+                                .fill(Color.accentGreen)
                                 .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)), height: 6)
                                 .animation(.spring(response: 0.6), value: progress)
                         }
@@ -397,7 +397,7 @@ private struct LoanSummaryCard: View {
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(detail.loanStatus.capitalized.replacingOccurrences(of: "_", with: " "))
                             .font(.title3.weight(.bold)).fontDesign(.rounded)
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                     }
@@ -415,7 +415,7 @@ private struct LoanSummaryCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 18)
-        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.04)
+        .liquidGlass(cornerRadius: 22, tint: Color.accentGreen, tintOpacity: 0.04)
     }
 }
 
@@ -462,7 +462,7 @@ private struct LoanInfoColumn: View {
         VStack(alignment: alignment, spacing: 3) {
             Text(title)
                 .font(.subheadline.weight(.medium))
-                .foregroundColor(Color(hex: "#2D8B4E"))
+                .foregroundColor(Color.accentGreen)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
@@ -500,7 +500,7 @@ private struct CustomLoanSegmentedControl: View {
                 } label: {
                     Text(tab.title)
                         .font(.subheadline.weight(selection == tab ? .semibold : .medium))
-                        .foregroundColor(selection == tab ? Color(hex: "#2D8B4E") : Color(hex: "#6B6B6B"))
+                        .foregroundColor(selection == tab ? Color.accentGreen : Color(hex: "#6B6B6B"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background {
@@ -813,7 +813,7 @@ private struct TimelineCard: View {
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(Color(hex: "#2D8B4E"))
+                                    .background(Color.accentGreen)
                                     .cornerRadius(12)
                             }
                             .disabled(isAccepting || isRejecting)
@@ -857,7 +857,7 @@ private struct TimelineItemRow: View {
                             .frame(width: 2)
                         
                         Rectangle()
-                            .fill(Color(hex: "#2D8B4E"))
+                            .fill(Color.accentGreen)
                             .frame(width: 2)
                             .scaleEffect(y: fillFraction, anchor: .bottom)
                     }
@@ -906,7 +906,7 @@ private struct TimelineItemRow: View {
             switch step.status {
             case .completed:
                 Circle()
-                    .fill(Color(hex: "#2D8B4E"))
+                    .fill(Color.accentGreen)
                     .frame(width: 28, height: 28)
                 
                 Image(systemName: "checkmark")
@@ -934,12 +934,12 @@ private struct TimelineItemRow: View {
                         .foregroundColor(Color(hex: "#D32F2F"))
                 } else {
                     Circle()
-                        .stroke(Color(hex: "#2D8B4E"), lineWidth: 2)
+                        .stroke(Color.accentGreen, lineWidth: 2)
                         .background(Circle().fill(Color.white))
                         .frame(width: 28, height: 28)
                     
                     Circle()
-                        .fill(Color(hex: "#2D8B4E"))
+                        .fill(Color.accentGreen)
                         .frame(width: 12, height: 12)
                 }
                 
@@ -972,7 +972,7 @@ private struct TimelineItemRow: View {
         } else if titleLower.contains("reject") && step.status == .active {
             return Color(hex: "#D32F2F")
         } else {
-            return Color(hex: "#2D8B4E")
+            return Color.accentGreen
         }
     }
     
@@ -1050,11 +1050,11 @@ private struct DocumentsList: View {
                         HStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "#E8F5EC"))
+                                    .fill(Color.accentGreenBg)
                                     .frame(width: 34, height: 34)
                                 Image(systemName: "doc.richtext.fill")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(Color(hex: "#2D8B4E"))
+                                    .foregroundColor(Color.accentGreen)
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -1070,7 +1070,7 @@ private struct DocumentsList: View {
 
                             Image(systemName: "chevron.right.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
@@ -1122,7 +1122,7 @@ private struct DocumentsList: View {
                             .padding(14)
                             .background(Color.white.opacity(0.8))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.accentGreen.opacity(0.3), lineWidth: 1))
                             .foregroundColor(Color(hex: "#1A1A1A"))
                             
                         PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
@@ -1134,7 +1134,7 @@ private struct DocumentsList: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(customDocumentName.isEmpty ? Color(hex: "#9E9E9E") : Color(hex: "#2D8B4E"))
+                            .background(customDocumentName.isEmpty ? Color(hex: "#9E9E9E") : Color.accentGreen)
                             .liquidGlass(cornerRadius: 18)
                         }
                         .disabled(customDocumentName.isEmpty || isProcessing)
@@ -1172,11 +1172,11 @@ private struct LoanDocumentRowView: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#E8F5EC"))
+                    .fill(Color.accentGreenBg)
                     .frame(width: 34, height: 34)
                 Image(systemName: document.icon)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -1192,7 +1192,7 @@ private struct LoanDocumentRowView: View {
 
             Image(systemName: "chevron.right.circle.fill")
                 .font(.title3)
-                .foregroundColor(Color(hex: "#2D8B4E"))
+                .foregroundColor(Color.accentGreen)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -1222,16 +1222,16 @@ private struct EMIScheduleRowView: View {
 
     private var accentColor: Color {
         switch emi.status {
-        case .paid: return Color(hex: "#2D8B4E")
+        case .paid: return Color.accentGreen
         case .overdue: return Color(hex: "#D94040")
-        case .upcoming: return Color(hex: "#2D8B4E")
+        case .upcoming: return Color.accentGreen
         case .scheduled: return Color(hex: "#9E9E9E")
         }
     }
 
     private var bgColor: Color {
         switch emi.status {
-        case .paid: return Color(hex: "#E8F5EC")
+        case .paid: return Color.accentGreenBg
         case .overdue: return Color(hex: "#FDE8E8")
         case .upcoming: return Color.clear
         case .scheduled: return Color.clear
@@ -1240,7 +1240,7 @@ private struct EMIScheduleRowView: View {
 
     private var statusTextColor: Color {
         switch emi.status {
-        case .paid: return Color(hex: "#2D8B4E")
+        case .paid: return Color.accentGreen
         case .overdue: return Color(hex: "#D94040")
         case .upcoming: return Color(hex: "#1A1A1A")
         case .scheduled: return Color(hex: "#9E9E9E")
@@ -1367,10 +1367,10 @@ private struct LoanDetailMock {
             subtitleView = AnyView(
                 HStack(spacing: 3) {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                     Text("Fully Paid")
                         .font(.caption.weight(.bold))
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                 }
             )
         } else if let nextDueStr = loan.nextDueDate, let date = LoansListView.parseDateString(nextDueStr) {

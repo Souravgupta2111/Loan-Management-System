@@ -3,6 +3,7 @@ import Supabase
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
+    @EnvironmentObject private var themeManager: AppThemeManager
     @State private var showPasswordResetAlert = false
     @State private var newPassword = ""
 
@@ -16,14 +17,18 @@ struct ContentView: View {
                 LoginView()
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             case .kycRequired:
-                KYCDashboardView(allowsSkip: true)
-                    .transition(.opacity.combined(with: .scale))
+                NavigationStack {
+                    KYCDashboardView(allowsSkip: true)
+                }
+                .transition(.opacity.combined(with: .scale))
             case .authenticated:
                 MainTabView()
                     .transition(.opacity.combined(with: .scale))
             }
         }
         .environmentObject(authViewModel)
+        .environment(\.appColorPalette, themeManager.selectedPalette)
+        .tint(.accentGreen)
         .accessibleAnimation(.spring(response: 0.6, dampingFraction: 0.8), value: authViewModel.authState)
         .onOpenURL { url in
             // Widget / Siri deep links: lmsapp://emi, lmsapp://loans, lmsapp://advisor
@@ -91,4 +96,5 @@ struct ContentView: View {
 }
 #Preview{
     ContentView()
+        .environmentObject(AppThemeManager())
 }

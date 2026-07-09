@@ -1,12 +1,123 @@
 import SwiftUI
+import Combine
+import UIKit
+
+// MARK: - App Palette Selection
+enum AppColorPalette: String, CaseIterable, Identifiable {
+    case green
+    case purple
+    case blue
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .green: return "Green"
+        case .purple: return "Purple"
+        case .blue: return "Blue"
+        }
+    }
+
+    var primaryHex: String {
+        switch self {
+        case .green: return "#2D8B4E"
+        case .purple: return "#6B46C1"
+        case .blue: return "#2F6FCC"
+        }
+    }
+
+    var themeHex: String {
+        switch self {
+        case .green: return "#89DBA6"
+        case .purple: return "#D7C2FF"
+        case .blue: return "#A9D4FF"
+        }
+    }
+
+    var backgroundHex: String {
+        switch self {
+        case .green: return "#FAFAF8"
+        case .purple: return "#F8F3FF"
+        case .blue: return "#F2F8FF"
+        }
+    }
+
+    var accentBackgroundHex: String {
+        switch self {
+        case .green: return "#E8F5EC"
+        case .purple: return "#EDE3FF"
+        case .blue: return "#DDEEFF"
+        }
+    }
+
+    var gradientStartHex: String {
+        switch self {
+        case .green: return "#F0FAF4"
+        case .purple: return "#F1E7FF"
+        case .blue: return "#E4F2FF"
+        }
+    }
+
+    var darkerHex: String {
+        switch self {
+        case .green: return "#1B6B3A"
+        case .purple: return "#553C9A"
+        case .blue: return "#2559A6"
+        }
+    }
+}
+
+final class AppThemeManager: ObservableObject {
+    static let storageKey = "selectedColorPalette"
+    static var activePalette: AppColorPalette = {
+        AppColorPalette(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .green
+    }()
+
+    let objectWillChange = ObservableObjectPublisher()
+
+    var selectedPalette: AppColorPalette {
+        didSet {
+            guard selectedPalette != oldValue else { return }
+            Self.activePalette = selectedPalette
+            UserDefaults.standard.set(selectedPalette.rawValue, forKey: Self.storageKey)
+            objectWillChange.send()
+        }
+    }
+
+    init() {
+        let savedValue = UserDefaults.standard.string(forKey: Self.storageKey)
+        selectedPalette = AppColorPalette(rawValue: savedValue ?? "") ?? .green
+        Self.activePalette = selectedPalette
+    }
+}
+
+private struct AppColorPaletteKey: EnvironmentKey {
+    static let defaultValue: AppColorPalette = AppThemeManager.activePalette
+}
+
+extension EnvironmentValues {
+    var appColorPalette: AppColorPalette {
+        get { self[AppColorPaletteKey.self] }
+        set { self[AppColorPaletteKey.self] = newValue }
+    }
+}
 
 // MARK: - Color System (design.md §2)
 // All hex values taken directly from the design specification.
 
 extension Color {
+    static var currentPalette: AppColorPalette {
+        AppThemeManager.activePalette
+    }
+
+    private static func themedColor(_ hex: @escaping (AppColorPalette) -> String) -> Color {
+        Color(UIColor { _ in
+            UIColor(hex: hex(AppThemeManager.activePalette))
+        })
+    }
 
     // MARK: - Core Palette (Light Mode)
-    static let appBackground   = Color(hex: "#FAFAF8")
+    static var appBackground: Color { themedColor(\.backgroundHex) }
     static let surface         = Color(hex: "#FFFFFF")
     static let surfaceMuted    = Color(hex: "#F5F5F0")
     static let textPrimary     = Color(hex: "#1A1A1A")
@@ -16,11 +127,11 @@ extension Color {
     static let borderSubtle    = Color(hex: "#F0F0EC")
 
     // MARK: - Accent Colors
-    static let accentGreen     = Color(hex: "#2D8B4E")
-    static let accentGreenBg   = Color(hex: "#E8F5EC")
-    static let themeGreen      = Color(hex: "#89DBA6")
-    static let themeGreenBg    = Color(hex: "#89DBA6").opacity(0.2)
-    static let accentMint      = Color(hex: "#C8E6D0")
+    static var accentGreen: Color { themedColor(\.primaryHex) }
+    static var accentGreenBg: Color { themedColor(\.accentBackgroundHex) }
+    static var themeGreen: Color { themedColor(\.themeHex) }
+    static var themeGreenBg: Color { themedColor(\.themeHex).opacity(0.2) }
+    static var accentMint: Color { themedColor(\.themeHex).opacity(0.55) }
     static let accentBeige     = Color(hex: "#F5E6C8")
     static let accentBeigeDk   = Color(hex: "#D4A574")
     static let accentLavender  = Color(hex: "#E8D5F0")
@@ -34,8 +145,8 @@ extension Color {
     static let accentBlueBg    = Color(hex: "#EBF2FF")
 
     // MARK: - Gradient Presets
-    static let gradientMintStart    = Color(hex: "#F0FAF4")
-    static let gradientMintEnd      = Color(hex: "#FAFAF8")
+    static var gradientMintStart: Color { themedColor(\.gradientStartHex) }
+    static var gradientMintEnd: Color { themedColor(\.backgroundHex) }
     static let gradientBeigeStart   = Color(hex: "#FDF6EC")
     static let gradientBeigeEnd     = Color(hex: "#FAFAF8")
     static let gradientLavenderStart = Color(hex: "#F5ECF9")
@@ -106,6 +217,31 @@ extension Color {
             green: Double(g) / 255,
             blue: Double(b) / 255,
             opacity: Double(a) / 255
+        )
+    }
+}
+
+private extension UIColor {
+    convenience init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3:
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6:
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            red: CGFloat(r) / 255,
+            green: CGFloat(g) / 255,
+            blue: CGFloat(b) / 255,
+            alpha: CGFloat(a) / 255
         )
     }
 }

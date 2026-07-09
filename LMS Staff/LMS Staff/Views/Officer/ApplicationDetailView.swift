@@ -38,7 +38,9 @@ struct ApplicationDetailView: View {
     @State private var mgrApprovedTenure: Int = 12
     @State private var mgrApprovedRate: Double = 10.0
     @State private var mgrRemarks: String = ""
+    
 
+    
     enum InspectorTab: String, CaseIterable {
         case profile = "KYC & Credit"
         case documents = "Documents"
@@ -87,6 +89,8 @@ struct ApplicationDetailView: View {
                     DetailMetric(label: "Requested Amount", value: "INR \(String(format: "%.2f", vm.application.requestedAmount))")
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
+                    
+
                 }
             }
             .padding(StaffSpacing.lg)
@@ -101,11 +105,12 @@ struct ApplicationDetailView: View {
                     return true
                 }, id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 0) {
                             Text(tab.rawValue)
                                 .font(.staffBody)
                                 .fontWeight(activeTab == tab ? .bold : .regular)
                                 .foregroundColor(activeTab == tab ? .staffAccent : .staffTextSecondary)
+                                .padding(.vertical, 12)
                             
                             // Indicator line
                             Rectangle()
@@ -150,6 +155,8 @@ struct ApplicationDetailView: View {
                     actionButtonBar
                 }
             }
+            
+            // AI Copilot Panel Overlay
 
         }
         }

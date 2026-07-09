@@ -15,10 +15,10 @@ struct KYCDashboardView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        Group {
             ZStack {
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -327,13 +327,7 @@ struct KYCDashboardView: View {
             }
             .navigationTitle("KYC Setup")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if isPresentedModally {
-                        GlassBackButton { dismiss() }
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     if allowsSkip {
                         if viewModel.isLoading {

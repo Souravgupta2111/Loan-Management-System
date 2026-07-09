@@ -30,6 +30,7 @@ struct StaffManagementView: View {
                         Text("Staff Accounts")
                             .font(.staffTitle)
                             .foregroundColor(.staffTextPrimary)
+                            .accessibilityAddTraits(.isHeader)
                         
                         Spacer()
                         
@@ -43,6 +44,7 @@ struct StaffManagementView: View {
                                 .font(.title3)
                                 .foregroundColor(.staffAccent)
                         }
+                        .accessibilityLabel("Add staff member")
                     }
                     .padding(StaffSpacing.lg)
                     
@@ -77,6 +79,7 @@ struct StaffManagementView: View {
                                 .resizable()
                                 .frame(width: 36, height: 36)
                                 .foregroundColor(item.user.isActive ? .staffAccent : .staffTextSecondary)
+                                .accessibilityHidden(true)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.user.fullName)
@@ -97,6 +100,8 @@ struct StaffManagementView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.white
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to open")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -124,9 +129,11 @@ struct StaffManagementView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Staff Member")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -161,6 +168,7 @@ struct StaffManagementView: View {
                         .font(.system(size: 56))
                         .foregroundColor(.staffAccent)
                         .padding(.top, StaffSpacing.xl)
+                        .accessibilityHidden(true)
                     
                     Text("Create New Staff Account")
                         .font(.staffSectionTitle)
@@ -217,6 +225,7 @@ struct StaffManagementView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -315,6 +324,7 @@ struct StaffProfileDetailView: View {
                     .resizable()
                     .frame(width: 64, height: 64)
                     .foregroundColor(.staffAccent)
+                    .accessibilityHidden(true)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.user.fullName)
@@ -356,6 +366,7 @@ struct StaffProfileDetailView: View {
                             Text("Access & Role")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             Divider()
                             
                             if editMode {
@@ -391,6 +402,7 @@ struct StaffProfileDetailView: View {
                             Text("Professional Info")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             Divider()
                             
                             if editMode {
@@ -447,6 +459,7 @@ struct StaffProfileDetailView: View {
                             Text("Approval Limits")
                                 .font(.staffTitle)
                                 .foregroundColor(.staffTextPrimary)
+                                .accessibilityAddTraits(.isHeader)
                             Divider()
                             
                             if editMode {
@@ -613,6 +626,7 @@ struct StaffProfileDetailView: View {
                         .font(.system(size: 56))
                         .foregroundColor(.staffRed)
                         .padding(.top, StaffSpacing.xl)
+                        .accessibilityHidden(true)
                     
                     Text("Reset Password")
                         .font(.staffSectionTitle)
@@ -667,6 +681,7 @@ struct StaffProfileDetailView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }

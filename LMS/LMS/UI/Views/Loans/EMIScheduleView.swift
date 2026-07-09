@@ -7,7 +7,7 @@ struct EMIScheduleView: View {
     @Environment(\.dismiss) private var dismiss
     let loanId: UUID
     
-    @State private var isProcessingPayment = false
+    @State private var processingEMIId: UUID? = nil
     @State private var paymentSuccess = false
     @State private var paymentError: String?
     @State private var emiList: [EMIDetail] = []
@@ -18,7 +18,7 @@ struct EMIScheduleView: View {
     var body: some View {
         ZStack {
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -73,7 +73,7 @@ struct EMIScheduleView: View {
                                 } else {
                                     ForEach($emiList) { $emi in
                                         let shouldShowPayNow = emi.status == .overdue || emi.status == .due
-                                        EMIRow(emi: emi, isProcessing: $isProcessingPayment, showPayNow: shouldShowPayNow) {
+                                        EMIRow(emi: emi, isProcessing: processingEMIId == emi.id, showPayNow: shouldShowPayNow) {
                                             Task {
                                                 await startPaymentFlow(for: emi)
                                             }
@@ -100,43 +100,48 @@ struct EMIScheduleView: View {
                 await fetchEMIs()
             }
             .sheet(item: $activeRazorpayOrder) { order in
-                NavigationStack {
-                    RazorpayWebView(
-                        keyId: order.keyId,
-                        amountPaise: order.amountPaise,
-                        orderId: order.orderId,
-                        onSuccess: { paymentId, _, signature in
-                            activeRazorpayOrder = nil
-                            Task {
-                                await confirmPayment(paymentRecordId: order.paymentRecordId, razorpayPaymentId: paymentId, razorpaySignature: signature)
+                                NavigationStack {
+                                    RazorpayWebView(
+                                        keyId: order.keyId,
+                                        amountPaise: order.amountPaise,
+                                        orderId: order.orderId,
+                                        onSuccess: { paymentId, _, signature in
+                                            activeRazorpayOrder = nil
+                                            Task {
+                                                await confirmPayment(paymentRecordId: order.paymentRecordId, razorpayPaymentId: paymentId, razorpaySignature: signature)
+                                            }
+                                        },
+                                        onFailure: { errorMsg in
+                                            activeRazorpayOrder = nil
+                                            paymentError = errorMsg
+                                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment failed"); paymentActivity = nil }
+                                            processingEMIId = nil
+                                        },
+                                        onCancel: {
+                                            activeRazorpayOrder = nil
+                                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment cancelled"); paymentActivity = nil }
+                                            processingEMIId = nil
+                                        }
+                                    )
+                                    .navigationBarBackButtonHidden(true)
+                                    .navigationTitle("Pay EMI")
+                                    .navigationBarTitleDisplayMode(.inline)
+                                    .toolbar {
+                                        ToolbarItem(placement: .navigationBarLeading) {
+                                            Button("Cancel") {
+                                                activeRazorpayOrder = nil
+                                                Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment cancelled"); paymentActivity = nil }
+                                                processingEMIId = nil
+                                            }
+                                        }
+                                    }
+                                }
+                                .interactiveDismissDisabled(true)
                             }
-                        },
-                        onFailure: { errorMsg in
-                            activeRazorpayOrder = nil
-                            paymentError = errorMsg
-                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment failed"); paymentActivity = nil }
-                        },
-                        onCancel: {
-                            activeRazorpayOrder = nil
-                            Task { await PaymentLiveActivity.fail(paymentActivity, message: "Payment cancelled"); paymentActivity = nil }
-                        }
-                    )
-                    .navigationBarBackButtonHidden(true)
-                    .navigationTitle("Pay EMI")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Cancel") {
-                                activeRazorpayOrder = nil
-                            }
-                        }
-                    }
-                }
-            }
     }
     
     private func startPaymentFlow(for emi: EMIDetail) async {
-        isProcessingPayment = true
+        processingEMIId = emi.id
         paymentError = nil
         paymentSuccess = false
         
@@ -147,13 +152,11 @@ struct EMIScheduleView: View {
             paymentActivity = PaymentLiveActivity.start(title: "EMI Payment", amount: emi.amount)
         } catch {
             paymentError = "Failed to initiate payment: \(error.localizedDescription)"
+            processingEMIId = nil
         }
-        
-        isProcessingPayment = false
     }
     
     private func confirmPayment(paymentRecordId: UUID, razorpayPaymentId: String, razorpaySignature: String) async {
-        isProcessingPayment = true
         paymentError = nil
         
         do {
@@ -179,7 +182,7 @@ struct EMIScheduleView: View {
             paymentActivity = nil
         }
         
-        isProcessingPayment = false
+        processingEMIId = nil
     }
     
     private func fetchEMIs() async {
@@ -258,6 +261,20 @@ struct EMIScheduleView: View {
                     mappedList[firstUpcomingIdx].status = .due
                 }
             }
+            
+            // Post-process to distinguish first upcoming from scheduled
+            var hasFoundFirstUpcoming = false
+            for idx in 0..<mappedList.count {
+                if mappedList[idx].status == .upcoming {
+                    if !hasFoundFirstUpcoming {
+                        mappedList[idx].status = .upcoming
+                        hasFoundFirstUpcoming = true
+                    } else {
+                        mappedList[idx].status = .scheduled
+                    }
+                }
+            }
+            
             emiList = mappedList
             isLoading = false
         } catch {
@@ -378,6 +395,19 @@ struct EMIScheduleView: View {
             }
         }
         
+        // Post-process to distinguish first upcoming from scheduled
+        var hasFoundFirstUpcoming = false
+        for idx in 0..<list.count {
+            if list[idx].status == .upcoming {
+                if !hasFoundFirstUpcoming {
+                    list[idx].status = .upcoming
+                    hasFoundFirstUpcoming = true
+                } else {
+                    list[idx].status = .scheduled
+                }
+            }
+        }
+        
         return list
     }
 }
@@ -395,13 +425,14 @@ struct EMIDetail: Identifiable {
         case paid
         case due
         case upcoming
+        case scheduled
         case overdue
     }
 }
 
 struct EMIRow: View {
     let emi: EMIDetail
-    @Binding var isProcessing: Bool
+    let isProcessing: Bool
     let showPayNow: Bool
     let onPay: () -> Void
     
@@ -486,6 +517,7 @@ struct EMIRow: View {
         case .paid: return "PAID"
         case .due: return "DUE NOW"
         case .upcoming: return "UPCOMING"
+        case .scheduled: return "SCHEDULED"
         case .overdue: return "OVERDUE"
         }
     }
@@ -495,6 +527,7 @@ struct EMIRow: View {
         case .paid: return .accentGreen
         case .due: return Color(hex: "#D97706") // amber
         case .upcoming: return .textSecondary
+        case .scheduled: return .textSecondary
         case .overdue: return .accentRed
         }
     }

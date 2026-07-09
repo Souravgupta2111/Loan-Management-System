@@ -1,17 +1,157 @@
 import SwiftUI
+import Combine
+
+// MARK: - Staff Palette Selection
+enum AppColorPalette: String, CaseIterable, Identifiable {
+    case green
+    case purple
+    case blue
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .green: return "Green"
+        case .purple: return "Purple"
+        case .blue: return "Blue"
+        }
+    }
+
+    var primaryHex: String {
+        switch self {
+        case .green: return "#2E9658"
+        case .purple: return "#6B46C1"
+        case .blue: return "#2F6FCC"
+        }
+    }
+
+    var secondaryHex: String {
+        switch self {
+        case .green: return "#409F73"
+        case .purple: return "#7C5BD6"
+        case .blue: return "#3A7DDA"
+        }
+    }
+
+    var cardHex: String {
+        switch self {
+        case .green: return "#DFF3E6"
+        case .purple: return "#D7C2FF"
+        case .blue: return "#A9D4FF"
+        }
+    }
+
+    var backgroundHex: String {
+        switch self {
+        case .green: return "#F1F8F0"
+        case .purple: return "#F8F3FF"
+        case .blue: return "#F2F8FF"
+        }
+    }
+
+    var surfaceLightHex: String {
+        switch self {
+        case .green: return "#EAF4EA"
+        case .purple: return "#F1E7FF"
+        case .blue: return "#E4F2FF"
+        }
+    }
+
+    var mutedHex: String {
+        switch self {
+        case .green: return "#EEF6ED"
+        case .purple: return "#F4F0FC"
+        case .blue: return "#F0F7FE"
+        }
+    }
+
+    var borderHex: String {
+        switch self {
+        case .green: return "#DDEADC"
+        case .purple: return "#E3D8F8"
+        case .blue: return "#D6E8F8"
+        }
+    }
+
+    var gradientStartHex: String {
+        switch self {
+        case .green: return "#F6FBF4"
+        case .purple: return "#F1E7FF"
+        case .blue: return "#E4F2FF"
+        }
+    }
+
+    var gradientEndHex: String {
+        switch self {
+        case .green: return "#EAF5EA"
+        case .purple: return "#F8F3FF"
+        case .blue: return "#F2F8FF"
+        }
+    }
+
+    var darkerHex: String {
+        switch self {
+        case .green: return "#248149"
+        case .purple: return "#553C9A"
+        case .blue: return "#2559A6"
+        }
+    }
+}
+
+final class AppThemeManager: ObservableObject {
+    static let storageKey = "selectedColorPalette"
+    static var activePalette: AppColorPalette = {
+        AppColorPalette(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .green
+    }()
+
+    @Published private var paletteStorage: AppColorPalette
+
+    var selectedPalette: AppColorPalette {
+        get { paletteStorage }
+        set { applyPalette(newValue) }
+    }
+
+    init() {
+        let savedValue = UserDefaults.standard.string(forKey: Self.storageKey)
+        let savedPalette = AppColorPalette(rawValue: savedValue ?? "") ?? .green
+        paletteStorage = savedPalette
+        Self.activePalette = savedPalette
+    }
+
+    private func applyPalette(_ palette: AppColorPalette) {
+        guard paletteStorage != palette else { return }
+        Self.activePalette = palette
+        UserDefaults.standard.set(palette.rawValue, forKey: Self.storageKey)
+        paletteStorage = palette
+    }
+}
+
+private struct AppColorPaletteKey: EnvironmentKey {
+    static let defaultValue: AppColorPalette = AppThemeManager.activePalette
+}
+
+extension EnvironmentValues {
+    var appColorPalette: AppColorPalette {
+        get { self[AppColorPaletteKey.self] }
+        set { self[AppColorPaletteKey.self] = newValue }
+    }
+}
 
 // MARK: - Staff App Color System
 // Soft mint and deep green palette matched to the borrower app reference.
 
 extension Color {
+    static var currentPalette: AppColorPalette {
+        AppThemeManager.activePalette
+    }
 
     // MARK: - Core Palette
-    static let staffBackground    = Color(hex: "#F1F8F0")    // Soft mint canvas
+    static var staffBackground: Color { Color(hex: currentPalette.backgroundHex) }
     static let staffSurface       = Color(hex: "#FBFEFA")    // Card background
-    static let staffSurfaceLight  = Color(hex: "#EAF4EA")    // Elevated surface
-    static let staffSurfaceMuted  = Color(hex: "#EEF6ED")    // Input fields
-    static let staffBorder        = Color(hex: "#DDEADC")    // Subtle borders
-    static let staffBorderLight   = Color(hex: "#BFE8CF")    // Focus borders
+    static var staffSurfaceLight: Color { Color(hex: currentPalette.surfaceLightHex) }
+    static var staffSurfaceMuted: Color { Color(hex: currentPalette.mutedHex) }
+    static var staffBorder: Color { Color(hex: currentPalette.borderHex) }
+    static var staffBorderLight: Color { Color(hex: currentPalette.cardHex) }
 
     // MARK: - Text Colors
     static let staffTextPrimary   = Color(hex: "#1A1D1A")    // Deep charcoal
@@ -19,31 +159,31 @@ extension Color {
     static let staffTextTertiary  = Color(hex: "#A0AAA0")    // Hints, placeholders
 
     // MARK: - Accent Colors
-    static let staffAccent        = Color(hex: "#2E9658")    // Primary green
-    static let staffAccentBg      = Color(hex: "#DFF3E6")    // Green tinted bg
-    static let staffGreen         = Color(hex: "#2E9658")    // Success
-    static let staffGreenBg       = Color(hex: "#DFF3E6")    // Success bg
+    static var staffAccent: Color { Color(hex: currentPalette.primaryHex) }
+    static var staffAccentBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
+    static var staffGreen: Color { Color(hex: currentPalette.primaryHex) }
+    static var staffGreenBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
     static let staffRed           = Color(hex: "#D9534F")    // Error/destructive
     static let staffRedBg         = Color(hex: "#F8E7E5")    // Error bg
     static let staffAmber         = Color(hex: "#C89A24")    // Warning
     static let staffAmberBg       = Color(hex: "#F7EED3")    // Warning bg
-    static let staffPurple        = Color(hex: "#3A9A61")    // Info/special
-    static let staffPurpleBg      = Color(hex: "#E4F3EA")    // Info bg
-    static let staffTeal          = Color(hex: "#409F73")    // Secondary accent
-    static let staffTealBg        = Color(hex: "#DDF2E8")    // Teal bg
+    static var staffPurple: Color { Color(hex: currentPalette.darkerHex) }
+    static var staffPurpleBg: Color { Color(hex: currentPalette.cardHex).opacity(0.28) }
+    static var staffTeal: Color { Color(hex: currentPalette.secondaryHex) }
+    static var staffTealBg: Color { Color(hex: currentPalette.cardHex).opacity(0.3) }
     static let staffOrange        = Color(hex: "#B98222")    // Attention
     static let staffOrangeBg      = Color(hex: "#F6ECD7")    // Orange bg
 
     // MARK: - Gradient Presets
-    static let staffGradientStart  = Color(hex: "#F6FBF4")
-    static let staffGradientEnd    = Color(hex: "#EAF5EA")
-    static let staffAccentGradientStart = Color(hex: "#2E9658")
-    static let staffAccentGradientEnd   = Color(hex: "#248149")
+    static var staffGradientStart: Color { Color(hex: currentPalette.gradientStartHex) }
+    static var staffGradientEnd: Color { Color(hex: currentPalette.gradientEndHex) }
+    static var staffAccentGradientStart: Color { Color(hex: currentPalette.primaryHex) }
+    static var staffAccentGradientEnd: Color { Color(hex: currentPalette.darkerHex) }
 
     // MARK: - Sidebar
-    static let staffSidebarBg     = Color(hex: "#EAF4EA")    // Soft side rail
-    static let staffSidebarHover  = Color(hex: "#DFF3E6")    // Hover/active
-    static let staffSidebarActive = Color(hex: "#D5ECDC")    // Selected
+    static var staffSidebarBg: Color { Color(hex: currentPalette.surfaceLightHex) }
+    static var staffSidebarHover: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
+    static var staffSidebarActive: Color { Color(hex: currentPalette.cardHex).opacity(0.45) }
 
     // MARK: - Role Badge Colors
     static func roleBadgeColor(for role: String) -> Color {

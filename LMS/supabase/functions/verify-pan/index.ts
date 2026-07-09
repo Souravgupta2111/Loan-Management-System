@@ -20,7 +20,15 @@ Deno.serve(async (request) => {
       method: "POST",
       headers: { "x-api-key": apiKey, "x-api-secret": apiSecret, "x-api-version": "1.0" },
     });
-    if (!authResponse.ok) throw new Error(`KYC authentication failed (${authResponse.status})`);
+    if (!authResponse.ok) {
+      const errorText = await authResponse.text();
+      return new Response(JSON.stringify({
+        pan: pan,
+        status: `Auth Error (${authResponse.status}): ${errorText}`,
+        name_as_per_pan_match: false,
+        date_of_birth_match: false
+      }), { status: 200, headers: jsonHeaders });
+    }
     const authPayload = await authResponse.json();
     const accessToken = authPayload.access_token ?? authPayload.data?.access_token;
     if (!accessToken) throw new Error("KYC provider returned no access token");

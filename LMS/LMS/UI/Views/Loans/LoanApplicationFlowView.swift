@@ -47,7 +47,7 @@ struct LoanApplicationFlowView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -231,11 +231,11 @@ struct LoanApplicationFlowView: View {
                 HStack(spacing: 14) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.18))
+                            .fill(Color.themeGreen.opacity(0.18))
                             .frame(width: 52, height: 52)
                         Image(systemName: product.type.icon)
                             .font(.title3.weight(.semibold))
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(Color.accentGreen)
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(product.name)
@@ -313,7 +313,7 @@ struct LoanApplicationFlowView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "doc.text")
                                 .font(.subheadline)
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                                 .frame(width: 24)
                             Text(doc)
                                 .font(.subheadline)
@@ -348,7 +348,7 @@ struct LoanApplicationFlowView: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.subheadline)
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
                     .frame(width: 24)
                 Text(label)
                     .font(.subheadline)
@@ -632,19 +632,19 @@ struct ProductOptionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.bodyLarge).foregroundColor(.textPrimary)
                 Text(subtitle).font(.caption).foregroundColor(.textSecondary)
-                Text(rate).font(.caption.weight(.semibold)).foregroundColor(Color(hex: "#2D8B4E"))
+                Text(rate).font(.caption.weight(.semibold)).foregroundColor(Color.accentGreen)
             }
             Spacer()
             if isSelected {
-                Image(systemName: "checkmark.circle.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.title3)
+                Image(systemName: "checkmark.circle.fill").foregroundColor(Color.accentGreen).font(.title3)
             } else {
-                Circle().strokeBorder(Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1.5).frame(width: 22, height: 22)
+                Circle().strokeBorder(Color.accentGreen.opacity(0.3), lineWidth: 1.5).frame(width: 22, height: 22)
             }
         }
         .padding(16)
-        .background(Color(hex: "#E8F5EC"))
+        .background(Color.accentGreenBg)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color(hex: "#2D8B4E") : Color(hex: "#2D8B4E").opacity(0.3), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color.accentGreen : Color.accentGreen.opacity(0.3), lineWidth: 1.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(subtitle), \(rate)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
@@ -701,7 +701,7 @@ struct AmountTenureStep: View {
             LiveCalculationCard(product: product, amount: amount, tenureMonths: tenureMonths)
         }
         .padding(16)
-        .liquidGlass(cornerRadius: 20, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.04)
+        .liquidGlass(cornerRadius: 20, tint: Color.accentGreen, tintOpacity: 0.04)
     }
 
     private struct TenureOption: Identifiable {

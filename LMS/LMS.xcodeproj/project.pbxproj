@@ -101,14 +101,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		18AA00042FFE000000000004 /* Shared */ = {
-			isa = PBXGroup;
-			children = (
-				18AA00012FFE000000000001 /* PaymentActivityAttributes.swift */,
-			);
-			path = Shared;
-			sourceTree = "<group>";
-		};
 		1819DACA2FE9A8D200822398 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -125,6 +117,14 @@
 				1823CA052FFD19070005B9F7 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		18AA00042FFE000000000004 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				18AA00012FFE000000000001 /* PaymentActivityAttributes.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -398,7 +398,10 @@
 				INFOPLIST_FILE = LMS/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Capture a selfie for identity verification.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to find the nearest branch and assign a loan officer to your application.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access so you can speak to the AI Financial Advisor.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Select identity and loan documents for secure upload.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to allow you to talk to the AI Financial Advisor instead of typing.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -435,7 +438,10 @@
 				INFOPLIST_FILE = LMS/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Capture a selfie for identity verification.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to find the nearest branch and assign a loan officer to your application.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access so you can speak to the AI Financial Advisor.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Select identity and loan documents for secure upload.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to allow you to talk to the AI Financial Advisor instead of typing.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

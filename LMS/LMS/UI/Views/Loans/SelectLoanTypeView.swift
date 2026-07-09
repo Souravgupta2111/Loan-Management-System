@@ -76,7 +76,7 @@ struct SelectLoanTypeView: View {
         }
         .background(
             LinearGradient(
-                colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -174,7 +174,7 @@ struct SelectLoanTypeView: View {
                 .multilineTextAlignment(.center)
             Button("Retry") { Task { await loadLoanTypes() } }
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(Color(hex: "#2D8B4E"))
+                .foregroundColor(Color.accentGreen)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
@@ -188,16 +188,16 @@ struct SelectLoanTypeView: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(isSelected ? Color(hex: "#2D8B4E").opacity(0.20) : Color.surfaceMuted)
+                        .fill(isSelected ? Color.accentGreen.opacity(0.20) : Color.surfaceMuted)
                     Image(systemName: loanType.icon)
                         .font(.headline.weight(.semibold))
-                        .foregroundColor(isSelected ? Color(hex: "#2D8B4E") : .textSecondary)
+                        .foregroundColor(isSelected ? Color.accentGreen : .textSecondary)
                 }
                 .frame(width: 44, height: 44)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                         .font(.title3)
                 }
             }
@@ -211,7 +211,7 @@ struct SelectLoanTypeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .liquidGlass(
             cornerRadius: 18,
-            borderColor: isSelected ? Color(hex: "#2D8B4E") : Color.border,
+            borderColor: isSelected ? Color.accentGreen : Color.border,
             borderOpacity: isSelected ? 1.0 : 0.5,
             shadowOpacity: isSelected ? 0.1 : 0.03,
             shadowRadius: 8

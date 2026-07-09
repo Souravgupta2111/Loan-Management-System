@@ -19,6 +19,7 @@ struct OfficerMessagesView: View {
                 Text("Chat Support Rooms")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
+                    .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, StaffSpacing.lg)
                     .padding(.top, StaffSpacing.lg)
                 
@@ -49,14 +50,20 @@ struct OfficerMessagesView: View {
                                     .font(.staffBody)
                                     .fontWeight(.bold)
                                     .foregroundColor(.staffTextPrimary)
-                                Text(app.product.name)
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
+                                HStack(spacing: 4) {
+                                    Text(app.application.applicationNumber ?? "APP-NEW")
+                                        .fontWeight(.semibold)
+                                    Text("•")
+                                    Text(app.product.name)
+                                }
+                                .font(.staffCaption)
+                                .foregroundColor(.staffTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.staffTextSecondary)
+                                .accessibilityHidden(true)
                         }
                         .padding(.vertical, 6)
                         .tag(app)
@@ -65,6 +72,8 @@ struct OfficerMessagesView: View {
                             ? Color.staffAccent.opacity(0.15)
                             : Color.staffSurface
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Double tap to open chat")
                     }
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
@@ -89,9 +98,11 @@ struct OfficerMessagesView: View {
                         .scaledToFit()
                         .frame(width: 80, height: 80)
                         .foregroundColor(.staffTextSecondary.opacity(0.3))
+                        .accessibilityHidden(true)
                     Text("Select a Room to Message Client")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.staffSurface.opacity(0.1))
@@ -101,6 +112,7 @@ struct OfficerMessagesView: View {
         .onAppear {
             Task {
                 if let staff = authViewModel.currentStaff {
+                    dashboardVm.selectedStatusFilter = "All"
                     await dashboardVm.loadApplications(forOfficerId: staff.id)
                 }
             }
@@ -138,9 +150,15 @@ struct ChatSupportConsole: View {
                     Text(forceInternalOnly ? "Officer Review Discussion" : "Messaging Support")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
-                    Text(appWithBorrower.borrower.fullName)
-                        .font(.staffCaption)
-                        .foregroundColor(.staffTextSecondary)
+                        .accessibilityAddTraits(.isHeader)
+                    HStack(spacing: 6) {
+                        Text(appWithBorrower.borrower.fullName)
+                        Text("•")
+                        Text(appWithBorrower.application.applicationNumber ?? "APP-NEW")
+                            .fontWeight(.semibold)
+                    }
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
                 }
                 
                 Spacer()
@@ -174,8 +192,15 @@ struct ChatSupportConsole: View {
                 ScrollView {
                     VStack(spacing: StaffSpacing.md) {
                         let activeMessages = isInternalChat ? detailVm.internalMessages : detailVm.borrowerMessages
+                        let filteredMessages = activeMessages.filter { msg in
+                            if authViewModel.currentUser?.role == .admin {
+                                return true
+                            }
+                            let isMe = msg.senderId == SupabaseManager.shared.currentUserId
+                            return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
+                        }
                         
-                        if activeMessages.isEmpty {
+                        if filteredMessages.isEmpty {
                             Text(isInternalChat ? "No internal messages. Send a message below to discuss with the branch manager." : "No messages yet. Send a message below to start a thread with this borrower.")
                                 .font(.staffCaption)
                                 .foregroundColor(.staffTextSecondary)
@@ -183,14 +208,37 @@ struct ChatSupportConsole: View {
                                 .padding(.horizontal, StaffSpacing.lg)
                                 .padding(.top, 40)
                         } else {
-                            ForEach(activeMessages.filter { msg in
-                                // If Admin, show all messages. Otherwise, filter out deleted ones for the user.
+                            let visibleMessages = activeMessages.filter { msg in
                                 if authViewModel.currentUser?.role == .admin {
                                     return true
                                 }
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 return isMe ? !msg.isDeletedBySender : !msg.isDeletedByReceiver
-                            }) { msg in
+                            }
+                            
+                            ForEach(Array(visibleMessages.enumerated()), id: \.element.id) { index, msg in
+                                // Date separator: show when the day changes from the previous message
+                                if let sentDate = msg.sentAt {
+                                    let showSeparator: Bool = {
+                                        if index == 0 { return true }
+                                        guard let prevDate = visibleMessages[index - 1].sentAt else { return true }
+                                        return !Calendar.current.isDate(sentDate, inSameDayAs: prevDate)
+                                    }()
+                                    
+                                    if showSeparator {
+                                        Text(dateSeparatorLabel(for: sentDate))
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.staffTextSecondary)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 6)
+                                            .background(Color.staffSurface)
+                                            .cornerRadius(StaffCorner.lg)
+                                            .frame(maxWidth: .infinity, alignment: .center)
+                                            .padding(.top, index == 0 ? 0 : StaffSpacing.md)
+                                    }
+                                }
+                                
                                 let isMe = msg.senderId == SupabaseManager.shared.currentUserId
                                 let isStaffSender = msg.senderId != appWithBorrower.borrower.id
                                 
@@ -222,6 +270,7 @@ struct ChatSupportConsole: View {
                                                 Image(systemName: msg.isRead ? "checkmark.circle.fill" : "checkmark.circle")
                                                     .font(.caption)
                                                     .foregroundColor(msg.isRead ? .staffAccent : .staffTextSecondary)
+                                                    .accessibilityLabel(msg.isRead ? "Read" : "Delivered")
                                             }
                                         }
                                     }
@@ -298,6 +347,7 @@ struct ChatSupportConsole: View {
                             .background(Color.staffAccent)
                             .cornerRadius(StaffCorner.md)
                     }
+                    .accessibilityLabel("Send message")
                     .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 .padding(StaffSpacing.lg)
@@ -315,6 +365,19 @@ struct ChatSupportConsole: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: d)
+    }
+    
+    private func dateSeparatorLabel(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE, d MMM"
+            return formatter.string(from: date)
+        }
     }
     
     private func getMessageStyling(for msg: Message, isInternalChat: Bool, isMe: Bool, isStaffSender: Bool) -> (isRightAligned: Bool, isManagerInInternalChat: Bool, bgColor: Color, fgColor: Color) {
@@ -371,6 +434,42 @@ struct ChatSupportConsole: View {
             } else {
                 return "Borrower"
             }
+        }
+    }
+}
+
+// MARK: - DateSeparatorHeader Subview
+struct DateSeparatorHeader: View {
+    let date: Date
+    
+    var body: some View {
+        HStack {
+            Spacer()
+            Text(dateHeaderString(for: date))
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.staffTextSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.85))
+                .cornerRadius(10)
+                .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
+                .padding(.vertical, 6)
+                .accessibilityLabel("Date: \(dateHeaderString(for: date))")
+            Spacer()
+        }
+    }
+    
+    private func dateHeaderString(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE, MMM d"
+            return formatter.string(from: date)
         }
     }
 }

@@ -12,6 +12,7 @@ private enum EditableField {
 /// Supports inline editing of name, phone, email, address (with address proof attachment).
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
     @StateObject private var a11yManager = AppAccessibilityManager.shared
     @Environment(\.dismiss) private var dismiss
 
@@ -79,7 +80,7 @@ struct ProfileView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "#E7EFE5"), Color(hex: "#EFF4EA"), Color(hex: "#E7EFE5")],
+                    colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -133,14 +134,14 @@ struct ProfileView: View {
         VStack(spacing: Spacing.md) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#89DBA6").opacity(0.20))
+                    .fill(Color.themeGreen.opacity(0.20))
                     .frame(width: 90, height: 90)
                 Circle()
-                    .stroke(Color(hex: "#89DBA6"), lineWidth: 2)
+                    .stroke(Color.themeGreen, lineWidth: 2)
                     .frame(width: 90, height: 90)
                 Text(initials)
                     .font(.title.weight(.bold)).fontDesign(.rounded)
-                    .foregroundColor(Color(hex: "#2D8B4E"))
+                    .foregroundColor(Color.accentGreen)
             }
 
             Text(userName.isEmpty ? "User" : userName)
@@ -157,7 +158,7 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.xxl)
-        .liquidGlass(cornerRadius: 22, tint: Color(hex: "#2D8B4E"), tintOpacity: 0.04)
+        .liquidGlass(cornerRadius: 22, tint: Color.accentGreen, tintOpacity: 0.04)
     }
 
     // MARK: - Editable Section
@@ -244,8 +245,8 @@ struct ProfileView: View {
             // Read-only KYC row
             HStack(spacing: 12) {
                 ZStack {
-                    Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: "checkmark.seal.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
+                    Circle().fill(Color.themeGreen.opacity(0.15)).frame(width: 32, height: 32)
+                    Image(systemName: "checkmark.seal.fill").foregroundColor(Color.accentGreen).font(.subheadline)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("KYC Status")
@@ -267,8 +268,8 @@ struct ProfileView: View {
             } label: {
                 HStack(spacing: 12) {
                     ZStack {
-                        Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                        Image(systemName: "banknote.fill").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
+                        Circle().fill(Color.themeGreen.opacity(0.15)).frame(width: 32, height: 32)
+                        Image(systemName: "banknote.fill").foregroundColor(Color.accentGreen).font(.subheadline)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Income Verification")
@@ -300,8 +301,8 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
-                    Circle().fill(Color(hex: "#89DBA6").opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: "mappin.and.ellipse").foregroundColor(Color(hex: "#2D8B4E")).font(.subheadline)
+                    Circle().fill(Color.themeGreen.opacity(0.15)).frame(width: 32, height: 32)
+                    Image(systemName: "mappin.and.ellipse").foregroundColor(Color.accentGreen).font(.subheadline)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Address").font(.caption.weight(.medium)).foregroundColor(.textSecondary)
@@ -329,19 +330,19 @@ struct ProfileView: View {
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                         Text("Change photo")
                                             .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "#2D8B4E"))
+                                            .foregroundColor(Color.accentGreen)
                                     } else {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: 10)
                                                 .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                                                .foregroundColor(Color(hex: "#89DBA6").opacity(0.5))
+                                                .foregroundColor(Color.themeGreen.opacity(0.5))
                                                 .frame(width: 60, height: 60)
                                             Image(systemName: "plus")
-                                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                                .foregroundColor(Color.accentGreen)
                                         }
                                         Text("Attach proof document")
                                             .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "#2D8B4E"))
+                                            .foregroundColor(Color.accentGreen)
                                     }
                                     Spacer()
                                 }
@@ -381,7 +382,7 @@ struct ProfileView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 10)
-                                    .background(Color(hex: "#2D8B4E"))
+                                    .background(Color.accentGreen)
                                     .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
@@ -434,10 +435,10 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .fill(Color.themeGreen.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "hand.tap.fill")
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(.accentGreen)
                             .font(.subheadline)
                     }
                     Text("Haptic Feedback")
@@ -445,7 +446,7 @@ struct ProfileView: View {
                         .foregroundColor(.textPrimary)
                 }
             }
-            .tint(Color(hex: "#2D8B4E"))
+            .tint(.accentGreen)
             .padding(Spacing.lg)
             
             divider
@@ -454,10 +455,10 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .fill(Color.themeGreen.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "circle.lefthalf.filled")
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(.accentGreen)
                             .font(.subheadline)
                     }
                     VStack(alignment: .leading, spacing: 2) {
@@ -470,7 +471,7 @@ struct ProfileView: View {
                     }
                 }
             }
-            .tint(Color(hex: "#2D8B4E"))
+            .tint(.accentGreen)
             .padding(Spacing.lg)
             
             divider
@@ -479,10 +480,10 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .fill(Color.themeGreen.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "bell.fill")
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(.accentGreen)
                             .font(.subheadline)
                     }
                     Text("Notifications")
@@ -490,11 +491,51 @@ struct ProfileView: View {
                         .foregroundColor(.textPrimary)
                 }
             }
-            .tint(Color(hex: "#2D8B4E"))
+            .tint(.accentGreen)
             .padding(Spacing.lg)
             .onChange(of: notificationsEnabled) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: "notificationsEnabled")
             }
+            
+            divider
+
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.themeGreen.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "paintpalette.fill")
+                        .foregroundColor(.accentGreen)
+                        .font(.subheadline)
+                }
+                Text("Color Palette")
+                    .font(.bodyLarge)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Menu {
+                    ForEach(AppColorPalette.allCases) { palette in
+                        Button {
+                            themeManager.selectedPalette = palette
+                        } label: {
+                            if themeManager.selectedPalette == palette {
+                                Label(palette.title, systemImage: "checkmark")
+                            } else {
+                                Text(palette.title)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(themeManager.selectedPalette.title)
+                            .font(.bodyLarge.weight(.semibold))
+                            .foregroundColor(.accentGreen)
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.textTertiary)
+                    }
+                }
+            }
+            .padding(Spacing.lg)
             
             divider
             
@@ -506,10 +547,10 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "#89DBA6").opacity(0.15))
+                            .fill(Color.themeGreen.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "questionmark.circle.fill")
-                            .foregroundColor(Color(hex: "#2D8B4E"))
+                            .foregroundColor(.accentGreen)
                             .font(.subheadline)
                     }
                     Text("Help & Support")
@@ -533,7 +574,7 @@ struct ProfileView: View {
                         
                         HStack(spacing: 8) {
                             Image(systemName: "envelope.fill")
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                                 .font(.caption)
                             Text("support@loanmanagement.com")
                                 .font(.subheadline)
@@ -542,7 +583,7 @@ struct ProfileView: View {
                         
                         HStack(spacing: 8) {
                             Image(systemName: "phone.fill")
-                                .foregroundColor(Color(hex: "#2D8B4E"))
+                                .foregroundColor(Color.accentGreen)
                                 .font(.caption)
                             Text("1800-200-5678 (Toll Free)")
                                 .font(.subheadline)
@@ -592,10 +633,10 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#89DBA6").opacity(0.15))
+                        .fill(Color.themeGreen.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                         .font(.subheadline)
                 }
 
@@ -670,7 +711,7 @@ struct ProfileView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(errorMessage != nil ? Color.textTertiary : Color(hex: "#2D8B4E"))
+                        .background(errorMessage != nil ? Color.textTertiary : Color.accentGreen)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -689,10 +730,10 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#89DBA6").opacity(0.15))
+                        .fill(Color.themeGreen.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
-                        .foregroundColor(Color(hex: "#2D8B4E"))
+                        .foregroundColor(Color.accentGreen)
                         .font(.subheadline)
                 }
                 Text(title)
@@ -716,7 +757,7 @@ struct ProfileView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(Color(hex: "#2D8B4E"))
+                .background(Color.accentGreen)
                 .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.15), radius: 8)
                 .padding(.top, 10)

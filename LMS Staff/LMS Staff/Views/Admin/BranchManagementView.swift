@@ -61,6 +61,7 @@ struct BranchManagementView: View {
                     Text("Branches")
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
+                        .accessibilityAddTraits(.isHeader)
 
                     Spacer()
 
@@ -69,6 +70,7 @@ struct BranchManagementView: View {
                             .font(.system(size: 20))
                             .foregroundColor(.staffAccent)
                     }
+                    .accessibilityLabel("Add branch")
                 }
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
@@ -105,6 +107,7 @@ struct BranchManagementView: View {
                     Image(systemName: "building.2")
                         .font(.system(size: 40))
                         .foregroundColor(.staffTextTertiary)
+                        .accessibilityHidden(true)
                     Text("No branches found")
                         .font(.staffBody)
                         .foregroundColor(.staffTextSecondary)
@@ -137,6 +140,7 @@ struct BranchManagementView: View {
                     .frame(width: 36, height: 36)
                     .background(Color.staffAccentBg)
                     .clipShape(Circle())
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(branch.name)
@@ -167,6 +171,8 @@ struct BranchManagementView: View {
             .background(isSelected ? Color.staffSidebarActive : Color.white)
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Double tap to open")
     }
 
     // MARK: - Empty Detail
@@ -176,10 +182,12 @@ struct BranchManagementView: View {
             Image(systemName: "building.2.fill")
                 .font(.system(size: 56, weight: .light))
                 .foregroundColor(.staffTextTertiary.opacity(0.4))
+                .accessibilityHidden(true)
 
             Text("Select a Branch")
                 .font(.staffTitle)
                 .foregroundColor(.staffTextSecondary)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Choose a branch from the left panel to view details,\nassign staff, manage pincodes, and view loan metrics.")
                 .font(.staffBodyRegular)
@@ -241,6 +249,7 @@ struct BranchManagementView: View {
                 .frame(width: 52, height: 52)
                 .background(Color.staffAccentBg)
                 .cornerRadius(StaffCorner.md)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(branch.name)
@@ -536,6 +545,7 @@ struct BranchStaffTab: View {
                             Image(systemName: "person.crop.circle.fill")
                                 .font(.system(size: 40))
                                 .foregroundColor(.staffTeal)
+                                .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(manager.fullName)
@@ -576,6 +586,7 @@ struct BranchStaffTab: View {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.staffRed)
                             }
+                            .accessibilityLabel("Remove manager")
                         }
                     } else {
                         HStack {
@@ -662,6 +673,7 @@ struct BranchStaffTab: View {
                                 Image(systemName: "person.badge.plus")
                                     .font(.system(size: 28))
                                     .foregroundColor(.staffTextTertiary)
+                                    .accessibilityHidden(true)
                                 Text("No officers assigned to this branch")
                                     .font(.staffCaption)
                                     .foregroundColor(.staffTextSecondary)
@@ -676,6 +688,7 @@ struct BranchStaffTab: View {
                                     Image(systemName: "person.crop.circle.fill")
                                         .font(.system(size: 28))
                                         .foregroundColor(.staffAccent)
+                                        .accessibilityHidden(true)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(staffUser.user.fullName)
@@ -702,6 +715,7 @@ struct BranchStaffTab: View {
                                         Image(systemName: "minus.circle.fill")
                                             .foregroundColor(.staffRed.opacity(0.7))
                                     }
+                                    .accessibilityLabel("Remove officer")
                                 }
                                 .padding(.vertical, StaffSpacing.sm)
 
@@ -902,6 +916,7 @@ struct BranchPincodesTab: View {
                                 Image(systemName: "map")
                                     .font(.system(size: 28))
                                     .foregroundColor(.staffTextTertiary)
+                                    .accessibilityHidden(true)
                                 Text("No pincodes assigned yet")
                                     .font(.staffCaption)
                                     .foregroundColor(.staffTextSecondary)
@@ -936,6 +951,7 @@ struct BranchPincodesTab: View {
                                             .font(.system(size: 14))
                                             .foregroundColor(.staffRed.opacity(0.6))
                                     }
+                                    .accessibilityLabel("Remove pincode")
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
@@ -1214,6 +1230,7 @@ struct BranchMetricsTab: View {
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 40))
                         .foregroundColor(.staffTextTertiary)
+                        .accessibilityHidden(true)
                     Text("No loan data available for this branch")
                         .font(.staffBody)
                         .foregroundColor(.staffTextSecondary)
@@ -1255,6 +1272,7 @@ struct CreateBranchSheet: View {
                         .font(.system(size: 56))
                         .foregroundColor(.staffAccent)
                         .padding(.top, StaffSpacing.xl)
+                        .accessibilityHidden(true)
 
                     Text("Create New Branch")
                         .font(.staffSectionTitle)
@@ -1336,6 +1354,7 @@ struct CreateBranchSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -1382,6 +1401,7 @@ struct StaffPickerSheet: View {
                         Image(systemName: "person.slash")
                             .font(.system(size: 36))
                             .foregroundColor(.staffTextTertiary)
+                            .accessibilityHidden(true)
                         Text("No available staff found")
                             .font(.staffBody)
                             .foregroundColor(.staffTextSecondary)
@@ -1399,6 +1419,7 @@ struct StaffPickerSheet: View {
                                         Image(systemName: "person.crop.circle.fill")
                                             .font(.system(size: 36))
                                             .foregroundColor(Color.roleBadgeColor(for: staffUser.user.role.rawValue))
+                                            .accessibilityHidden(true)
 
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(staffUser.user.fullName)
@@ -1425,11 +1446,14 @@ struct StaffPickerSheet: View {
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 12))
                                             .foregroundColor(.staffTextTertiary)
+                                            .accessibilityHidden(true)
                                     }
                                     .padding(.horizontal, StaffSpacing.lg)
                                     .padding(.vertical, StaffSpacing.md)
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                .accessibilityElement(children: .combine)
+                                .accessibilityHint("Double tap to assign")
 
                                 Divider().background(Color.staffBorder.opacity(0.5))
                                     .padding(.leading, 64)
@@ -1448,6 +1472,7 @@ struct StaffPickerSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.staffAccent)
+                    .accessibilityLabel("Close")
                 }
             }
         }

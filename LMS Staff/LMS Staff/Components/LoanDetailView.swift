@@ -57,9 +57,15 @@ struct LoanDetailView: View {
                 
                 // Primary Application metrics
                 HStack(spacing: StaffSpacing.xl) {
-                    DetailMetric(label: "Principal", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
-                    DetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
+                    if let app = vm.application {
+                        DetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
+                    } else {
+                        DetailMetric(label: "Asked", value: "INR --")
+                    }
+                    DetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
                     DetailMetric(label: "Interest Rate", value: vm.loanWithDetails.loan.formattedRate)
+                    DetailMetric(label: "Tenure", value: "\(vm.loanWithDetails.loan.tenureMonths) Months")
+                    DetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
                 }
             }
             .padding(StaffSpacing.lg)
@@ -69,11 +75,12 @@ struct LoanDetailView: View {
             HStack(spacing: 0) {
                 ForEach(InspectorTab.allCases, id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 0) {
                             Text(tab.rawValue)
                                 .font(.staffBody)
                                 .fontWeight(activeTab == tab ? .bold : .regular)
                                 .foregroundColor(activeTab == tab ? .staffAccent : .staffTextSecondary)
+                                .padding(.vertical, 12)
                             
                             // Indicator line
                             Rectangle()

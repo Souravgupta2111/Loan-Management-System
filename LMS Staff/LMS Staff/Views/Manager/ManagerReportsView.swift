@@ -1,8 +1,8 @@
 //
-//  OfficerReportsView.swift
+//  ManagerReportsView.swift
 //  LMS Staff
 //
-//  Visually rich analytics dashboard for loan officers.
+//  Visually rich analytics dashboard for branch managers.
 //  Features colorful stat cards, Swift Charts (donut, bar, line, area), overdue aging, and a loans table.
 //
 
@@ -10,9 +10,9 @@ import SwiftUI
 import Charts
 import UIKit
 
-struct OfficerReportsView: View {
+struct ManagerReportsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject private var vm = OfficerReportsViewModel()
+    @StateObject private var vm = ManagerReportsViewModel()
     @State private var showShareSheet = false
     @State private var exportFileURL: URL?
     @State private var isExporting = false
@@ -62,7 +62,7 @@ struct OfficerReportsView: View {
                         headerSection
                         keyMetricsGrid
                         chartsRow1
-                        approvedTrendSection
+                        disbursementTrendSection
                         loansTableSection
                     }
                     .padding(StaffSpacing.lg)
@@ -72,9 +72,7 @@ struct OfficerReportsView: View {
             }
         }
         .task {
-            if let staffProfile = authViewModel.currentStaff {
-                await vm.loadReports(forOfficerId: staffProfile.userId)
-            }
+            await vm.loadReports()
         }
     }
     
@@ -130,9 +128,7 @@ struct OfficerReportsView: View {
             
             Button(action: {
                 Task {
-                    if let staffProfile = authViewModel.currentStaff {
-                        await vm.loadReports(forOfficerId: staffProfile.userId)
-                    }
+                    await vm.loadReports()
                 }
             }) {
                 HStack(spacing: 6) {
@@ -277,27 +273,27 @@ struct OfficerReportsView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 380)
             
-            // Bar Chart — Product Mix
+            // Average Profitability (Interest Rate)
             StaffCard {
                 VStack(alignment: .leading, spacing: StaffSpacing.md) {
                     HStack {
-                        Image(systemName: "chart.bar.fill")
+                        Image(systemName: "percent")
                             .foregroundColor(Color.staffTeal)
-                        Text("Product Mix")
+                        Text("Average Profitability")
                             .font(.staffCardTitle)
                             .foregroundColor(.staffTextPrimary)
                     }
                     
-                    if vm.productMix.isEmpty {
+                    if vm.productMetrics.isEmpty {
                         Text("No product data available")
                             .font(.staffCaption)
                             .foregroundColor(.staffTextTertiary)
                             .frame(height: 200)
                             .frame(maxWidth: .infinity)
                     } else {
-                        Chart(vm.productMix) { item in
+                        Chart(vm.productMetrics) { item in
                             BarMark(
-                                x: .value("Amount", item.totalAmount),
+                                x: .value("Interest Rate", item.avgInterestRate),
                                 y: .value("Product", item.productName)
                             )
                             .foregroundStyle(
@@ -309,7 +305,7 @@ struct OfficerReportsView: View {
                             )
                             .cornerRadius(6)
                             .annotation(position: .trailing, spacing: 4) {
-                                Text(vm.formatCurrency(item.totalAmount))
+                                Text(String(format: "%.1f%%", item.avgInterestRate))
                                     .font(.staffFinePrint.weight(.semibold))
                                     .foregroundColor(.staffTextSecondary)
                             }
@@ -318,7 +314,7 @@ struct OfficerReportsView: View {
                             AxisMarks(position: .bottom) { value in
                                 AxisValueLabel {
                                     if let v = value.as(Double.self) {
-                                        Text(vm.formatCurrency(v))
+                                        Text(String(format: "%.0f%%", v))
                                             .font(.staffFinePrint)
                                     }
                                 }
@@ -344,17 +340,15 @@ struct OfficerReportsView: View {
         }
     }
     
-
+    // MARK: - Disbursement Trend Section (Full-width)
     
-    // MARK: - Approved Loans Trend (Full-width Horizontal Card)
-    
-    private var approvedTrendSection: some View {
+    private var disbursementTrendSection: some View {
         StaffCard {
             VStack(alignment: .leading, spacing: StaffSpacing.md) {
                 HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.staffGreen)
-                    Text("Approved Loans Trend")
+                    Image(systemName: "chart.xyaxis.line")
+                        .foregroundColor(.staffAccent)
+                    Text("Disbursement Growth Trend")
                         .font(.staffCardTitle)
                         .foregroundColor(.staffTextPrimary)
                     
@@ -369,16 +363,16 @@ struct OfficerReportsView: View {
                     .frame(width: 200)
                 }
                 
-                let trendData: [ApprovedTrendPoint] = {
+                let trendData: [ManagerApprovedTrendPoint] = {
                     switch approvedFilter {
-                    case .weekly: return vm.approvedWeekly
-                    case .monthly: return vm.approvedMonthly
-                    case .yearly: return vm.approvedYearly
+                    case .weekly: return vm.disbursementWeekly
+                    case .monthly: return vm.disbursementMonthly
+                    case .yearly: return vm.disbursementYearly
                     }
                 }()
                 
                 if trendData.isEmpty {
-                    Text("No approval data available")
+                    Text("No disbursement data available")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextTertiary)
                         .frame(height: 200)
@@ -562,42 +556,42 @@ struct OfficerReportsView: View {
         let normalized = status.lowercased().replacingOccurrences(of: " ", with: "_")
         switch normalized {
         case "active":
-            return Color.staffAccent // Success Green
+            return Color.staffAccent
         case "approved":
-            return Color(hex: "#1E8A5F") // Green-Teal
+            return Color(hex: "#1E8A5F")
         case "under_review":
-            return Color(hex: "#E1B12C") // Bright Amber/Gold
+            return Color(hex: "#E1B12C")
         case "submitted":
-            return Color(hex: "#4F9DDF") // Soft Blue
+            return Color(hex: "#4F9DDF")
         case "sent_back":
-            return Color(hex: "#F39C12") // Vivid Orange
+            return Color(hex: "#F39C12")
         case "rejected":
-            return Color(hex: "#D9534F") // Red
+            return Color(hex: "#D9534F")
         case "npa", "written_off":
-            return Color(hex: "#C0392B") // Crimson
+            return Color(hex: "#C0392B")
         case "pending_acceptance":
-            return Color(hex: "#8E44AD") // Purple
+            return Color(hex: "#8E44AD")
         case "pending_disbursal":
-            return Color(hex: "#00A8FF") // Cool Teal
+            return Color(hex: "#00A8FF")
         case "closed", "draft":
-            return Color(hex: "#7F8C8D") // Slate Gray
+            return Color(hex: "#7F8C8D")
         default:
-            return Color(hex: "#2E86DE") // Default Cobalt Blue
+            return Color(hex: "#2E86DE")
         }
     }
     
     private func colorForProduct(_ name: String) -> Color {
         let cleaned = name.lowercased()
         if cleaned.contains("personal") {
-            return Color.staffAccent // Green
+            return Color.staffAccent
         } else if cleaned.contains("home") {
-            return Color.staffTeal // Teal/secondary green
+            return Color.staffTeal
         } else if cleaned.contains("vehicle") {
-            return Color(hex: "#C89A24") // Amber/yellow
+            return Color(hex: "#C89A24")
         } else if cleaned.contains("education") {
-            return Color(hex: "#B98222") // Orange
+            return Color(hex: "#B98222")
         } else if cleaned.contains("business") || cleaned.contains("commercial") {
-            return Color.staffPurple // Deep green
+            return Color.staffPurple
         } else {
             let index = abs(name.hashValue) % productColors.count
             return productColors[index]
@@ -608,12 +602,12 @@ struct OfficerReportsView: View {
     
     private func exportCSV() {
         isExporting = true
-        let officerName = authViewModel.currentUser?.fullName ?? "Officer"
+        let managerName = authViewModel.currentUser?.fullName ?? "Manager"
         let dateStr = formattedDateForFilename()
-        let fileName = "LoanReport_\(officerName.replacingOccurrences(of: " ", with: "_"))_\(dateStr).csv"
+        let fileName = "LoanReport_\(managerName.replacingOccurrences(of: " ", with: "_"))_\(dateStr).csv"
         
         var csv = "LOAN OFFICER PORTFOLIO REPORT\n"
-        csv += "Officer: \(officerName)\n"
+        csv += "Officer: \(managerName)\n"
         csv += "Generated: \(formattedDateForDisplay())\n\n"
         
         // Summary Metrics
@@ -638,32 +632,32 @@ struct OfficerReportsView: View {
         }
         csv += "\n"
         
-        // Product Mix
-        csv += "PRODUCT MIX\n"
-        csv += "Product,Count,Total Amount\n"
-        for item in vm.productMix {
-            csv += "\"\(item.productName)\",\(item.count),\(String(format: "%.2f", item.totalAmount))\n"
+        // Average Profitability & Loan Size
+        csv += "PRODUCT METRICS (PROFITABILITY & LOAN SIZE)\n"
+        csv += "Product,Average Interest Rate,Average Loan Size\n"
+        for item in vm.productMetrics {
+            csv += "\"\(item.productName)\",\(String(format: "%.2f%%", item.avgInterestRate)),\(String(format: "%.2f", item.avgLoanAmount))\n"
         }
         csv += "\n"
         
-        // Approved Loans Trend
-        csv += "APPROVED LOANS TREND (WEEKLY)\n"
+        // Disbursement Trend
+        csv += "DISBURSEMENT TREND (WEEKLY)\n"
         csv += "Week,Amount\n"
-        for item in vm.approvedWeekly {
+        for item in vm.disbursementWeekly {
             csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
         }
         csv += "\n"
         
-        csv += "APPROVED LOANS TREND (MONTHLY)\n"
+        csv += "DISBURSEMENT TREND (MONTHLY)\n"
         csv += "Month,Amount\n"
-        for item in vm.approvedMonthly {
+        for item in vm.disbursementMonthly {
             csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
         }
         csv += "\n"
         
-        csv += "APPROVED LOANS TREND (YEARLY)\n"
+        csv += "DISBURSEMENT TREND (YEARLY)\n"
         csv += "Year,Amount\n"
-        for item in vm.approvedYearly {
+        for item in vm.disbursementYearly {
             csv += "\(item.label),\(String(format: "%.2f", item.amount))\n"
         }
         csv += "\n"
@@ -687,9 +681,9 @@ struct OfficerReportsView: View {
     
     private func exportPDF() {
         isExporting = true
-        let officerName = authViewModel.currentUser?.fullName ?? "Officer"
+        let managerName = authViewModel.currentUser?.fullName ?? "Manager"
         let dateStr = formattedDateForFilename()
-        let fileName = "LoanReport_\(officerName.replacingOccurrences(of: " ", with: "_"))_\(dateStr).pdf"
+        let fileName = "LoanReport_\(managerName.replacingOccurrences(of: " ", with: "_"))_\(dateStr).pdf"
         
         let pageWidth: CGFloat = 842  // A4 landscape
         let pageHeight: CGFloat = 595
@@ -721,7 +715,7 @@ struct OfficerReportsView: View {
                 .font: UIFont.systemFont(ofSize: 12, weight: .regular),
                 .foregroundColor: UIColor.darkGray
             ]
-            "Officer: \(officerName)  |  Generated: \(formattedDateForDisplay())".draw(at: CGPoint(x: margin, y: yPos), withAttributes: subtitleAttrs)
+            "Officer: \(managerName)  |  Generated: \(formattedDateForDisplay())".draw(at: CGPoint(x: margin, y: yPos), withAttributes: subtitleAttrs)
             yPos += 30
             
             // Divider
@@ -789,21 +783,21 @@ struct OfficerReportsView: View {
             drawLine(at: yPos, from: margin, width: contentWidth, context: context)
             yPos += 15
             
-            // Product Mix
-            "Product Mix".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
+            // Average Profitability by Product
+            "Average Profitability by Product".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
             yPos += 28
             
-            for item in vm.productMix {
-                let text = "\(item.productName): \(item.count) loans — \(vm.formatCurrency(item.totalAmount))"
+            for item in vm.productMetrics {
+                let text = "\(item.productName): Avg Rate: \(String(format: "%.2f%%", item.avgInterestRate)) — Avg Principal: \(vm.formatCurrency(item.avgLoanAmount))"
                 text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
                 yPos += 20
             }
             
-            // PAGE 2 — Approved Loans Trend
+            // PAGE 2 — Disbursement Growth Trend
             context.beginPage()
             yPos = margin
             
-            "Approved Loans Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
+            "Disbursement Growth Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: sectionAttrs)
             yPos += 28
             
             let trendHeaderAttrs: [NSAttributedString.Key: Any] = [
@@ -811,27 +805,27 @@ struct OfficerReportsView: View {
                 .foregroundColor: UIColor(Color(hex: "#1A1D1A"))
             ]
             
-            "Weekly Approved Volumes".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            "Weekly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
             yPos += 18
-            for item in vm.approvedWeekly {
+            for item in vm.disbursementWeekly {
                 let text = "\(item.label): \(vm.formatCurrency(item.amount))"
                 text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
                 yPos += 18
             }
             
             yPos += 15
-            "Monthly Approved Volumes".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            "Monthly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
             yPos += 18
-            for item in vm.approvedMonthly {
+            for item in vm.disbursementMonthly {
                 let text = "\(item.label): \(vm.formatCurrency(item.amount))"
                 text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
                 yPos += 18
             }
             
             yPos += 15
-            "Yearly Approved Volumes".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
+            "Yearly Disbursement Trend".draw(at: CGPoint(x: margin, y: yPos), withAttributes: trendHeaderAttrs)
             yPos += 18
-            for item in vm.approvedYearly {
+            for item in vm.disbursementYearly {
                 let text = "\(item.label): \(vm.formatCurrency(item.amount))"
                 text.draw(at: CGPoint(x: margin + 10, y: yPos), withAttributes: subtitleAttrs)
                 yPos += 18
@@ -952,59 +946,66 @@ struct OfficerReportsView: View {
     }
 }
 
-// MARK: - Report Metric Card (Colorful Gradient)
-
+// MARK: - ReportMetricCard View Component
 fileprivate struct ReportMetricCard: View {
     let icon: String
     let title: String
     let value: String
-    var subtitle: String? = nil
+    let subtitle: String
     let accentColor: Color
-    var gradientEnd: Color
+    let gradientEnd: Color
     
     var body: some View {
-        HStack(alignment: .center, spacing: StaffSpacing.md) {
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        LinearGradient(colors: [accentColor, gradientEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: StaffCorner.sm))
-                    .shadow(color: accentColor.opacity(0.2), radius: 3, x: 0, y: 1.5)
-                    .padding(.bottom, 2)
-                
-                Text(title)
-                    .font(.staffCaption)
-                    .foregroundColor(.staffTextSecondary)
-                
-                if let subtitle = subtitle {
-                    Text(subtitle)
-                        .font(.staffFinePrint)
-                        .foregroundColor(.staffTextTertiary)
+        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [accentColor.opacity(0.15), gradientEnd.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.body)
+                        .foregroundColor(accentColor)
                 }
+                Spacer()
             }
+            .padding(.bottom, 4)
             
-            Spacer()
+            Text(title)
+                .font(.staffCaption)
+                .fontWeight(.medium)
+                .foregroundColor(.staffTextSecondary)
+                .lineLimit(1)
             
             Text(value)
-                .font(.staffLargeAmount)
+                .font(.staffTitle)
+                .fontWeight(.bold)
                 .foregroundColor(.staffTextPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(0.7)
+            
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundColor(.staffTextTertiary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, StaffSpacing.md)
-        .padding(.vertical, 12)
-        .background(
+        .padding(StaffSpacing.md)
+        .background(Color.staffSurface)
+        .cornerRadius(StaffCorner.md)
+        .overlay(
             RoundedRectangle(cornerRadius: StaffCorner.md)
-                .fill(Color(hex: "#FAFAF8"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StaffCorner.md)
-                        .stroke(accentColor.opacity(0.15), lineWidth: 1)
-                )
+                .stroke(Color.staffBorder, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
     }
+}
+
+// MARK: - ShareSheet View Representable
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    let applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

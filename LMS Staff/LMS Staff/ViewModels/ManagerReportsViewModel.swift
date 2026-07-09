@@ -1,51 +1,22 @@
 //
-//  OfficerReportsViewModel.swift
+//  ManagerReportsViewModel.swift
 //  LMS Staff
 //
-//  ViewModel for the Officer Reports analytics dashboard.
-//  Fetches the officer's assigned loans and computes all metrics from real Supabase data.
+//  ViewModel for the Manager Reports analytics dashboard.
+//  Fetches consolidated branch-wide active loans, applications, and trends from Supabase.
 //
 
 import Foundation
 import Combine
 
-// MARK: - Chart Data Models
-
-struct OfcLoanStatusSlice: Identifiable {
-    let id = UUID()
-    let status: String
-    let count: Int
-    let amount: Double
-}
-
-struct OfcProductMixItem: Identifiable {
+struct ProductMetricsItem: Identifiable, Hashable {
     let id = UUID()
     let productName: String
-    let count: Int
-    let totalAmount: Double
+    let avgInterestRate: Double
+    let avgLoanAmount: Double
 }
 
-struct OfcOverdueAgingBucket: Identifiable {
-    let id = UUID()
-    let label: String
-    let count: Int
-    let amount: Double
-    let sortOrder: Int
-}
-
-struct OfcMonthlyDisbursement: Identifiable {
-    let id = UUID()
-    let month: String
-    let amount: Double
-}
-
-struct CustomerResponseItem: Identifiable, Hashable {
-    let id = UUID()
-    let status: String
-    let count: Int
-}
-
-struct ApprovedTrendPoint: Identifiable, Codable {
+struct ManagerApprovedTrendPoint: Identifiable, Codable {
     let id: UUID
     let label: String
     let amount: Double
@@ -58,7 +29,7 @@ struct ApprovedTrendPoint: Identifiable, Codable {
 }
 
 @MainActor
-class OfficerReportsViewModel: ObservableObject {
+class ManagerReportsViewModel: ObservableObject {
     
     // MARK: - Published Properties
     
@@ -76,15 +47,15 @@ class OfficerReportsViewModel: ObservableObject {
     @Published var totalOverdueAmount: Double = 0
     
     // Chart data
-    @Published var statusSlices: [OfcLoanStatusSlice] = []
-    @Published var productMix: [OfcProductMixItem] = []
+    @Published var statusSlices: [LoanStatusSlice] = []
+    @Published var productMix: [ProductMixItem] = []
     @Published var collectionTrends: [CollectionTrendItem] = []
-    @Published var overdueAging: [OfcOverdueAgingBucket] = []
-    @Published var monthlyDisbursements: [OfcMonthlyDisbursement] = []
-    @Published var customerResponses: [CustomerResponseItem] = []
-    @Published var approvedWeekly: [ApprovedTrendPoint] = []
-    @Published var approvedMonthly: [ApprovedTrendPoint] = []
-    @Published var approvedYearly: [ApprovedTrendPoint] = []
+    @Published var overdueAging: [OverdueAgingBucket] = []
+    @Published var monthlyDisbursements: [MonthlyDisbursement] = []
+    @Published var productMetrics: [ProductMetricsItem] = []
+    @Published var disbursementWeekly: [ManagerApprovedTrendPoint] = []
+    @Published var disbursementMonthly: [ManagerApprovedTrendPoint] = []
+    @Published var disbursementYearly: [ManagerApprovedTrendPoint] = []
     
     // Loans table
     @Published var loans: [LoanWithDetails] = []
@@ -100,14 +71,14 @@ class OfficerReportsViewModel: ObservableObject {
     
     // MARK: - Load Data
     
-    func loadReports(forOfficerId officerId: UUID) async {
+    func loadReports() async {
         isLoading = true
         errorMessage = nil
         
         do {
-            // Fetch officer's loans, applications, and collection trends in parallel
-            async let loansTask = portfolioService.fetchLoans(officerId: officerId)
-            async let appsTask = ApplicationService.shared.fetchApplications(forOfficerId: officerId)
+            // Fetch all loans, applications, and collection trends in parallel (consolidated)
+            async let loansTask = portfolioService.fetchLoans()
+            async let appsTask = ApplicationService.shared.fetchAllApplications()
             async let trendsTask = reportService.fetchCollectionTrends()
             
             let (fetchedLoans, fetchedApps, trends) = try await (loansTask, appsTask, trendsTask)
@@ -159,7 +130,6 @@ class OfficerReportsViewModel: ObservableObject {
         totalOverdueAmount = portfolioLoans.reduce(0.0) { $0 + $1.totalOverdue }
         
         // Collection efficiency from EMI data
-        // We'll approximate from the trends if available
         if let lastTrend = collectionTrends.last {
             collectionEfficiency = lastTrend.efficiency
         } else {
@@ -176,7 +146,7 @@ class OfficerReportsViewModel: ObservableObject {
         // Add all applications that are NOT disbursed and NOT draft
         for app in applications {
             if app.application.status != .disbursed && app.application.status != .draft {
-                let key = app.application.status.officerDisplayName
+                let key = app.application.status.displayName
                 var entry = statusGroups[key] ?? (count: 0, amount: 0)
                 entry.count += 1
                 entry.amount += app.application.requestedAmount
@@ -193,11 +163,10 @@ class OfficerReportsViewModel: ObservableObject {
             statusGroups[key] = entry
         }
         
-        statusSlices = statusGroups.map { OfcLoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
+        statusSlices = statusGroups.map { LoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
             .sorted { $0.count > $1.count }
         
         self.totalLoansCount = statusSlices.reduce(0) { $0 + $1.count }
-
         
         // 2. Product Mix
         var productGroups: [String: (count: Int, amount: Double)] = [:]
@@ -208,7 +177,7 @@ class OfficerReportsViewModel: ObservableObject {
             entry.amount += item.loan.principalAmount
             productGroups[key] = entry
         }
-        productMix = productGroups.map { OfcProductMixItem(productName: $0.key, count: $0.value.count, totalAmount: $0.value.amount) }
+        productMix = productGroups.map { ProductMixItem(productName: $0.key, count: $0.value.count, totalAmount: $0.value.amount) }
             .sorted { $0.totalAmount > $1.totalAmount }
         
         // 3. Overdue Aging Buckets
@@ -230,8 +199,7 @@ class OfficerReportsViewModel: ObservableObject {
             buckets[bucket]!.amount += loan.totalOverdue
         }
         overdueAging = buckets
-            .filter { $0.value.count > 0 || true } // Show all buckets for chart context
-            .map { OfcOverdueAgingBucket(label: $0.key, count: $0.value.count, amount: $0.value.amount, sortOrder: $0.value.order) }
+            .map { OverdueAgingBucket(label: $0.key, count: $0.value.count, amount: $0.value.amount, sortOrder: $0.value.order) }
             .sorted { $0.sortOrder < $1.sortOrder }
         
         // 4. Monthly Disbursements
@@ -251,27 +219,33 @@ class OfficerReportsViewModel: ObservableObject {
             monthlyGroups[displayMonth] = entry
         }
         monthlyDisbursements = monthlyGroups
-            .map { OfcMonthlyDisbursement(month: $0.key, amount: $0.value.amount) }
+            .map { MonthlyDisbursement(month: $0.key, amount: $0.value.amount) }
             .sorted { lhs, rhs in
                 let lhsKey = monthlyGroups[lhs.month]?.sortKey ?? ""
                 let rhsKey = monthlyGroups[rhs.month]?.sortKey ?? ""
                 return lhsKey < rhsKey
             }
         
-        // 5. Customer Responses (waiting status - Purely Database-Driven)
-        let sentBackCount = applications.filter { $0.application.status == .sentBack }.count
-        let pendingAcceptanceCount = applications.filter { $0.application.status == .pendingAcceptance }.count
-        let underReviewCount = applications.filter { $0.application.status == .underReview }.count
-        let submittedCount = applications.filter { $0.application.status == .submitted }.count
+        // 5. Product Metrics (Average Interest Rate and Average Loan Size) - Purely Database-Driven
+        var productGroupDetails: [String: (totalInterest: Double, totalAmount: Double, count: Int)] = [:]
+        for item in loans {
+            let name = item.product.name
+            var entry = productGroupDetails[name] ?? (totalInterest: 0, totalAmount: 0, count: 0)
+            entry.totalInterest += item.loan.interestRate
+            entry.totalAmount += item.loan.principalAmount
+            entry.count += 1
+            productGroupDetails[name] = entry
+        }
         
-        customerResponses = [
-            CustomerResponseItem(status: "Documents Awaited", count: sentBackCount),
-            CustomerResponseItem(status: "Customer Contacted", count: pendingAcceptanceCount),
-            CustomerResponseItem(status: "Follow-up Scheduled", count: underReviewCount),
-            CustomerResponseItem(status: "Ready for Review", count: submittedCount)
-        ]
+        productMetrics = productGroupDetails.map { name, details in
+            ProductMetricsItem(
+                productName: name,
+                avgInterestRate: details.count > 0 ? details.totalInterest / Double(details.count) : 0,
+                avgLoanAmount: details.count > 0 ? details.totalAmount / Double(details.count) : 0
+            )
+        }
         
-        // 6. Approved Loans Trend (Purely Database-Driven)
+        // 6. Disbursement Trend (Weekly, Monthly, Yearly) - Purely Database-Driven
         let calendar = Calendar.current
         let now = Date()
         
@@ -294,14 +268,14 @@ class OfficerReportsViewModel: ObservableObject {
             let year = String(calendar.component(.year, from: disbDate))
             yearlyMap[year, default: 0] += amount
             
-            // Month group (MMM format, e.g. "Jan")
+            // Month group
             let monthIndex = calendar.component(.month, from: disbDate) - 1
             if monthIndex >= 0 && monthIndex < 12 {
                 let monthName = orderedMonths[monthIndex]
                 monthlyMap[monthName, default: 0] += amount
             }
             
-            // Week group (if it is in the current month and year)
+            // Week group
             if calendar.isDate(disbDate, equalTo: now, toGranularity: .month) &&
                calendar.isDate(disbDate, equalTo: now, toGranularity: .year) {
                 let day = calendar.component(.day, from: disbDate)
@@ -315,23 +289,22 @@ class OfficerReportsViewModel: ObservableObject {
             }
         }
         
-        approvedWeekly = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map { week in
-            ApprovedTrendPoint(label: week, amount: weeklyMap[week] ?? 0)
+        disbursementWeekly = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map { week in
+            ManagerApprovedTrendPoint(label: week, amount: weeklyMap[week] ?? 0)
         }
         
-        approvedMonthly = orderedMonths.map { month in
-            ApprovedTrendPoint(label: month, amount: monthlyMap[month] ?? 0)
+        disbursementMonthly = orderedMonths.map { month in
+            ManagerApprovedTrendPoint(label: month, amount: monthlyMap[month] ?? 0)
         }
         
-        // Show years with data, or show last 3 years if empty
         if yearlyMap.isEmpty {
             let currentYear = calendar.component(.year, from: now)
-            approvedYearly = (currentYear-2...currentYear).map { year in
-                ApprovedTrendPoint(label: String(year), amount: 0)
+            disbursementYearly = (currentYear-2...currentYear).map { year in
+                ManagerApprovedTrendPoint(label: String(year), amount: 0)
             }
         } else {
-            approvedYearly = yearlyMap.keys.sorted().map { year in
-                ApprovedTrendPoint(label: year, amount: yearlyMap[year] ?? 0)
+            disbursementYearly = yearlyMap.keys.sorted().map { year in
+                ManagerApprovedTrendPoint(label: year, amount: yearlyMap[year] ?? 0)
             }
         }
     }
@@ -352,4 +325,34 @@ class OfficerReportsViewModel: ObservableObject {
     func formatPercent(_ value: Double) -> String {
         return String(format: "%.1f%%", value)
     }
+}
+
+// MARK: - Helper Model Structs
+
+struct LoanStatusSlice: Identifiable, Hashable {
+    var id: String { status }
+    let status: String
+    let count: Int
+    let amount: Double
+}
+
+struct ProductMixItem: Identifiable, Hashable {
+    var id: String { productName }
+    let productName: String
+    let count: Int
+    let totalAmount: Double
+}
+
+struct OverdueAgingBucket: Identifiable, Hashable {
+    var id: String { label }
+    let label: String
+    let count: Int
+    let amount: Double
+    let sortOrder: Int
+}
+
+struct MonthlyDisbursement: Identifiable, Hashable {
+    var id: String { month }
+    let month: String
+    let amount: Double
 }
