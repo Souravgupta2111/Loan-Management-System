@@ -1,132 +1,149 @@
 import SwiftUI
 import UIKit
 
-// MARK: - LZ Logo Shape (drawn as vector path)
+// MARK: - Loanz "L" Path (thick stroke with dot at top, curved bottom corner)
 
-/// The "L" stroke of the Loanz logo — a vertical line with dot at top, curving into horizontal bottom.
-struct LogoLShape: Shape {
+struct LogoLPath: Shape {
     func path(in rect: CGRect) -> Path {
-        var path = Path()
         let w = rect.width
         let h = rect.height
-        
-        // Vertical stroke of L (left side, with rounded top dot)
-        let topDotCenter = CGPoint(x: w * 0.22, y: h * 0.12)
-        path.addEllipse(in: CGRect(x: topDotCenter.x - w * 0.04, y: topDotCenter.y - w * 0.04, width: w * 0.08, height: w * 0.08))
-        
-        // Vertical line from dot down
-        let strokeWidth = w * 0.065
-        path.addRoundedRect(in: CGRect(x: w * 0.22 - strokeWidth / 2, y: h * 0.16, width: strokeWidth, height: h * 0.58), cornerSize: CGSize(width: strokeWidth / 2, height: strokeWidth / 2))
-        
-        // Horizontal bottom bar (curves from vertical to horizontal)
-        let bottomY = h * 0.74
-        let bottomPath = Path { p in
-            p.move(to: CGPoint(x: w * 0.22 - strokeWidth / 2, y: bottomY))
-            p.addLine(to: CGPoint(x: w * 0.22 - strokeWidth / 2, y: bottomY + strokeWidth * 0.5))
-            // Curve at corner
-            p.addQuadCurve(to: CGPoint(x: w * 0.22 + strokeWidth * 0.5, y: bottomY + strokeWidth * 1.5), control: CGPoint(x: w * 0.22 - strokeWidth / 2, y: bottomY + strokeWidth * 1.5))
-            p.addLine(to: CGPoint(x: w * 0.62, y: bottomY + strokeWidth * 1.5))
-            // Top edge of horizontal bar
-            p.addLine(to: CGPoint(x: w * 0.62, y: bottomY + strokeWidth * 0.5))
-            p.addLine(to: CGPoint(x: w * 0.22 + strokeWidth * 0.5, y: bottomY + strokeWidth * 0.5))
-            p.addQuadCurve(to: CGPoint(x: w * 0.22 + strokeWidth / 2, y: bottomY), control: CGPoint(x: w * 0.22 + strokeWidth / 2, y: bottomY + strokeWidth * 0.5))
-            p.closeSubpath()
+        let thick: CGFloat = w * 0.09 // stroke thickness
+        let r = thick * 1.4 // corner radius at the bottom-left bend
+
+        var p = Path()
+
+        // Dot at top of vertical stroke
+        let dotRadius = thick * 0.75
+        let dotCenter = CGPoint(x: w * 0.24, y: h * 0.10)
+        p.addEllipse(in: CGRect(x: dotCenter.x - dotRadius, y: dotCenter.y - dotRadius,
+                                width: dotRadius * 2, height: dotRadius * 2))
+
+        // Vertical bar (below dot, down to bend)
+        let vTop = h * 0.17
+        let vBottom = h * 0.78
+        let vLeft = w * 0.24 - thick / 2
+        p.addRoundedRect(in: CGRect(x: vLeft, y: vTop, width: thick, height: vBottom - vTop),
+                         cornerSize: CGSize(width: thick / 2, height: thick / 2))
+
+        // Bottom horizontal bar with rounded corner connecting to vertical
+        let hLeft = w * 0.24 - thick / 2
+        let hRight = w * 0.64
+        let hTop = vBottom - thick
+        let barPath = Path { bp in
+            // Start top-left of horizontal, after the curve
+            bp.move(to: CGPoint(x: hLeft + r + thick, y: hTop + thick))
+            bp.addLine(to: CGPoint(x: hRight, y: hTop + thick))
+            // Round the right end
+            bp.addQuadCurve(to: CGPoint(x: hRight, y: hTop + thick * 2),
+                            control: CGPoint(x: hRight + thick * 0.4, y: hTop + thick * 1.5))
+            bp.addLine(to: CGPoint(x: hLeft + r, y: hTop + thick * 2))
+            // Curve back up at bottom-left corner
+            bp.addQuadCurve(to: CGPoint(x: hLeft, y: hTop + thick * 2 - r),
+                            control: CGPoint(x: hLeft, y: hTop + thick * 2))
+            bp.addLine(to: CGPoint(x: hLeft, y: hTop + thick))
+            bp.closeSubpath()
         }
-        path.addPath(bottomPath)
-        
-        return path
+        p.addPath(barPath)
+
+        return p
     }
 }
 
-/// The "Z" letterform of the Loanz logo.
-struct LogoZShape: Shape {
+// MARK: - Loanz "Z" Path (chunky Z with rounded ends)
+
+struct LogoZPath: Shape {
     func path(in rect: CGRect) -> Path {
-        var path = Path()
         let w = rect.width
         let h = rect.height
-        let strokeWidth = w * 0.06
-        
-        // Z positioned to the right, overlapping slightly with L
-        let zLeft = w * 0.38
-        let zRight = w * 0.72
-        let zTop = h * 0.32
-        let zBottom = h * 0.68
-        let cornerRadius = strokeWidth * 1.2
-        
-        // Top horizontal bar of Z
-        path.addRoundedRect(in: CGRect(x: zLeft, y: zTop, width: zRight - zLeft, height: strokeWidth), cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
-        
-        // Diagonal of Z
-        let diagPath = Path { p in
-            p.move(to: CGPoint(x: zRight - strokeWidth * 0.3, y: zTop + strokeWidth))
-            p.addLine(to: CGPoint(x: zRight, y: zTop + strokeWidth))
-            p.addLine(to: CGPoint(x: zLeft + strokeWidth * 0.3, y: zBottom - strokeWidth))
-            p.addLine(to: CGPoint(x: zLeft, y: zBottom - strokeWidth))
-            p.closeSubpath()
+        let thick: CGFloat = w * 0.085
+
+        let zL = w * 0.38
+        let zR = w * 0.76
+        let zT = h * 0.28
+        let zB = h * 0.72
+        let cr = thick * 0.6 // end cap roundness
+
+        var p = Path()
+
+        // Top bar
+        p.addRoundedRect(in: CGRect(x: zL, y: zT, width: zR - zL, height: thick),
+                         cornerSize: CGSize(width: cr, height: cr))
+
+        // Diagonal (parallelogram)
+        let diagInset = thick * 0.55
+        let diag = Path { d in
+            d.move(to: CGPoint(x: zR - diagInset, y: zT + thick))
+            d.addLine(to: CGPoint(x: zR + diagInset * 0.2, y: zT + thick))
+            d.addLine(to: CGPoint(x: zL + diagInset, y: zB - thick))
+            d.addLine(to: CGPoint(x: zL - diagInset * 0.2, y: zB - thick))
+            d.closeSubpath()
         }
-        path.addPath(diagPath)
-        
-        // Bottom horizontal bar of Z
-        path.addRoundedRect(in: CGRect(x: zLeft, y: zBottom - strokeWidth, width: zRight - zLeft, height: strokeWidth), cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
-        
-        return path
+        p.addPath(diag)
+
+        // Bottom bar
+        p.addRoundedRect(in: CGRect(x: zL, y: zB - thick, width: zR - zL, height: thick),
+                         cornerSize: CGSize(width: cr, height: cr))
+
+        return p
     }
 }
 
-// MARK: - Animated Logo View
+// MARK: - Animated Logo Composition
 
-struct LoanzLogoView: View {
+struct LoanzAnimatedLogo: View {
     let size: CGFloat
     let accentColor: Color
-    
-    @State private var showL = false
-    @State private var showZ = false
-    @State private var showGlow = false
-    
+
+    @State private var drawL = false
+    @State private var drawZ = false
+    @State private var shimmer = false
+
     var body: some View {
         ZStack {
-            // L shape (green/accent colored)
-            LogoLShape()
+            // L shape — accent gradient
+            LogoLPath()
                 .fill(
-                    LinearGradient(
-                        colors: [accentColor, accentColor.opacity(0.7)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                    LinearGradient(colors: [accentColor, accentColor.opacity(0.65)],
+                                   startPoint: .top, endPoint: .bottom)
                 )
                 .frame(width: size, height: size)
-                .scaleEffect(showL ? 1.0 : 0.3)
-                .opacity(showL ? 1.0 : 0.0)
-            
-            // Z shape (silver/white)
-            LogoZShape()
+                .scaleEffect(drawL ? 1.0 : 0.0)
+                .opacity(drawL ? 1 : 0)
+
+            // Z shape — metallic silver
+            LogoZPath()
                 .fill(
-                    LinearGradient(
-                        colors: [.white, Color(white: 0.85)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    LinearGradient(colors: [Color.white, Color(white: 0.78)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
                 )
                 .frame(width: size, height: size)
-                .scaleEffect(showZ ? 1.0 : 0.3)
-                .opacity(showZ ? 1.0 : 0.0)
-            
-            // Glow ring
-            Circle()
-                .stroke(accentColor.opacity(0.3), lineWidth: 2)
-                .frame(width: size * 1.3, height: size * 1.3)
-                .scaleEffect(showGlow ? 1.2 : 0.8)
-                .opacity(showGlow ? 0.0 : 0.6)
+                .scaleEffect(drawZ ? 1.0 : 0.0)
+                .opacity(drawZ ? 1 : 0)
+
+            // Shimmer highlight sweep across logo
+            RoundedRectangle(cornerRadius: size * 0.12)
+                .fill(
+                    LinearGradient(colors: [.clear, .white.opacity(0.35), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                )
+                .frame(width: size * 0.3, height: size)
+                .offset(x: shimmer ? size * 0.7 : -size * 0.7)
+                .mask(
+                    ZStack {
+                        LogoLPath().frame(width: size, height: size)
+                        LogoZPath().frame(width: size, height: size)
+                    }
+                )
         }
         .onAppear {
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.6).delay(0.1)) {
-                showL = true
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.65).delay(0.15)) {
+                drawL = true
             }
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.6).delay(0.35)) {
-                showZ = true
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.65).delay(0.4)) {
+                drawZ = true
             }
-            withAnimation(.easeOut(duration: 1.5).delay(0.6)) {
-                showGlow = true
+            withAnimation(.easeInOut(duration: 1.0).delay(0.9)) {
+                shimmer = true
             }
         }
     }
@@ -134,100 +151,99 @@ struct LoanzLogoView: View {
 
 // MARK: - Splash Screen
 
-/// Splash screen with animated Loanz logo that adapts to theme colors
+/// Mandatory 2-second animated splash with the Loanz LZ logo.
+/// The logo uses the app's theme accent color so it adapts to the palette.
 struct SplashView: View {
-    @State private var startAnimation = false
+    @State private var showContainer = false
     @State private var showText = false
-    @State private var pulseRings = false
-    
+    @State private var ringPulse = false
+
     @EnvironmentObject var authViewModel: AuthViewModel
 
-    // Theme color — uses the app's accent green
     private let themeColor = Color.accentGreen
-    
+
     var body: some View {
         ZStack {
-            // Background gradient (uses theme color)
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color.gradientMintStart,
-                    Color.gradientMintEnd
-                ]),
-                center: .center,
-                startRadius: 50,
-                endRadius: 500
+            // Background
+            LinearGradient(
+                colors: [Color.gradientMintStart, Color.gradientMintEnd, Color.gradientMintStart],
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 
-            // Subtle pulse rings
+            // Animated concentric rings
             ZStack {
-                ForEach(0..<3) { i in
+                ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .stroke(themeColor.opacity(0.15 - Double(i) * 0.04), lineWidth: 1.5)
-                        .frame(width: CGFloat(200 + i * 80), height: CGFloat(200 + i * 80))
-                        .scaleEffect(pulseRings ? 1.1 : 0.9)
-                        .opacity(startAnimation ? 1.0 : 0.0)
+                        .stroke(themeColor.opacity(0.12 - Double(i) * 0.03), lineWidth: 1.5)
+                        .frame(width: CGFloat(180 + i * 70), height: CGFloat(180 + i * 70))
+                        .scaleEffect(ringPulse ? 1.08 : 0.92)
                         .animation(
-                            .easeInOut(duration: 2.0)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(i) * 0.3),
-                            value: pulseRings
+                            .easeInOut(duration: 1.8).repeatForever(autoreverses: true).delay(Double(i) * 0.25),
+                            value: ringPulse
                         )
                 }
             }
+            .opacity(showContainer ? 1 : 0)
 
-            // Central logo & text
-            VStack(spacing: 24) {
-                // Logo container with rounded rect background
+            // Logo + Text
+            VStack(spacing: 28) {
+                // Icon container (dark rounded square like actual app icon)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 0.12, green: 0.22, blue: 0.16),
-                                    Color(red: 0.08, green: 0.15, blue: 0.11)
+                                    Color(red: 0.10, green: 0.20, blue: 0.14),
+                                    Color(red: 0.05, green: 0.12, blue: 0.08)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 140, height: 140)
-                        .shadow(color: themeColor.opacity(0.3), radius: 20, x: 0, y: 10)
-                        .scaleEffect(startAnimation ? 1.0 : 0.5)
-                        .opacity(startAnimation ? 1.0 : 0.0)
-                    
-                    LoanzLogoView(size: 120, accentColor: themeColor)
+                        .frame(width: 150, height: 150)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                                .stroke(themeColor.opacity(0.25), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.2), radius: 24, x: 0, y: 12)
+                        .scaleEffect(showContainer ? 1.0 : 0.4)
+                        .opacity(showContainer ? 1 : 0)
+
+                    LoanzAnimatedLogo(size: 120, accentColor: themeColor)
                 }
-                
-                // App name
-                HStack(spacing: 2) {
+
+                // LOANZ text
+                HStack(spacing: 1) {
                     Text("LOAN")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .foregroundColor(Color(hex: "#1A1A1A"))
                     Text("Z")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .foregroundColor(themeColor)
                 }
-                .tracking(4)
-                .opacity(showText ? 1.0 : 0.0)
-                .offset(y: showText ? 0 : 15)
+                .tracking(5)
+                .opacity(showText ? 1 : 0)
+                .offset(y: showText ? 0 : 12)
             }
-            .offset(y: -20)
+            .offset(y: -16)
         }
         .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.7)) {
-                startAnimation = true
+            // Container scales in
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75)) {
+                showContainer = true
             }
-            
-            withAnimation(.easeOut(duration: 0.6).delay(0.8)) {
+            // Text fades in after logo draws
+            withAnimation(.easeOut(duration: 0.5).delay(1.0)) {
                 showText = true
             }
-            
-            pulseRings = true
-            
-            // Wait for 2.5 seconds to show the splash screen before checking session
+            // Rings start pulsing
+            ringPulse = true
+
+            // Mandatory 2-second minimum splash, then check session
             Task {
-                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
                 authViewModel.checkSession()
             }
         }
