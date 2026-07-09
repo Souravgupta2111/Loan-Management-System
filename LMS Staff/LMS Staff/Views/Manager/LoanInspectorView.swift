@@ -82,11 +82,6 @@ struct LoanInspectorView: View {
                 
                 // Primary Application metrics
                 HStack(spacing: StaffSpacing.lg) {
-                    if let app = vm.application {
-                        InspectorDetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
-                    } else {
-                        InspectorDetailMetric(label: "Asked", value: "INR --")
-                    }
                     InspectorDetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
                     InspectorDetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
                     if vm.loanWithDetails.loan.status == .npa {
