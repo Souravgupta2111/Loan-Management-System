@@ -597,7 +597,7 @@ struct AuditTrailView: View {
         if wrongRole(s, ["admin"]) { SignInHint(role: "admin") } else {
             VStack(alignment: .leading, spacing: 8) {
                 swHeader("System Audit Trail", "clock.arrow.circlepath")
-                let rows = Array(s.auditEntries.prefix(family == .systemLarge ? 6 : 3))
+                let rows = Array(s.auditEntries.prefix(family == .systemLarge ? 5 : 3))
                 if rows.isEmpty {
                     Spacer(minLength: 0)
                     Text("No recent activity")
