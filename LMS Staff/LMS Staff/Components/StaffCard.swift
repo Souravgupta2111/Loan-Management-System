@@ -13,17 +13,15 @@ struct StaffCard<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let effectiveHighContrast = highContrast
-
         content()
             .padding(padding)
-            .background(effectiveHighContrast ? (colorScheme == .dark ? Color(hex: "#1A1A1A") : Color(hex: "#FFFFFF")) : (colorScheme == .dark ? Color.staffSurface : Color(hex: "#FAFAF8")))
+            .background(Color.staffCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
             .overlay(
                 RoundedRectangle(cornerRadius: StaffCorner.md)
                     .stroke(
-                        effectiveHighContrast ? (colorScheme == .dark ? Color(hex: "#FFFFFF") : Color(hex: "#1A1A1A")) : Color.staffBorder,
-                        lineWidth: effectiveHighContrast ? 2 : 1
+                        Color.staffCardBorder,
+                        lineWidth: highContrast ? 2 : 1
                     )
             )
     }

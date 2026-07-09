@@ -285,7 +285,7 @@ extension Color {
         AccessibilityManager.shared.isHighContrastEnabled
     }
 
-    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String, highContrastDark: String = "#000000") -> Color {
+    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String, highContrastDark: String = "#FFFFFF") -> Color {
         Color(UIColor { traits in
             if traits.userInterfaceStyle == .dark {
                 return UIColor(hex: staffHighContrast ? highContrastDark : dark)
@@ -342,11 +342,33 @@ extension Color {
             return UIColor(hex: staffHighContrast ? "#000000" : palette.cardHex)
         })
     }
+    
+    // MARK: - Card Custom Colors (Dynamic via traits)
+    static var staffCardBackground: Color {
+        Color(UIColor { traits in
+            if staffHighContrast {
+                return traits.userInterfaceStyle == .dark ? UIColor(hex: "#000000") : UIColor(hex: "#FFFFFF")
+            } else {
+                return traits.userInterfaceStyle == .dark ? UIColor(hex: AppThemeManager.activePalette.darkSurfaceLightHex) : UIColor(hex: "#FAFAF8")
+            }
+        })
+    }
+    
+    static var staffCardBorder: Color {
+        Color(UIColor { traits in
+            if staffHighContrast {
+                return traits.userInterfaceStyle == .dark ? UIColor(hex: "#FFFFFF") : UIColor(hex: "#1A1A1A")
+            } else {
+                let palette = AppThemeManager.activePalette
+                return traits.userInterfaceStyle == .dark ? UIColor(hex: palette.darkBorderHex) : UIColor(hex: palette.borderHex)
+            }
+        })
+    }
 
     // MARK: - Text Colors
-    static var staffTextPrimary: Color { accessibleDynamicColor(light: "#1A1D1A", dark: "#F4F8F3", highContrastLight: "#000000") }    // Deep charcoal
-    static var staffTextSecondary: Color { accessibleDynamicColor(light: "#71786F", dark: "#A5B2A9", highContrastLight: "#1C1C1C") }    // Muted labels
-    static var staffTextTertiary: Color { accessibleDynamicColor(light: "#A0AAA0", dark: "#87968C", highContrastLight: "#3A3A3A") }    // Hints, placeholders
+    static var staffTextPrimary: Color { accessibleDynamicColor(light: "#1A1D1A", dark: "#F4F8F3", highContrastLight: "#000000", highContrastDark: "#FFFFFF") }    // Deep charcoal
+    static var staffTextSecondary: Color { accessibleDynamicColor(light: "#71786F", dark: "#A5B2A9", highContrastLight: "#1C1C1C", highContrastDark: "#E5E5E5") }    // Muted labels
+    static var staffTextTertiary: Color { accessibleDynamicColor(light: "#A0AAA0", dark: "#87968C", highContrastLight: "#3A3A3A", highContrastDark: "#B0B0B0") }    // Hints, placeholders
 
     // MARK: - Accent Colors
     static var staffAccent: Color {
