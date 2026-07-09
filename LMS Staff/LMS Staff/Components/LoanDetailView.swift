@@ -56,7 +56,7 @@ struct LoanDetailView: View {
                 Spacer()
                 
                 // Primary Application metrics
-                HStack(spacing: StaffSpacing.xl) {
+                HStack(spacing: StaffSpacing.lg) {
                     if let app = vm.application {
                         DetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
                     } else {

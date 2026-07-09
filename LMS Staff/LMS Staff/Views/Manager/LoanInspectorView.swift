@@ -81,18 +81,18 @@ struct LoanInspectorView: View {
                 Spacer()
                 
                 // Primary Application metrics
-                HStack(spacing: StaffSpacing.xl) {
+                HStack(spacing: StaffSpacing.lg) {
                     if let app = vm.application {
-                        DetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
+                        InspectorDetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
                     } else {
-                        DetailMetric(label: "Asked", value: "INR --")
+                        InspectorDetailMetric(label: "Asked", value: "INR --")
                     }
-                    DetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
-                    DetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
+                    InspectorDetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
+                    InspectorDetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
                     if vm.loanWithDetails.loan.status == .npa {
-                        DetailMetric(label: "Overdue Days", value: "\(vm.loanWithDetails.loan.overdueDays)")
+                        InspectorDetailMetric(label: "Overdue Days", value: "\(vm.loanWithDetails.loan.overdueDays)")
                     }
-                    DetailMetric(label: "Branch", value: "HQ - Main Branch")
+                    InspectorDetailMetric(label: "Branch", value: "HQ - Main Branch")
                 }
             }
             .padding(StaffSpacing.lg)
@@ -441,11 +441,6 @@ struct LoanInspectorView: View {
                     showWriteOffSheet = true
                 }
                 
-                StaffButton(title: "Escalate to Admin", style: .destructive, icon: "exclamationmark.triangle.fill") {
-                    reason = ""
-                    showEscalateSheet = true
-                }
-                
             }
             .padding(StaffSpacing.lg)
         }
@@ -594,5 +589,27 @@ struct LoanInspectorView: View {
         }
         .padding(30)
         .background(Color.staffBackground.ignoresSafeArea())
+    }
+}
+
+// MARK: - Local Inspector Detail Metric
+private struct InspectorDetailMetric: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.staffCaption)
+                .foregroundColor(.staffTextSecondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+            Text(value)
+                .font(.staffBody)
+                .fontWeight(.bold)
+                .foregroundColor(.staffAccent)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
     }
 }

@@ -17,6 +17,7 @@ struct ManagerReportsView: View {
     @State private var exportFileURL: URL?
     @State private var isExporting = false
     @State private var approvedFilter: ApprovedFilter = .weekly
+    @State private var selectedAngle: Double? = nil
     
     private enum ApprovedFilter: String, CaseIterable, Identifiable {
         case weekly = "Weekly"
@@ -228,52 +229,75 @@ struct ManagerReportsView: View {
                     }
                     
                     if vm.statusSlices.isEmpty {
-                        Text("No loan data available")
+                        Text("No data available")
                             .font(.staffCaption)
                             .foregroundColor(.staffTextTertiary)
-                            .frame(height: 200)
+                            .frame(height: 220)
                             .frame(maxWidth: .infinity)
                     } else {
+                        // Interactive Chart centered
                         Chart(vm.statusSlices) { slice in
                             SectorMark(
                                 angle: .value("Count", slice.count),
                                 innerRadius: .ratio(0.55),
+                                outerRadius: .ratio(selectedSlice?.id == slice.id ? 1.05 : 0.95),
                                 angularInset: 2
                             )
                             .foregroundStyle(colorForStatus(slice.status))
                             .cornerRadius(4)
+                            .opacity(selectedSlice == nil || selectedSlice?.id == slice.id ? 1.0 : 0.4)
                         }
-                        .frame(height: 200)
+                        .frame(height: 220)
+                        .chartAngleSelection(value: $selectedAngle)
                         .chartBackground { _ in
-                            VStack(spacing: 2) {
-                                Text("\(vm.totalLoansCount)")
-                                    .font(.staffLargeAmount)
-                                    .foregroundColor(.staffTextPrimary)
-                                Text("Total")
-                                    .font(.staffCaption)
-                                    .foregroundColor(.staffTextSecondary)
-                            }
-                        }
-                        
-                        // Legend
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                            ForEach(vm.statusSlices) { slice in
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(colorForStatus(slice.status))
-                                        .frame(width: 10, height: 10)
-                                    Text("\(slice.status) (\(slice.count))")
-                                        .font(.staffFinePrint)
+                            VStack(spacing: 1) {
+                                if let selected = selectedSlice {
+                                    Text("\(selected.count)")
+                                        .font(.staffLargeAmount)
+                                        .foregroundColor(.staffTextPrimary)
+                                    Text(selected.status)
+                                        .font(.staffFinePrint.weight(.semibold))
+                                        .foregroundColor(colorForStatus(selected.status))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
+                                } else {
+                                    Text("\(vm.statusSlices.reduce(0) { $0 + $1.count })")
+                                        .font(.staffLargeAmount)
+                                        .foregroundColor(.staffTextPrimary)
+                                    Text("Total")
+                                        .font(.staffCaption)
                                         .foregroundColor(.staffTextSecondary)
-                                    Spacer()
                                 }
                             }
+                            .padding(12)
                         }
+                        .padding(.vertical, 8)
+                        
+                        // Legends in columns below the chart
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ForEach(vm.statusSlices) { slice in
+                                Button(action: {
+                                    toggleSelection(slice)
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Circle()
+                                            .fill(colorForStatus(slice.status))
+                                            .frame(width: 8, height: 8)
+                                        Text("\(slice.status) (\(slice.count))")
+                                            .font(.staffFinePrint)
+                                            .fontWeight(selectedSlice?.id == slice.id ? .bold : .regular)
+                                            .foregroundColor(selectedSlice?.id == slice.id ? .staffTextPrimary : .staffTextSecondary)
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding(.top, 8)
                     }
-                    Spacer()
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 380)
+            .frame(maxWidth: .infinity)
             
             // Average Profitability (Interest Rate)
             StaffCard {
@@ -333,12 +357,11 @@ struct ManagerReportsView: View {
                                 }
                             }
                         }
-                        .frame(height: 200)
+                        .frame(height: CGFloat(max(2, vm.productMetrics.count) * 55 + 40))
                     }
-                    Spacer()
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 380)
+            .frame(maxWidth: .infinity)
         }
     }
     
@@ -633,14 +656,15 @@ struct ManagerReportsView: View {
     private var loansTableSection: some View {
         StaffCard {
             VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                let list = filteredLoansForTable
                 HStack {
                     Image(systemName: "tablecells.fill")
                         .foregroundColor(.staffAccent)
-                    Text("Loans Summary")
+                    Text(selectedSlice == nil ? "Loans Summary" : "Loans Summary (\(selectedSlice!.status))")
                         .font(.staffCardTitle)
                         .foregroundColor(.staffTextPrimary)
                     Spacer()
-                    Text("\(vm.loans.count) loans")
+                    Text("\(list.count) of \(vm.loans.count) loans")
                         .font(.staffBadge)
                         .foregroundColor(.staffTextSecondary)
                         .padding(.horizontal, 8)
@@ -649,8 +673,8 @@ struct ManagerReportsView: View {
                         .cornerRadius(StaffCorner.xs)
                 }
                 
-                if vm.loans.isEmpty {
-                    Text("No loans assigned to you.")
+                if list.isEmpty {
+                    Text(selectedSlice == nil ? "No loans assigned to you." : "No loans in list matching '\(selectedSlice!.status)' status.")
                         .font(.staffCaption)
                         .foregroundColor(.staffTextTertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -672,7 +696,7 @@ struct ManagerReportsView: View {
                     .cornerRadius(StaffCorner.sm)
                     
                     // Table Rows
-                    ForEach(Array(vm.loans.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, item in
                         HStack(spacing: 0) {
                             Text(item.loan.loanNumber ?? "—")
                                 .font(.staffFinePrint.weight(.medium))
@@ -747,6 +771,41 @@ struct ManagerReportsView: View {
             .foregroundColor(.staffTextSecondary)
             .textCase(.uppercase)
             .frame(width: width, alignment: alignment)
+    }
+    
+    private var selectedSlice: LoanStatusSlice? {
+        guard let selectedAngle = selectedAngle else { return nil }
+        var current = 0.0
+        for slice in vm.statusSlices {
+            let count = Double(slice.count)
+            if selectedAngle >= current && selectedAngle < current + count {
+                return slice
+            }
+            current += count
+        }
+        return nil
+    }
+    
+    private func toggleSelection(_ slice: LoanStatusSlice) {
+        if selectedSlice?.id == slice.id {
+            selectedAngle = nil
+        } else {
+            var current = 0.0
+            for s in vm.statusSlices {
+                if s.id == slice.id {
+                    selectedAngle = current + 0.5
+                    break
+                }
+                current += Double(s.count)
+            }
+        }
+    }
+    
+    private var filteredLoansForTable: [LoanWithDetails] {
+        if let selectedStatus = selectedSlice?.status {
+            return vm.loans.filter { $0.loan.status.displayName.lowercased() == selectedStatus.lowercased() }
+        }
+        return vm.loans
     }
     
     private func colorForStatus(_ status: String) -> Color {

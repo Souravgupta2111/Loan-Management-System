@@ -85,12 +85,10 @@ struct ApplicationDetailView: View {
                 Spacer()
                 
                 // Primary Application metrics
-                HStack(spacing: StaffSpacing.xl) {
+                HStack(spacing: StaffSpacing.lg) {
                     DetailMetric(label: "Requested Amount", value: "INR \(String(format: "%.2f", vm.application.requestedAmount))")
                     DetailMetric(label: "Tenure", value: "\(vm.application.requestedTenureMonths) Months")
                     DetailMetric(label: "Branch", value: "HQ - Main Branch")
-                    
-
                 }
             }
             .padding(StaffSpacing.lg)
@@ -1175,14 +1173,18 @@ struct DetailMetric: View {
     let value: String
     
     var body: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.staffCaption)
                 .foregroundColor(.staffTextSecondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
             Text(value)
                 .font(.staffBody)
                 .fontWeight(.bold)
                 .foregroundColor(.staffAccent)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 }
