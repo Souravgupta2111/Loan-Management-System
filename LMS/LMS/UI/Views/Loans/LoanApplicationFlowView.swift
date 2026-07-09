@@ -395,8 +395,8 @@ struct LoanApplicationFlowView: View {
 
                 if isSubmitting {
                     ZStack {
-                        Capsule().fill(Color(hex: "#1A1A1A")).frame(height: 56)
-                        ProgressView().tint(.white)
+                        Capsule().fill(Color.accentDark).frame(height: 56)
+                        ProgressView().tint(.accentDarkText)
                     }
                     .frame(maxWidth: .infinity)
                 } else {
@@ -436,7 +436,7 @@ struct LoanApplicationFlowView: View {
                     } label: {
                         HStack(spacing: 8) {
                             if isCheckingKYC {
-                                ProgressView().tint(.white)
+                                ProgressView().tint(.accentDarkText)
                                 Text("CHECKING...")
                             } else {
                                 Text(step == 5 ? "SUBMIT" : "NEXT")
@@ -445,10 +445,10 @@ struct LoanApplicationFlowView: View {
                         }
                         .font(.body.weight(.bold))
                         .tracking(1.5)
-                        .foregroundColor(.white)
+                        .foregroundColor(isDisabled ? .textTertiary : .accentDarkText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(isDisabled ? Color(hex: "#1A1A1A").opacity(0.4) : Color(hex: "#1A1A1A"))
+                        .background(isDisabled ? Color.surfaceMuted : Color.accentDark)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -835,4 +835,3 @@ struct ReviewRow: View {
         }
     }
 }
-

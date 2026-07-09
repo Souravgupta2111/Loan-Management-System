@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UIKit
 
 // MARK: - Staff Palette Selection
 enum AppColorPalette: String, CaseIterable, Identifiable {
@@ -25,11 +26,27 @@ enum AppColorPalette: String, CaseIterable, Identifiable {
         }
     }
 
+    var darkPrimaryHex: String {
+        switch self {
+        case .green: return "#88CFA4"
+        case .purple: return "#C0A9FF"
+        case .blue: return "#92C4FF"
+        }
+    }
+
     var secondaryHex: String {
         switch self {
         case .green: return "#409F73"
         case .purple: return "#7C5BD6"
         case .blue: return "#3A7DDA"
+        }
+    }
+
+    var darkSecondaryHex: String {
+        switch self {
+        case .green: return "#98D9B1"
+        case .purple: return "#CAB9FF"
+        case .blue: return "#A7D0FF"
         }
     }
 
@@ -41,11 +58,27 @@ enum AppColorPalette: String, CaseIterable, Identifiable {
         }
     }
 
+    var darkCardHex: String {
+        switch self {
+        case .green: return "#183524"
+        case .purple: return "#2A2046"
+        case .blue: return "#1A2F4C"
+        }
+    }
+
     var backgroundHex: String {
         switch self {
         case .green: return "#F1F8F0"
         case .purple: return "#F8F3FF"
         case .blue: return "#F2F8FF"
+        }
+    }
+
+    var darkBackgroundHex: String {
+        switch self {
+        case .green: return "#07120D"
+        case .purple: return "#0F0D16"
+        case .blue: return "#09111A"
         }
     }
 
@@ -57,11 +90,27 @@ enum AppColorPalette: String, CaseIterable, Identifiable {
         }
     }
 
+    var darkSurfaceLightHex: String {
+        switch self {
+        case .green: return "#102018"
+        case .purple: return "#181424"
+        case .blue: return "#111F31"
+        }
+    }
+
     var mutedHex: String {
         switch self {
         case .green: return "#EEF6ED"
         case .purple: return "#F4F0FC"
         case .blue: return "#F0F7FE"
+        }
+    }
+
+    var darkMutedHex: String {
+        switch self {
+        case .green: return "#14261B"
+        case .purple: return "#211B2D"
+        case .blue: return "#1A293B"
         }
     }
 
@@ -73,11 +122,27 @@ enum AppColorPalette: String, CaseIterable, Identifiable {
         }
     }
 
+    var darkBorderHex: String {
+        switch self {
+        case .green: return "#254337"
+        case .purple: return "#3B3151"
+        case .blue: return "#30445F"
+        }
+    }
+
     var gradientStartHex: String {
         switch self {
         case .green: return "#F6FBF4"
         case .purple: return "#F1E7FF"
         case .blue: return "#E4F2FF"
+        }
+    }
+
+    var darkGradientStartHex: String {
+        switch self {
+        case .green: return "#0C1D14"
+        case .purple: return "#181322"
+        case .blue: return "#101F32"
         }
     }
 
@@ -89,11 +154,27 @@ enum AppColorPalette: String, CaseIterable, Identifiable {
         }
     }
 
+    var darkGradientEndHex: String {
+        switch self {
+        case .green: return "#07120D"
+        case .purple: return "#0F0D16"
+        case .blue: return "#09111A"
+        }
+    }
+
     var darkerHex: String {
         switch self {
         case .green: return "#248149"
         case .purple: return "#553C9A"
         case .blue: return "#2559A6"
+        }
+    }
+
+    var darkDarkerHex: String {
+        switch self {
+        case .green: return "#79C999"
+        case .purple: return "#B495FF"
+        case .blue: return "#83B8FF"
         }
     }
 }
@@ -145,45 +226,76 @@ extension Color {
         AppThemeManager.activePalette
     }
 
+    private static func dynamicColor(light: String, dark: String) -> Color {
+        Color(UIColor { traits in
+            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+
+    private static func themedColor(
+        light: @escaping (AppColorPalette) -> String,
+        dark: @escaping (AppColorPalette) -> String
+    ) -> Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            return UIColor(hex: traits.userInterfaceStyle == .dark ? dark(palette) : light(palette))
+        })
+    }
+
+    private static func themedColor(
+        light: @escaping (AppColorPalette) -> String,
+        lightOpacity: CGFloat,
+        dark: @escaping (AppColorPalette) -> String,
+        darkOpacity: CGFloat
+    ) -> Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            let hex = traits.userInterfaceStyle == .dark ? dark(palette) : light(palette)
+            let opacity = traits.userInterfaceStyle == .dark ? darkOpacity : lightOpacity
+            return UIColor(hex: hex).withAlphaComponent(opacity)
+        })
+    }
+
     // MARK: - Core Palette
-    static var staffBackground: Color { Color(hex: currentPalette.backgroundHex) }
-    static let staffSurface       = Color(hex: "#FBFEFA")    // Card background
-    static var staffSurfaceLight: Color { Color(hex: currentPalette.surfaceLightHex) }
-    static var staffSurfaceMuted: Color { Color(hex: currentPalette.mutedHex) }
-    static var staffBorder: Color { Color(hex: currentPalette.borderHex) }
-    static var staffBorderLight: Color { Color(hex: currentPalette.cardHex) }
+    static var staffBackground: Color { themedColor(light: \.backgroundHex, dark: \.darkBackgroundHex) }
+    static var staffPanel: Color { themedColor(light: { _ in "#FFFFFF" }, dark: \.darkSurfaceLightHex) }
+    static var staffSurface: Color { themedColor(light: { _ in "#FBFEFA" }, dark: \.darkSurfaceLightHex) }    // Card background
+    static var staffSurfaceLight: Color { themedColor(light: \.surfaceLightHex, dark: \.darkSurfaceLightHex) }
+    static var staffSurfaceMuted: Color { themedColor(light: \.mutedHex, dark: \.darkMutedHex) }
+    static var staffBorder: Color { themedColor(light: \.borderHex, dark: \.darkBorderHex) }
+    static var staffBorderLight: Color { themedColor(light: \.cardHex, dark: \.darkCardHex) }
 
     // MARK: - Text Colors
-    static let staffTextPrimary   = Color(hex: "#1A1D1A")    // Deep charcoal
-    static let staffTextSecondary = Color(hex: "#71786F")    // Muted labels
-    static let staffTextTertiary  = Color(hex: "#A0AAA0")    // Hints, placeholders
+    static let staffTextPrimary   = dynamicColor(light: "#1A1D1A", dark: "#F4F8F3")    // Deep charcoal
+    static let staffTextSecondary = dynamicColor(light: "#71786F", dark: "#A5B2A9")    // Muted labels
+    static let staffTextTertiary  = dynamicColor(light: "#A0AAA0", dark: "#87968C")    // Hints, placeholders
 
     // MARK: - Accent Colors
-    static var staffAccent: Color { Color(hex: currentPalette.primaryHex) }
-    static var staffAccentBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
-    static var staffGreen: Color { Color(hex: currentPalette.primaryHex) }
-    static var staffGreenBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
-    static let staffRed           = Color(hex: "#D9534F")    // Error/destructive
-    static let staffRedBg         = Color(hex: "#F8E7E5")    // Error bg
-    static let staffAmber         = Color(hex: "#C89A24")    // Warning
-    static let staffAmberBg       = Color(hex: "#F7EED3")    // Warning bg
-    static var staffPurple: Color { Color(hex: currentPalette.darkerHex) }
-    static var staffPurpleBg: Color { Color(hex: currentPalette.cardHex).opacity(0.28) }
-    static var staffTeal: Color { Color(hex: currentPalette.secondaryHex) }
-    static var staffTealBg: Color { Color(hex: currentPalette.cardHex).opacity(0.3) }
-    static let staffOrange        = Color(hex: "#B98222")    // Attention
-    static let staffOrangeBg      = Color(hex: "#F6ECD7")    // Orange bg
+    static var staffAccent: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
+    static var staffAccentBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.35, dark: \.darkCardHex, darkOpacity: 0.42) }
+    static var staffGreen: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
+    static var staffGreenBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.35, dark: \.darkCardHex, darkOpacity: 0.42) }
+    static let staffRed           = dynamicColor(light: "#D9534F", dark: "#FF7777")    // Error/destructive
+    static let staffRedBg         = dynamicColor(light: "#F8E7E5", dark: "#4C2020")    // Error bg
+    static let staffAmber         = dynamicColor(light: "#C89A24", dark: "#FFD166")    // Warning
+    static let staffAmberBg       = dynamicColor(light: "#F7EED3", dark: "#4A3616")    // Warning bg
+    static var staffPurple: Color { themedColor(light: \.darkerHex, dark: \.darkDarkerHex) }
+    static var staffPurpleBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.28, dark: \.darkCardHex, darkOpacity: 0.35) }
+    static var staffTeal: Color { themedColor(light: \.secondaryHex, dark: \.darkSecondaryHex) }
+    static var staffTealBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.3, dark: \.darkCardHex, darkOpacity: 0.38) }
+    static let staffOrange        = dynamicColor(light: "#B98222", dark: "#FFB45E")    // Attention
+    static let staffOrangeBg      = dynamicColor(light: "#F6ECD7", dark: "#4A2F16")    // Orange bg
 
     // MARK: - Gradient Presets
-    static var staffGradientStart: Color { Color(hex: currentPalette.gradientStartHex) }
-    static var staffGradientEnd: Color { Color(hex: currentPalette.gradientEndHex) }
-    static var staffAccentGradientStart: Color { Color(hex: currentPalette.primaryHex) }
-    static var staffAccentGradientEnd: Color { Color(hex: currentPalette.darkerHex) }
+    static var staffGradientStart: Color { themedColor(light: \.gradientStartHex, dark: \.darkGradientStartHex) }
+    static var staffGradientEnd: Color { themedColor(light: \.gradientEndHex, dark: \.darkGradientEndHex) }
+    static var staffAccentGradientStart: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
+    static var staffAccentGradientEnd: Color { themedColor(light: \.darkerHex, dark: \.darkDarkerHex) }
 
     // MARK: - Sidebar
-    static var staffSidebarBg: Color { Color(hex: currentPalette.surfaceLightHex) }
-    static var staffSidebarHover: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
-    static var staffSidebarActive: Color { Color(hex: currentPalette.cardHex).opacity(0.45) }
+    static var staffSidebarBg: Color { themedColor(light: \.surfaceLightHex, dark: \.darkSurfaceLightHex) }
+    static var staffSidebarHover: Color { themedColor(light: \.cardHex, lightOpacity: 0.35, dark: \.darkCardHex, darkOpacity: 0.4) }
+    static var staffSidebarActive: Color { themedColor(light: \.cardHex, lightOpacity: 0.45, dark: \.darkCardHex, darkOpacity: 0.5) }
 
     // MARK: - Role Badge Colors
     static func roleBadgeColor(for role: String) -> Color {
@@ -256,7 +368,39 @@ extension Color {
 
 // MARK: - Hex Initialization
 extension Color {
+    private static func semanticHex(_ hex: String, for style: UIUserInterfaceStyle) -> String {
+        guard style == .dark else { return hex }
+        let palette = AppThemeManager.activePalette
+
+        switch hex.uppercased() {
+        case "#1A1A1A", "#1A1D1A":
+            return "#F4F8F3"
+        case "#6B6B6B", "#71786F":
+            return "#A5B2A9"
+        case "#9E9E9E", "#A0AAA0":
+            return "#87968C"
+        case "#FFFFFF", "#FBFEFA":
+            return palette.darkSurfaceLightHex
+        case "#FAFAF8", "#F9FBF9", "#F8F8F5":
+            return palette.darkBackgroundHex
+        case "#F5F5F0", "#F5F5F5":
+            return palette.darkMutedHex
+        case "#E8E8E4":
+            return palette.darkBorderHex
+        case "#F0F0EC":
+            return palette.darkBorderHex
+        default:
+            return hex
+        }
+    }
+
     init(hex: String) {
+        self.init(UIColor { traits in
+            UIColor(hex: Self.semanticHex(hex, for: traits.userInterfaceStyle))
+        })
+    }
+
+    private init(staticHex hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
@@ -277,6 +421,31 @@ extension Color {
             green: Double(g) / 255,
             blue: Double(b) / 255,
             opacity: Double(a) / 255
+        )
+    }
+}
+
+private extension UIColor {
+    convenience init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3:
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6:
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            red: CGFloat(r) / 255,
+            green: CGFloat(g) / 255,
+            blue: CGFloat(b) / 255,
+            alpha: CGFloat(a) / 255
         )
     }
 }

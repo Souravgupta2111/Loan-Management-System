@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Pill Button (design.md §5.2, 5.3, 5.4)
-/// - primary (Dark Pill): accentDark bg, white text, ALL CAPS
+/// - primary (Dark Pill): accentDark bg, paired high-contrast text, ALL CAPS
 /// - secondary (Beige Pill): accentBeigeDk bg, white text
 /// - outline: clear bg, border, textPrimary
 struct PillButton: View {
@@ -67,7 +67,7 @@ struct PillButton: View {
 
     private var foregroundColor: Color {
         switch style {
-        case .primary:     return .white
+        case .primary:     return .accentDarkText
         case .secondary:   return .white
         case .outline:     return .textPrimary
         case .destructive: return .accentRed

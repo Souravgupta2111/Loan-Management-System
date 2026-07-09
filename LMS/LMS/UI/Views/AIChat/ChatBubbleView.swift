@@ -70,7 +70,7 @@ struct ChatBubbleView: View {
                 VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
                     Text(.init(message.content)) // Render markdown
                         .font(.body)
-                        .foregroundColor(isUser ? .white : Color(hex: "#1A1A1A"))
+                        .foregroundColor(isUser ? .accentDarkText : .textPrimary)
                     
                     if !isUser, let onSpeak = onSpeakTapped {
                         Button {
@@ -81,7 +81,7 @@ struct ChatBubbleView: View {
                                 .font(.caption)
                                 .foregroundColor(Color.accentGreen)
                                 .padding(6)
-                                .background(Color.white.opacity(0.8))
+                                .background(Color.surfaceMuted)
                                 .clipShape(Circle())
                         }
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -95,7 +95,7 @@ struct ChatBubbleView: View {
                         if isUser {
                             Color.accentGreen
                         } else {
-                            Color.white.opacity(0.5)
+                            Color.surface.opacity(0.88)
                                 .background(.ultraThinMaterial)
                         }
                     }
@@ -103,8 +103,7 @@ struct ChatBubbleView: View {
                 .clipShape(ChatBubbleShape(isUser: isUser))
                 .overlay(
                     ChatBubbleShape(isUser: isUser)
-                        .stroke(Color.white.opacity(isUser ? 0 : 0.6), lineWidth: 1)
-                        .blendMode(.overlay)
+                        .stroke(Color.border.opacity(isUser ? 0 : 0.45), lineWidth: 0.8)
                 )
                 .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1) // subtle shadow like WhatsApp
                 .accessibilityLabel(isUser ? "You said: \(message.content)" : "AI said: \(message.content)")

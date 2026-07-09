@@ -145,11 +145,19 @@ struct AIChatView: View {
                         }
                         .accessibilityLabel(speechService.isListening ? "Stop recording" : "Start recording voice")
                         
-                        TextField("Type a message...", text: $viewModel.currentInput, axis: .vertical)
+                        TextField(
+                            text: $viewModel.currentInput,
+                            prompt: Text("Type a message...").foregroundColor(.textTertiary),
+                            axis: .vertical
+                        ) {
+                            EmptyView()
+                        }
                             .lineLimit(1...5)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .background(Color.clear) // Clear to blend with capsule
+                            .foregroundColor(.textPrimary)
+                            .tint(.accentGreen)
                             .onSubmit {
                                 viewModel.sendMessage()
                             }
@@ -167,7 +175,7 @@ struct AIChatView: View {
                                 
                                 Image(systemName: "paperplane.fill")
                                     .font(.system(size: 20))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.accentDarkText)
                                     .offset(x: -1, y: 1)
                             }
                         }
@@ -178,11 +186,11 @@ struct AIChatView: View {
                     .padding(4) // tighter padding so buttons fit inside the capsule nicely
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.8))
+                            .fill(Color.surface.opacity(0.92))
                     )
                     .overlay(
                         Capsule()
-                            .stroke(Color.white, lineWidth: 1.5)
+                            .stroke(Color.border.opacity(0.65), lineWidth: 1)
                     )
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)

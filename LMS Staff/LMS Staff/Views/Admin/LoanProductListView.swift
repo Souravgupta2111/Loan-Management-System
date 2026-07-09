@@ -42,7 +42,7 @@ struct LoanProductListView: View {
                         .padding(.horizontal, StaffSpacing.lg)
                         .padding(.vertical, StaffSpacing.sm)
                 }
-                .background(Color.white)
+                .background(Color.staffPanel)
                 
                 Divider().background(Color.staffBorder)
                 
@@ -92,7 +92,7 @@ struct LoanProductListView: View {
                         .listRowBackground(
                             selectedProduct?.id == product.id
                             ? Color.staffAccent.opacity(0.15)
-                            : Color.white
+                            : Color.staffPanel
                         )
                         .accessibilityElement(children: .combine)
                         .accessibilityHint("Double tap to open")
@@ -771,6 +771,10 @@ struct CreateProductSheet: View {
                 .padding(.vertical, StaffSpacing.sm)
                 .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceMuted)
                 .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.staffAccent : Color.staffBorder.opacity(0.8), lineWidth: 1.2)
+                )
         }
         .buttonStyle(.plain)
     }
@@ -1271,6 +1275,10 @@ struct EditProductSheet: View {
                 .padding(.vertical, StaffSpacing.sm)
                 .background(isSelected ? Color.staffAccentBg : Color.staffSurfaceMuted)
                 .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.staffAccent : Color.staffBorder.opacity(0.8), lineWidth: 1.2)
+                )
         }
         .buttonStyle(.plain)
     }

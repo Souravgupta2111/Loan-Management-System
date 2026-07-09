@@ -48,7 +48,6 @@ struct LMS_StaffApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light)
                 .tint(.staffAccent)
                 .environment(\.appColorPalette, themeManager.selectedPalette)
                 .environmentObject(authViewModel)

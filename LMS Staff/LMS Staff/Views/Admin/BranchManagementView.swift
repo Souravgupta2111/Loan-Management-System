@@ -91,7 +91,7 @@ struct BranchManagementView: View {
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.bottom, StaffSpacing.md)
             }
-            .background(Color.white)
+            .background(Color.staffPanel)
 
             Divider().background(Color.staffBorder)
 
@@ -168,7 +168,7 @@ struct BranchManagementView: View {
             }
             .padding(.horizontal, StaffSpacing.lg)
             .padding(.vertical, StaffSpacing.md)
-            .background(isSelected ? Color.staffSidebarActive : Color.white)
+            .background(isSelected ? Color.staffSidebarActive : Color.staffPanel)
         }
         .buttonStyle(PlainButtonStyle())
         .accessibilityElement(children: .combine)
