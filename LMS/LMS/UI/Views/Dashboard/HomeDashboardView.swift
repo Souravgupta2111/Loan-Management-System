@@ -258,7 +258,7 @@ struct HomeDashboardView: View {
                         .font(.title.weight(.bold)).fontDesign(.rounded)
                         .foregroundColor(Color(hex: "#1A1A1A"))
                 } else if primaryLoan.status.lowercased() == "closed" {
-                    Text("Finalized Amount")
+                    Text("Total Amount")
                         .font(.subheadline.weight(.regular))
                         .foregroundColor(Color(hex: "#6B6B6B"))
                     Text("₹ \(formatIndian(primaryLoan.amount))")

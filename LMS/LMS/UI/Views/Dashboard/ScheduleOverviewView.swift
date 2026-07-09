@@ -78,7 +78,7 @@ struct ScheduleOverviewView: View {
                         pickerDate = selectedDate
                         showDatePicker = true
                     } label: {
-                        Image(systemName: "clock.arrow.trianglehead.clockwise.rotate.90.path.dotted")
+                        Image(systemName: "calendar")
                             .font(.headline.weight(.semibold))
                             .foregroundColor(Color.accentGreen)
                     }
@@ -363,13 +363,16 @@ struct ScheduleOverviewView: View {
                                :                   Color.accentGreen
         let bgColor: Color     = entry.isPaid   ? Color.accentGreenBg
                                : entry.isOverdue ? Color(hex: "#FDE8E8")
+                               : entry.isDue    ? Color.accentGreenBg
                                :                   Color.clear
         let badgeTextColor: Color = entry.isPaid ? Color.accentGreen
                                : entry.isOverdue ? Color(hex: "#D94040")
+                               : entry.isDue    ? Color.accentGreen
                                :                   Color(hex: "#1A1A1A")
-        let statusText = entry.isPaid ? "Paid" : entry.isOverdue ? "Overdue" : "Upcoming"
+        let statusText = entry.isPaid ? "Paid" : entry.isOverdue ? "Overdue" : entry.isDue ? "Due" : "Upcoming"
         let statusIcon = entry.isPaid ? "checkmark.circle.fill"
                        : entry.isOverdue ? "exclamationmark.triangle.fill"
+                       : entry.isDue ? "bell.fill"
                        : "clock.fill"
 
         return HStack(spacing: 14) {
@@ -468,6 +471,7 @@ struct ScheduleOverviewView: View {
 
                     let dueDay = calendar.startOfDay(for: dueDate)
                     let isPaid = emi.status.lowercased() == "paid"
+                    let isDue = (!isPaid && dueDay == today) || emi.status.lowercased() == "due"
                     return CalendarEMIEntry(
                         id: emi.id,
                         loanName: loan.loan_product.name,
@@ -476,7 +480,8 @@ struct ScheduleOverviewView: View {
                         emiAmount: emi.total_emi + (emi.penalty_amount ?? 0),
                         dueDate: dueDate,
                         isPaid: isPaid,
-                        isOverdue: (!isPaid && dueDay < today) || emi.status.lowercased() == "overdue"
+                        isOverdue: (!isPaid && dueDay < today) || emi.status.lowercased() == "overdue",
+                        isDue: isDue
                     )
                 }
             }
@@ -608,4 +613,5 @@ private struct CalendarEMIEntry: Identifiable {
     let dueDate    : Date
     let isPaid     : Bool
     let isOverdue  : Bool
+    let isDue      : Bool
 }

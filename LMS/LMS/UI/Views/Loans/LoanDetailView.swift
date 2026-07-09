@@ -395,8 +395,8 @@ private struct LoanSummaryCard: View {
                 // Pending Application Info
                 HStack(alignment: .top) {
                     LoanAmountColumn(
-                        title: "Requested Amount",
-                        amount: detail.remainingAmount,
+                        title: detail.loanStatus.lowercased() == "closed" ? "Total Amount" : "Requested Amount",
+                        amount: detail.loanStatus.lowercased() == "closed" ? detail.totalAmount : detail.remainingAmount,
                         subtitle: EmptyView(),
                         alignment: .leading,
                         formatCurrency: formatCurrency
@@ -419,9 +419,9 @@ private struct LoanSummaryCard: View {
                 .padding(.bottom, 18)
                 
                 HStack(alignment: .top) {
-                    LoanInfoColumn(title: "Requested Tenure", value: detail.tenureText, alignment: .leading)
+                    LoanInfoColumn(title: detail.loanStatus.lowercased() == "closed" ? "Tenure" : "Requested Tenure", value: detail.tenureText, alignment: .leading)
                     Spacer()
-                    LoanInfoColumn(title: "Est. Interest", value: detail.interestRateText, alignment: .trailing)
+                    LoanInfoColumn(title: detail.loanStatus.lowercased() == "closed" ? "Interest" : "Est. Interest", value: detail.interestRateText, alignment: .trailing)
                 }
                 .padding(.bottom, 18)
             }
@@ -1358,6 +1358,7 @@ private struct LoanDetailMock {
     let loanStatus: String
     let loanName: String
     let loanNumber: String
+    let totalAmount: Double
     let remainingAmount: Double
     let monthlyEMI: Double
     let emiDueView: AnyView
@@ -1413,6 +1414,7 @@ private struct LoanDetailMock {
             loanStatus: loan.status,
             loanName: loan.name.isEmpty ? "Premium Home Loan" : loan.name,
             loanNumber: loan.loanNumber.isEmpty ? "HL-2026-00895672" : loan.loanNumber,
+            totalAmount: loan.amount,
             remainingAmount: loan.remainingAmount,
             monthlyEMI: emiAmount,
             emiDueView: subtitleView,

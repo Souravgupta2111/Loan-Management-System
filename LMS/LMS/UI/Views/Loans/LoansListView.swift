@@ -435,7 +435,7 @@ struct LoansListView: View {
                 VStack(alignment: .trailing, spacing: 2) {
 
                     if loan.status.lowercased() == "closed" {
-                        Text("Finalized Amount")
+                        Text("Total Amount")
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#6B6B6B"))
 
@@ -536,7 +536,7 @@ struct LoansListView: View {
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#6B6B6B"))
 
-                        Text(statusRemark(for: loan.status))
+                        Text(statusRemark(for: loan))
                             .font(.body.weight(.semibold))
                             .foregroundColor(Color(hex: "#1A1A1A"))
                     }
@@ -641,8 +641,8 @@ struct LoansListView: View {
 
     // MARK: - Status Remark
 
-    private func statusRemark(for status: String) -> String {
-        switch status.lowercased() {
+    private func statusRemark(for loan: LoanListItem) -> String {
+        switch loan.status.lowercased() {
         case "submitted", "pending":
             return "Awaiting Initial Review"
         case "under_review":
@@ -656,7 +656,15 @@ struct LoansListView: View {
         case "sent_back":
             return "Action Required"
         case "rejected":
-            return "Application Declined"
+            if let reason = loan.rejectionReason, !reason.isEmpty {
+                let lower = reason.lowercased()
+                if lower.contains("borrower") || lower.contains("user") {
+                    return "Rejected by borrower"
+                } else {
+                    return "Rejected by manager"
+                }
+            }
+            return "Rejected by manager"
         case "closed":
             return "Paid in Full"
         case "draft":
