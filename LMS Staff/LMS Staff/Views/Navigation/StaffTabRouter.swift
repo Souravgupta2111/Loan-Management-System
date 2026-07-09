@@ -18,8 +18,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     
     case managerDashboard
     case managerBranchLoans
-    case managerPortfolio
-    case managerNpa
     case managerReports
     case managerMessages
     case managerAI
@@ -47,9 +45,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
-        case .managerBranchLoans: return "Branch Loans"
-        case .managerPortfolio: return "Portfolio Analytics"
-        case .managerNpa: return "NPA & Recoveries"
+        case .managerBranchLoans: return "My Applications"
         case .managerReports: return "Analytics"
         case .managerMessages: return "Chats"
         case .managerAI: return "AI Analytics"
@@ -68,8 +64,10 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
-        case .officerDashboard, .managerDashboard, .adminDashboard:
+        case .managerDashboard, .adminDashboard:
             return "square.grid.2x2.fill"
+        case .officerDashboard, .managerBranchLoans:
+            return "doc.text.fill"
         case .officerApplications:
             return "doc.on.doc.fill"
         case .officerPortfolio:
@@ -84,13 +82,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
             return "bell.fill"
         case .officerReports:
             return "chart.bar.doc.horizontal.fill"
-            
-        case .managerBranchLoans:
-            return "building.2.crop.circle"
-        case .managerPortfolio:
-            return "chart.pie.fill"
-        case .managerNpa:
-            return "exclamationmark.triangle.fill"
         case .managerReports:
             return "chart.bar.doc.horizontal.fill"
             
@@ -124,13 +115,13 @@ struct StaffTabRouter: View {
         case .aiChat:
             return role == .manager ? .managerAIChat : .officerAIChat
         case .applications:
-            return .officerApplications
+            return role == .manager ? .managerReports : .officerApplications
         case .portfolio:
-            return role == .manager ? .managerPortfolio : .officerPortfolio
+            return role == .manager ? .managerReports : .officerPortfolio
         case .npa:
-            return .managerNpa
+            return role == .manager ? .managerReports : .officerReports
         case .disbursements:
-            return .managerBranchLoans
+            return role == .manager ? .managerReports : .managerBranchLoans
         }
     }
 
@@ -203,10 +194,6 @@ struct StaffTabRouter: View {
             ManagerDashboardView()
         case .managerBranchLoans:
             BranchLoansView()
-        case .managerPortfolio:
-            PortfolioDashboardView()
-        case .managerNpa:
-            OverdueLoansView()
         case .managerReports:
             ManagerReportsView()
         case .managerMessages:

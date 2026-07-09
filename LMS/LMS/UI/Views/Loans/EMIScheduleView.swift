@@ -121,7 +121,7 @@ struct EMIScheduleView: View {
                 }
             }
             .navigationTitle("EMI Schedule")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await fetchEMIs()
             }
@@ -409,12 +409,19 @@ struct EMIRow: View {
             }
         }
         .padding(Spacing.lg)
-        .background(emi.status == .overdue ? Color.accentRed.opacity(0.05) : Color.clear)
+        .background(
+            emi.status == .overdue ? Color.accentRed.opacity(0.05) :
+            (emi.status == .upcoming || emi.status == .due) ? Color.accentGreenBg : Color.clear
+        )
         .liquidGlass(cornerRadius: 20)
         .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(emi.status == .overdue ? Color.accentRed.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(
+                    emi.status == .overdue ? Color.accentRed.opacity(0.3) :
+                    (emi.status == .upcoming || emi.status == .due) ? Color.accentGreen.opacity(0.3) : Color.clear,
+                    lineWidth: 1
+                )
         )
         .opacity(emi.status == .paid ? 0.6 : 1.0)
     }

@@ -551,11 +551,20 @@ struct OfficerReportsView: View {
     // MARK: - Helper Views
     
     private func tableHeaderCell(_ title: String, width: CGFloat) -> some View {
-        Text(title)
+        let alignment: Alignment
+        if title == "Principal" || title == "Outstanding" {
+            alignment = .trailing
+        } else if title == "Rate" || title == "Status" || title == "Overdue" {
+            alignment = .center
+        } else {
+            alignment = .leading
+        }
+        
+        return Text(title)
             .font(.staffFinePrint.weight(.bold))
             .foregroundColor(.staffTextSecondary)
             .textCase(.uppercase)
-            .frame(width: width, alignment: title == "Principal" || title == "Outstanding" ? .trailing : .leading)
+            .frame(width: width, alignment: alignment)
     }
     
     private func colorForStatus(_ status: String) -> Color {

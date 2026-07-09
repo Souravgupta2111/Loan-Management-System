@@ -35,9 +35,9 @@ struct OfficerDashboardView: View {
                 
                 // Mini Metric Summary Cards
                 HStack(spacing: StaffSpacing.lg) {
-                    MiniStatCard(title: "New", value: "\(vm.statsPendingCount)", icon: "hourglass", color: .staffAccent)
-                    MiniStatCard(title: "Escalated", value: "\(vm.statsUnderReviewCount)", icon: "arrow.up.right.circle", color: .staffAmber)
-                    MiniStatCard(title: "Sent Back", value: "\(vm.statsApprovedCount)", icon: "arrow.backward.circle", color: .staffRed)
+                    MiniStatCard(title: "New", value: "\(vm.statsPendingCount)", icon: "doc.badge.plus", color: .blue)
+                    MiniStatCard(title: "Escalated", value: "\(vm.statsUnderReviewCount)", icon: "arrow.up.doc", color: .purple)
+                    MiniStatCard(title: "Sent Back", value: "\(vm.statsApprovedCount)", icon: "arrow.uturn.backward.doc", color: .green)
                 }
                 .padding(StaffSpacing.lg)
                 
@@ -184,9 +184,20 @@ struct MiniStatCard: View {
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: StaffSpacing.sm) {
-                Image(systemName: icon)
-                    .font(.title3)
+                if icon == "arrow.uturn.backward.doc" {
+                    ZStack {
+                        Image(systemName: "doc")
+                            .font(.title3)
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 8, weight: .bold))
+                            .offset(y: 2)
+                    }
                     .foregroundColor(color)
+                } else {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundColor(color)
+                }
                 Text(title)
                     .font(.staffCaption)
                     .foregroundColor(.staffTextSecondary)
