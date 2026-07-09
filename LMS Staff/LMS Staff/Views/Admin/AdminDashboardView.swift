@@ -103,26 +103,7 @@ struct AdminDashboardView: View {
                             } else {
                                 VStack(spacing: 0) {
                                     ForEach(vm.recentActivities) { log in
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(log.changeSummary ?? "System Change")
-                                                    .font(.staffBody)
-                                                    .foregroundColor(.staffTextPrimary)
-                                                
-                                                Text("Table: \(log.tableName) | Action: \(log.action)")
-                                                    .font(.staffCaption)
-                                                    .foregroundColor(.staffTextSecondary)
-                                            }
-                                            
-                                            Spacer()
-                                            
-                                            Text(formatDate(log.createdAt))
-                                                .font(.caption)
-                                                .foregroundColor(.staffTextSecondary)
-                                        }
-                                        .padding(.vertical, 8)
-                                        .accessibilityElement(children: .combine)
-                                        
+                                        auditLogRow(log)
                                         Divider()
                                     }
                                 }
@@ -146,12 +127,140 @@ struct AdminDashboardView: View {
         }
     }
     
-    private func formatDate(_ date: Date?) -> String {
+    @ViewBuilder
+    private func auditLogRow(_ log: AuditLog) -> some View {
+        HStack(alignment: .top, spacing: StaffSpacing.md) {
+            // Action Icon
+            ZStack {
+                Circle()
+                    .fill(actionColor(log.action).opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: actionIcon(log.action))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(actionColor(log.action))
+            }
+            .accessibilityHidden(true)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                // Action title + table badge
+                HStack(spacing: 6) {
+                    Text(formatActionName(log.action))
+                        .font(.staffBody)
+                        .fontWeight(.bold)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    Text(log.tableName)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.staffAccent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.staffAccent.opacity(0.1))
+                        .cornerRadius(4)
+                }
+                
+                // Change summary
+                Text(log.changeSummary ?? "System configuration updated")
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextPrimary)
+                    .lineLimit(3)
+                
+                // Actor + Timestamp footer
+                HStack(spacing: 8) {
+                    // Actor info
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.fill")
+                            .font(.caption)
+                            .accessibilityHidden(true)
+                        if let actorId = log.actorId, let name = vm.actorNames[actorId] {
+                            Text(name)
+                                .fontWeight(.medium)
+                        } else {
+                            Text("System")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.staffTextSecondary)
+                    
+                    // Role Badge
+                    if let role = log.actorRole {
+                        Text(role.rawValue.capitalized)
+                            .font(.caption.weight(.bold))
+                            .foregroundColor(roleBadgeColor(role))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(roleBadgeColor(role).opacity(0.12))
+                            .cornerRadius(3)
+                    }
+                    
+                    Spacer()
+                    
+                    // Timestamp
+                    HStack(spacing: 3) {
+                        Image(systemName: "clock")
+                            .font(.caption)
+                            .accessibilityHidden(true)
+                        Text(formatTimestamp(log.createdAt))
+                    }
+                    .font(.caption)
+                    .foregroundColor(.staffTextSecondary)
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.vertical, StaffSpacing.md)
+        .accessibilityElement(children: .combine)
+    }
+    
+    private func formatTimestamp(_ date: Date?) -> String {
         guard let d = date else { return "" }
         let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
+        formatter.dateFormat = "d MMM yyyy 'at' h:mm a"
         return formatter.string(from: d)
+    }
+    
+    private func formatActionName(_ action: String) -> String {
+        action.replacingOccurrences(of: "_", with: " ")
+              .split(separator: " ")
+              .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+              .joined(separator: " ")
+    }
+    
+    private func actionIcon(_ action: String) -> String {
+        let a = action.uppercased()
+        if a.contains("CREATE") || a.contains("INSERT") { return "plus.circle.fill" }
+        if a.contains("UPDATE") || a.contains("EDIT") { return "pencil.circle.fill" }
+        if a.contains("DELETE") || a.contains("REMOVE") { return "trash.circle.fill" }
+        if a.contains("APPROVE") { return "checkmark.seal.fill" }
+        if a.contains("REJECT") { return "xmark.seal.fill" }
+        if a.contains("RESET") { return "key.fill" }
+        if a.contains("ASSIGN") { return "person.badge.plus" }
+        if a.contains("DISBURSE") { return "banknote.fill" }
+        if a.contains("LOGIN") || a.contains("AUTH") { return "lock.shield.fill" }
+        if a.contains("STATUS") { return "arrow.triangle.2.circlepath" }
+        if a.contains("SEND_BACK") || a.contains("SENT_BACK") { return "arrow.uturn.left.circle.fill" }
+        if a.contains("SYSTEM") { return "gearshape.fill" }
+        if a.contains("ESCALATE") { return "arrow.up.circle.fill" }
+        return "doc.text.fill"
+    }
+    
+    private func actionColor(_ action: String) -> Color {
+        let a = action.uppercased()
+        if a.contains("CREATE") || a.contains("INSERT") { return .staffGreen }
+        if a.contains("APPROVE") || a.contains("DISBURSE") { return .staffGreen }
+        if a.contains("DELETE") || a.contains("REJECT") { return .staffRed }
+        if a.contains("RESET") { return .staffAmber }
+        if a.contains("SEND_BACK") || a.contains("SENT_BACK") { return .staffAmber }
+        if a.contains("UPDATE") || a.contains("ASSIGN") { return .staffAccent }
+        return .staffTextSecondary
+    }
+    
+    private func roleBadgeColor(_ role: UserRole) -> Color {
+        switch role {
+        case .admin: return .staffRed
+        case .manager: return .staffAmber
+        case .officer: return .staffAccent
+        case .borrower: return .staffGreen
+        }
     }
 }
 

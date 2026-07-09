@@ -31,6 +31,7 @@ class AdminDashboardViewModel: ObservableObject {
     @Published var systemNpaRatio: Double = 0.0
     
     @Published var recentActivities: [AuditLog] = []
+    @Published var actorNames: [UUID: String] = [:]
     
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -91,7 +92,9 @@ class AdminDashboardViewModel: ObservableObject {
             self.systemNpaRatio = report.npaRatio
             
             // 2. Load recent audit activity log
-            self.recentActivities = try await auditService.fetchAuditLogs(limit: 10)
+            let logs = try await auditService.fetchAuditLogs(limit: 10)
+            self.recentActivities = logs
+            await resolveActorNames(for: logs)
             
             // 3. Setup real-time updates
             subscribeToApplicationUpdates()
@@ -122,6 +125,32 @@ class AdminDashboardViewModel: ObservableObject {
                 print("Realtime update received, refreshing dashboard...")
                 await self.loadDashboard()
             }
+        }
+    }
+    
+    /// Resolves actor UUIDs to display names from users table
+    private func resolveActorNames(for logs: [AuditLog]) async {
+        let unknownIds = Set(logs.compactMap { $0.actorId }).subtracting(actorNames.keys)
+        guard !unknownIds.isEmpty else { return }
+        
+        struct UserNameRecord: Decodable {
+            let id: UUID
+            let full_name: String
+        }
+        
+        do {
+            let records: [UserNameRecord] = try await supabase.database
+                .from("users")
+                .select("id, full_name")
+                .in("id", values: unknownIds.map { $0.uuidString })
+                .execute()
+                .value
+            
+            for record in records {
+                self.actorNames[record.id] = record.full_name
+            }
+        } catch {
+            print("Failed to resolve actor names: \(error)")
         }
     }
     
