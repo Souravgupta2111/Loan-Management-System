@@ -434,21 +434,7 @@ struct LoansListView: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
 
-                    if loan.status.lowercased() == "closed" || loan.status.lowercased() == "written_off" {
-                        Text("Finalized Amount")
-                            .font(.subheadline)
-                            .foregroundColor(Color(hex: "#6B6B6B"))
-
-                        Text("₹\(formatIndian(loan.amount))")
-                            .font(
-                                .system(
-                                    size: 19,
-                                    weight: .bold,
-                                    design: .rounded
-                                )
-                            )
-                            .foregroundColor(Color(hex: "#1A1A1A"))
-                    } else {
+                    if loan.status.lowercased() == "active" {
                         Text("Balance")
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#6B6B6B"))
@@ -461,6 +447,22 @@ struct LoansListView: View {
                                     design: .rounded
                                 )
                             )
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                    } else {
+                        Text("Amount")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
+
+                        Text("₹\(formatIndian(loan.amount))")
+                            .font(
+                                .system(
+                                    size: 19,
+                                    weight: .bold,
+                                    design: .rounded
+                                )
+                            )
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                    }
                             .foregroundColor(Color(hex: "#1A1A1A"))
                     }
                 }
