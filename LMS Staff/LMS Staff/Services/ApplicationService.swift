@@ -14,6 +14,7 @@ struct ApplicationWithBorrower: Identifiable, Hashable {
     let borrower: AppUser
     let profile: BorrowerProfile?
     let product: LoanProduct
+    var activeLoanStatus: String? = nil
 }
 
 @MainActor

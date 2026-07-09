@@ -41,7 +41,14 @@ struct AdminDashboardView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             
-                            MetricBlockCard(title: "System NPA Ratio", value: String(format: "%.2f%%", vm.systemNpaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                            Button(action: {
+                                metricDetailTitle = "NPA Loans"
+                                metricDetailData = .loans(vm.npaList)
+                                showMetricDetailSheet = true
+                            }) {
+                                MetricBlockCard(title: "System NPA Ratio", value: String(format: "%.2f%%", vm.systemNpaRatio), icon: "exclamationmark.triangle.fill", color: .staffRed)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                         HStack(spacing: StaffSpacing.md) {
                             Button(action: {
