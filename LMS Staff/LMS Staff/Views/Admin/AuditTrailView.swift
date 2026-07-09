@@ -342,7 +342,7 @@ struct AuditTrailView: View {
         switch role {
         case .admin: return .staffRed
         case .manager: return .staffAmber
-        case .officer: return .staffAccent
+        case .officer: return .staffGreen
         case .borrower: return .staffGreen
         }
     }

@@ -388,7 +388,7 @@ extension Color {
         switch role.lowercased() {
         case "admin":   return .staffPurple
         case "manager": return .staffTeal
-        case "officer": return .staffAccent
+        case "officer": return .staffGreen
         default:        return .staffTextTertiary
         }
     }
@@ -397,7 +397,7 @@ extension Color {
         switch role.lowercased() {
         case "admin":   return .staffPurpleBg
         case "manager": return .staffTealBg
-        case "officer": return .staffAccentBg
+        case "officer": return .staffGreenBg
         default:        return .staffSurfaceLight
         }
     }
