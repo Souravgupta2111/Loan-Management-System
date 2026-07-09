@@ -50,7 +50,7 @@ struct LoansListView: View {
                 return isOverdue(loan)
 
             case .closed:
-                return loan.status.lowercased() == "closed"
+                return loan.status.lowercased() == "closed" || loan.status.lowercased() == "written_off"
                 
             case .rejected:
                 return loan.status.lowercased() == "rejected"
@@ -434,8 +434,8 @@ struct LoansListView: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
 
-                    if loan.status.lowercased() == "closed" {
-                        Text("Total Amount")
+                    if loan.status.lowercased() == "closed" || loan.status.lowercased() == "written_off" {
+                        Text("Finalized Amount")
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#6B6B6B"))
 

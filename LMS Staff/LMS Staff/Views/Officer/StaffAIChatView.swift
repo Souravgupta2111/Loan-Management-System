@@ -102,6 +102,8 @@ struct StaffAIChatView: View {
                         viewModel.sendMessage(action)
                     }
                     .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture())
                 }
                 
                 // Voice Recording Indicator (Tiny text above input)

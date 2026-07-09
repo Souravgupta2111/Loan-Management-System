@@ -395,8 +395,8 @@ private struct LoanSummaryCard: View {
                 // Pending Application Info
                 HStack(alignment: .top) {
                     LoanAmountColumn(
-                        title: detail.loanStatus.lowercased() == "closed" ? "Total Amount" : "Requested Amount",
-                        amount: detail.loanStatus.lowercased() == "closed" ? detail.totalAmount : detail.remainingAmount,
+                        title: (detail.loanStatus.lowercased() == "closed" || detail.loanStatus.lowercased() == "written_off") ? "Finalized Amount" : "Requested Amount",
+                        amount: (detail.loanStatus.lowercased() == "closed" || detail.loanStatus.lowercased() == "written_off") ? detail.totalAmount : detail.remainingAmount,
                         subtitle: EmptyView(),
                         alignment: .leading,
                         formatCurrency: formatCurrency
@@ -419,9 +419,9 @@ private struct LoanSummaryCard: View {
                 .padding(.bottom, 18)
                 
                 HStack(alignment: .top) {
-                    LoanInfoColumn(title: detail.loanStatus.lowercased() == "closed" ? "Tenure" : "Requested Tenure", value: detail.tenureText, alignment: .leading)
+                    LoanInfoColumn(title: (detail.loanStatus.lowercased() == "closed" || detail.loanStatus.lowercased() == "written_off") ? "Tenure" : "Requested Tenure", value: detail.tenureText, alignment: .leading)
                     Spacer()
-                    LoanInfoColumn(title: detail.loanStatus.lowercased() == "closed" ? "Interest" : "Est. Interest", value: detail.interestRateText, alignment: .trailing)
+                    LoanInfoColumn(title: (detail.loanStatus.lowercased() == "closed" || detail.loanStatus.lowercased() == "written_off") ? "Interest" : "Est. Interest", value: detail.interestRateText, alignment: .trailing)
                 }
                 .padding(.bottom, 18)
             }
