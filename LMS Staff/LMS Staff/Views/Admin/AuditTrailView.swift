@@ -137,6 +137,11 @@ struct AuditTrailView: View {
         .task {
             await loadAuditLogs()
         }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+            Task {
+                await loadAuditLogs()
+            }
+        }
     }
     
     // MARK: - Row View
