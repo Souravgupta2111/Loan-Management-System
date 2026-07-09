@@ -47,7 +47,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
-        case .managerBranchLoans: return "Branch Loans"
+        case .managerBranchLoans: return "My Applications"
         case .managerPortfolio: return "Portfolio Analytics"
         case .managerNpa: return "NPA & Recoveries"
         case .managerReports: return "Analytics"
