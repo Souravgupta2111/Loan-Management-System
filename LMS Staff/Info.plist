@@ -13,13 +13,5 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSFaceIDUsageDescription</key>
-	<string>We use Face ID to securely log you in to your staff account.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to your microphone so you can talk to the AI Assistant.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We need speech recognition to convert your voice into text for the AI Assistant.</string>
-	<key>UIUserInterfaceStyle</key>
-	<string>Light</string>
 </dict>
 </plist>

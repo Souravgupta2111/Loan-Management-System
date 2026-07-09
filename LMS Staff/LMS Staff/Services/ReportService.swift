@@ -213,4 +213,53 @@ class ReportService {
         }
         return trends
     }
+    
+    /// Compiles overall (all-time) collection efficiency from EMI schedules and confirmed payments.
+    /// This reflects the true overall collection efficiency historically across all due installments.
+    func fetchOverallCollectionEfficiency() async throws -> Double {
+        let emiItems: [EMIScheduleItem] = try await supabase.database
+            .from("emi_schedule")
+            .select()
+            .execute()
+            .value
+            
+        struct PaymentFetch: Decodable {
+            let emi_id: UUID?
+            let amount_paid: Double
+            let status: String
+        }
+        
+        let payments: [PaymentFetch] = (try? await supabase.database
+            .from("payments")
+            .select("emi_id, amount_paid, status")
+            .eq("status", value: "confirmed")
+            .execute()
+            .value) ?? []
+            
+        var paidMap: [UUID: Double] = [:]
+        for payment in payments {
+            if let emiId = payment.emi_id {
+                paidMap[emiId, default: 0.0] += payment.amount_paid
+            }
+        }
+            
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayStr = formatter.string(from: Date())
+        
+        // Include any EMI that is historically due, excluding written-off installments.
+        let historicalDueEMIs = emiItems.filter { $0.dueDate <= todayStr && $0.status != .writtenOff }
+        let totalDue = historicalDueEMIs.reduce(0.0) { $0 + $1.totalEmi }
+        
+        var totalCollected = 0.0
+        for emi in historicalDueEMIs {
+            if let collectedAmount = paidMap[emi.id] {
+                totalCollected += min(collectedAmount, emi.totalEmi)
+            } else if emi.status == .paid {
+                totalCollected += emi.totalEmi
+            }
+        }
+        
+        return totalDue > 0 ? min((totalCollected / totalDue) * 100.0, 100.0) : 100.0
+    }
 }

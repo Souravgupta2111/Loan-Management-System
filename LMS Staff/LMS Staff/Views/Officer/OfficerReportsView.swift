@@ -165,10 +165,10 @@ struct OfficerReportsView: View {
     private var keyMetricsGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: StaffSpacing.md), count: 3), spacing: StaffSpacing.md) {
             ReportMetricCard(
-                icon: "briefcase.fill",
-                title: "Portfolio Value",
-                value: vm.formatCurrency(vm.totalPortfolioValue),
-                subtitle: "\(vm.activeLoansCount + vm.npaCount + vm.restructuredCount) active loans",
+                icon: "banknote.fill",
+                title: "Total Disbursed",
+                value: vm.formatCurrency(vm.totalDisbursed),
+                subtitle: "\(vm.activeLoansCount) active loans",
                 accentColor: Color.staffAccent,
                 gradientEnd: Color(hex: Color.currentPalette.darkerHex)
             )
@@ -177,7 +177,7 @@ struct OfficerReportsView: View {
                 icon: "checkmark.circle.fill",
                 title: "Active Loans",
                 value: "\(vm.activeLoansCount)",
-                subtitle: "of \(vm.totalLoansCount) total",
+                subtitle: "performing assets",
                 accentColor: Color.staffTeal,
                 gradientEnd: Color(hex: "#2E8A5A")
             )
@@ -186,7 +186,7 @@ struct OfficerReportsView: View {
                 icon: "exclamationmark.triangle.fill",
                 title: "NPA Ratio",
                 value: vm.formatPercent(vm.npaRatio),
-                subtitle: "\(vm.npaCount) NPA loans",
+                subtitle: "\(vm.npaCount) all-time NPA loans",
                 accentColor: vm.npaRatio > 5 ? Color(hex: "#D9534F") : Color(hex: "#C89A24"),
                 gradientEnd: vm.npaRatio > 5 ? Color(hex: "#C0392B") : Color(hex: "#A67D1C")
             )
@@ -195,16 +195,16 @@ struct OfficerReportsView: View {
                 icon: "chart.line.uptrend.xyaxis",
                 title: "Collection Efficiency",
                 value: vm.formatPercent(vm.collectionEfficiency),
-                subtitle: "current period",
+                subtitle: "all time",
                 accentColor: vm.collectionEfficiency >= 95 ? Color.staffAccent : Color(hex: "#C89A24"),
                 gradientEnd: vm.collectionEfficiency >= 95 ? Color(hex: Color.currentPalette.darkerHex) : Color(hex: "#A67D1C")
             )
             
             ReportMetricCard(
-                icon: "banknote.fill",
-                title: "Total Disbursed",
-                value: vm.formatCurrency(vm.totalDisbursed),
-                subtitle: "\(vm.totalLoansCount) loans",
+                icon: "calendar.badge.exclamationmark",
+                title: "Overdue Amount",
+                value: vm.formatCurrency(vm.totalOverdueAmount),
+                subtitle: "delinquent payments",
                 accentColor: Color.staffPurple,
                 gradientEnd: Color(hex: "#2D7A4D")
             )
@@ -608,7 +608,7 @@ struct OfficerReportsView: View {
         default:
             return Color(hex: "#2563EB") // Cobalt Blue
         }
-    }
+     }
     
     private func colorForProduct(_ name: String, in allProducts: [String]) -> Color {
         if let index = allProducts.firstIndex(of: name) {

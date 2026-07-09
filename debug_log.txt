@@ -1,0 +1,1 @@
+DEBUG: totalDueAllTime=1113033.13, totalCollectedAllTime=801009.79, overallEfficiency=71.96639241097883
