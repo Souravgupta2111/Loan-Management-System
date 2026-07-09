@@ -95,10 +95,21 @@ private struct AppColorPaletteKey: EnvironmentKey {
     static let defaultValue: AppColorPalette = AppThemeManager.activePalette
 }
 
+/// Propagates the high-contrast flag through the environment purely so the view
+/// tree re-renders (and re-reads the palette) whenever the toggle changes.
+private struct AppHighContrastKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
 extension EnvironmentValues {
     var appColorPalette: AppColorPalette {
         get { self[AppColorPaletteKey.self] }
         set { self[AppColorPaletteKey.self] = newValue }
+    }
+
+    var appHighContrastEnabled: Bool {
+        get { self[AppHighContrastKey.self] }
+        set { self[AppHighContrastKey.self] = newValue }
     }
 }
 
@@ -110,6 +121,13 @@ extension Color {
         AppThemeManager.activePalette
     }
 
+    /// System-wide high-contrast toggle. When enabled, the palette flips to a
+    /// maximum-legibility scheme (white surfaces, near-black text, solid black
+    /// borders, and a darker accent) that easily clears WCAG AA contrast.
+    static var appHighContrast: Bool {
+        AppAccessibilityManager.shared.isHighContrastEnabled
+    }
+
     private static func themedColor(_ hex: @escaping (AppColorPalette) -> String) -> Color {
         Color(UIColor { _ in
             UIColor(hex: hex(AppThemeManager.activePalette))
@@ -117,17 +135,33 @@ extension Color {
     }
 
     // MARK: - Core Palette (Light Mode)
-    static var appBackground: Color { themedColor(\.backgroundHex) }
+    static var appBackground: Color {
+        appHighContrast ? Color(hex: "#FFFFFF") : themedColor(\.backgroundHex)
+    }
     static let surface         = Color(hex: "#FFFFFF")
-    static let surfaceMuted    = Color(hex: "#F5F5F0")
-    static let textPrimary     = Color(hex: "#1A1A1A")
-    static let textSecondary   = Color(hex: "#6B6B6B")
-    static let textTertiary    = Color(hex: "#9E9E9E")
-    static let border          = Color(hex: "#E8E8E4")
-    static let borderSubtle    = Color(hex: "#F0F0EC")
+    static var surfaceMuted: Color {
+        appHighContrast ? Color(hex: "#F0F0F0") : Color(hex: "#F5F5F0")
+    }
+    static var textPrimary: Color {
+        appHighContrast ? Color(hex: "#000000") : Color(hex: "#1A1A1A")
+    }
+    static var textSecondary: Color {
+        appHighContrast ? Color(hex: "#1C1C1C") : Color(hex: "#6B6B6B")
+    }
+    static var textTertiary: Color {
+        appHighContrast ? Color(hex: "#3A3A3A") : Color(hex: "#9E9E9E")
+    }
+    static var border: Color {
+        appHighContrast ? Color(hex: "#000000") : Color(hex: "#E8E8E4")
+    }
+    static var borderSubtle: Color {
+        appHighContrast ? Color(hex: "#000000") : Color(hex: "#F0F0EC")
+    }
 
     // MARK: - Accent Colors
-    static var accentGreen: Color { themedColor(\.primaryHex) }
+    static var accentGreen: Color {
+        appHighContrast ? themedColor(\.darkerHex) : themedColor(\.primaryHex)
+    }
     static var accentGreenBg: Color { themedColor(\.accentBackgroundHex) }
     static var themeGreen: Color { themedColor(\.themeHex) }
     static var themeGreenBg: Color { themedColor(\.themeHex).opacity(0.2) }

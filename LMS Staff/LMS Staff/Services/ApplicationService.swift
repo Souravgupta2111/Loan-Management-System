@@ -114,44 +114,50 @@ class ApplicationService {
     }
     
     /// Helper to join products, users, and borrower profiles in-memory.
+    ///
+    /// Uses batched `.in(...)` fetches (three queries total) instead of two
+    /// queries per application, so the cost is constant regardless of how many
+    /// applications are returned (previously O(2N) round-trips).
     private func populateApplications(_ applications: [LoanApplication]) async throws -> [ApplicationWithBorrower] {
         if applications.isEmpty { return [] }
         
-        // Fetch all products
+        let borrowerIds = Array(Set(applications.map { $0.borrowerId }))
+        
+        // 1. Products (all — small reference table).
         let products: [LoanProduct] = try await supabase.database
             .from("loan_products")
             .select()
             .execute()
             .value
-        let productsMap = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
+        let productsMap = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        
+        // 2. All borrower users in one query.
+        let users: [AppUser] = try await supabase.database
+            .from("users")
+            .select()
+            .in("id", values: borrowerIds)
+            .execute()
+            .value
+        let usersMap = Dictionary(users.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        
+        // 3. All borrower profiles in one query (optional per borrower).
+        let profiles: [BorrowerProfile] = (try? await supabase.database
+            .from("borrower_profiles")
+            .select()
+            .in("user_id", values: borrowerIds)
+            .execute()
+            .value) ?? []
+        let profilesMap = Dictionary(profiles.map { ($0.userId, $0) }, uniquingKeysWith: { first, _ in first })
         
         var populated: [ApplicationWithBorrower] = []
-        
         for app in applications {
-            guard let product = productsMap[app.loanProductId] else { continue }
-            
-            // Fetch borrower user details
-            let borrower: AppUser = try await supabase.database
-                .from("users")
-                .select()
-                .eq("id", value: app.borrowerId)
-                .single()
-                .execute()
-                .value
-            
-            // Fetch borrower profile (could be nil if not created yet, though usually is)
-            let profile: BorrowerProfile? = try? await supabase.database
-                .from("borrower_profiles")
-                .select()
-                .eq("user_id", value: app.borrowerId)
-                .single()
-                .execute()
-                .value
+            guard let product = productsMap[app.loanProductId],
+                  let borrower = usersMap[app.borrowerId] else { continue }
             
             populated.append(ApplicationWithBorrower(
                 application: app,
                 borrower: borrower,
-                profile: profile,
+                profile: profilesMap[app.borrowerId],
                 product: product
             ))
         }
@@ -216,9 +222,20 @@ class ApplicationService {
             .execute()
             .value {
             
-            // Resolve Officer and Manager User IDs
-            let allStaff = try? await StaffManagementService.shared.fetchStaff()
-            let officerUserId = allStaff?.first(where: { $0.staff.id == record.assigned_officer_id })?.user.id
+            // Resolve Officer and Manager User IDs with targeted lookups instead
+            // of fetching the entire staff list just to find one officer.
+            var officerUserId: UUID? = nil
+            if let officerProfileId = record.assigned_officer_id {
+                struct OfficerUserRow: Decodable { let user_id: UUID }
+                let row: OfficerUserRow? = try? await supabase.database
+                    .from("staff_profiles")
+                    .select("user_id")
+                    .eq("id", value: officerProfileId)
+                    .single()
+                    .execute()
+                    .value
+                officerUserId = row?.user_id
+            }
             var managerUserId: UUID? = nil
             if let branchId = record.branch_id {
                 managerUserId = try? await StaffManagementService.shared.fetchBranchManager(branchId: branchId)?.id
