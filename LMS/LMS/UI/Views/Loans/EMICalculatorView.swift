@@ -54,10 +54,17 @@ struct EMICalculatorView: View {
     }
     
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     private let fallbackAmountRange: ClosedRange<Double> = 10000...100000000
     private let fallbackTenureRange: ClosedRange<Double> = 6...360
     private let fallbackInterestRateRange: ClosedRange<Double> = 5.0...24.0
+    private var inputBackground: Color {
+        colorScheme == .dark ? Color.surfaceMuted.opacity(0.92) : Color.black.opacity(0.05)
+    }
+    private var inputBorder: Color {
+        colorScheme == .dark ? Color.border.opacity(0.75) : Color.clear
+    }
 
     var body: some View {
         NavigationStack {
@@ -172,11 +179,11 @@ struct EMICalculatorView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, 14)
-                .background(Color.white)
+                .background(inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: Corner.md)
-                        .stroke(amountError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                        .stroke(amountError != nil ? Color.accentRed : inputBorder, lineWidth: 1)
                 )
 
                 if let amountError = amountError {
@@ -204,11 +211,11 @@ struct EMICalculatorView: View {
                         .focused($activeField, equals: .tenure)
                         .padding(.horizontal, Spacing.lg)
                         .padding(.vertical, 14)
-                        .background(Color.white)
+                        .background(inputBackground)
                         .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                         .overlay(
                             RoundedRectangle(cornerRadius: Corner.md)
-                                .stroke(tenureError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                                .stroke(tenureError != nil ? Color.accentRed : inputBorder, lineWidth: 1)
                         )
                         .onChange(of: tenureText) { _, newValue in
                             let digits = newValue.filter { $0.isNumber || $0 == "-" }
@@ -256,11 +263,11 @@ struct EMICalculatorView: View {
                     }
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, 14)
-                    .background(Color.white)
+                    .background(inputBackground)
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                     .overlay(
                         RoundedRectangle(cornerRadius: Corner.md)
-                            .stroke(interestRateError != nil ? Color.accentRed : Color.clear, lineWidth: 1)
+                            .stroke(interestRateError != nil ? Color.accentRed : inputBorder, lineWidth: 1)
                     )
 
                     if let interestRateError = interestRateError {
@@ -378,8 +385,12 @@ struct EMICalculatorView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, 14)
-                .background(Color.white)
+                .background(inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Corner.md)
+                        .stroke(inputBorder, lineWidth: 1)
+                )
                 .contentShape(Rectangle())
             }
             .disabled(isLoadingProducts)

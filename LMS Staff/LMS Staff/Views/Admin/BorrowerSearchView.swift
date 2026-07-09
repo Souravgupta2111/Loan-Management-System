@@ -39,7 +39,7 @@ struct BorrowerSearchView: View {
                             applyFilters()
                         }
                 }
-                .background(Color.white)
+                .background(Color.staffPanel)
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -80,7 +80,7 @@ struct BorrowerSearchView: View {
                         .listRowBackground(
                             selectedBorrower?.id == borrower.id
                             ? Color.staffAccent.opacity(0.15)
-                            : Color.white
+                            : Color.staffPanel
                         )
                         .accessibilityElement(children: .combine)
                         .accessibilityHint("Double tap to open")

@@ -130,10 +130,10 @@ struct AuditTrailView: View {
                 }
                 .listStyle(PlainListStyle())
                 .scrollContentBackground(.hidden)
-                .background(Color.white)
+                .background(Color.staffBackground)
             }
         }
-        .background(Color.white)
+        .background(Color.staffBackground)
         .task {
             await loadAuditLogs()
         }

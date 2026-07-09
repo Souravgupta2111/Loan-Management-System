@@ -1031,6 +1031,15 @@ private struct DocumentsList: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var isProcessing = false
     @State private var customDocumentName: String = ""
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var documentCardBackground: Color {
+        colorScheme == .dark ? Color.surface.opacity(0.92) : Color.white.opacity(0.6)
+    }
+
+    private var documentInputBackground: Color {
+        colorScheme == .dark ? Color.surfaceMuted.opacity(0.92) : Color.white.opacity(0.8)
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -1091,7 +1100,7 @@ private struct DocumentsList: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.6))
+                        .background(documentCardBackground)
                         .liquidGlass(cornerRadius: 18)
                     }
                     .buttonStyle(ScaleButtonStyle())
@@ -1137,9 +1146,9 @@ private struct DocumentsList: View {
                     VStack(spacing: 12) {
                         TextField("Document Name (e.g. Bank Statement)", text: $customDocumentName)
                             .padding(14)
-                            .background(Color.white.opacity(0.8))
+                            .background(documentInputBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.accentGreen.opacity(0.3), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.border.opacity(0.55), lineWidth: 1))
                             .foregroundColor(Color(hex: "#1A1A1A"))
                             
                         PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
@@ -1184,6 +1193,11 @@ private struct DocumentsList: View {
 
 private struct LoanDocumentRowView: View {
     let document: LoanDocumentItem
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color.surface.opacity(0.92) : Color.white.opacity(0.6)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1213,7 +1227,7 @@ private struct LoanDocumentRowView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color.white.opacity(0.6))
+        .background(cardBackground)
         .liquidGlass(cornerRadius: 18)
     }
 }

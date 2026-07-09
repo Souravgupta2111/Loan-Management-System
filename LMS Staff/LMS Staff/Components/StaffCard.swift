@@ -10,17 +10,20 @@ struct StaffCard<Content: View>: View {
     // every staff screen builds on StaffCard. Read the AppStorage key directly
     // so the card live-updates the moment the toggle changes.
     @AppStorage("isHighContrastEnabled") private var highContrast: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let effectiveHighContrast = highContrast && colorScheme == .light
+
         content()
             .padding(padding)
-            .background(Color(hex: highContrast ? "#FFFFFF" : "#FAFAF8"))
+            .background(effectiveHighContrast ? Color(hex: "#FFFFFF") : (colorScheme == .dark ? Color.staffSurface : Color(hex: "#FAFAF8")))
             .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
             .overlay(
                 RoundedRectangle(cornerRadius: StaffCorner.md)
                     .stroke(
-                        highContrast ? Color(hex: "#1A1A1A") : Color.staffBorder,
-                        lineWidth: highContrast ? 2 : 1
+                        effectiveHighContrast ? Color(hex: "#1A1A1A") : Color.staffBorder,
+                        lineWidth: effectiveHighContrast ? 2 : 1
                     )
             )
     }

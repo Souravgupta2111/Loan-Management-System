@@ -59,16 +59,14 @@ struct SelectLoanTypeView: View {
                     Image(systemName: "arrow.right")
                         .font(.subheadline.weight(.bold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(canContinue ? .accentDarkText : .textTertiary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                .background(isLoading || availableTypes.isEmpty || selectedLoanType == nil
-                    ? Color(hex: "#1A1A1A").opacity(0.4)
-                    : Color(hex: "#1A1A1A"))
+                .background(canContinue ? Color.accentDark : Color.surfaceMuted)
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            .disabled(isLoading || availableTypes.isEmpty || selectedLoanType == nil)
+            .disabled(!canContinue)
             .padding(.horizontal, 24)
             .padding(.top, 14)
             .padding(.bottom, 18)
@@ -96,6 +94,10 @@ struct SelectLoanTypeView: View {
         }
         .task { await loadLoanTypes() }
         .refreshable { await loadLoanTypes() }
+    }
+
+    private var canContinue: Bool {
+        !isLoading && !availableTypes.isEmpty && selectedLoanType != nil
     }
 
     // MARK: - Data Fetch

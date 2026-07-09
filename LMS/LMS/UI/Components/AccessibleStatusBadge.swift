@@ -15,9 +15,10 @@ struct AccessibleStatusBadge: View {
     @Environment(\.sizeCategory) var sizeCategory
     // Honor the system "Differentiate Without Color" setting too, not just the in-app toggle.
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+    @Environment(\.colorScheme) private var colorScheme
 
     private var showsShape: Bool {
-        differentiateWithoutColor || a11yManager.isHighContrastEnabled
+        differentiateWithoutColor || (a11yManager.isHighContrastEnabled && colorScheme == .light)
     }
 
     var body: some View {

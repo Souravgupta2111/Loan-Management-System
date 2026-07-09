@@ -13,6 +13,7 @@ private enum EditableField {
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var themeManager: AppThemeManager
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var a11yManager = AppAccessibilityManager.shared
     @Environment(\.dismiss) private var dismiss
 
@@ -391,6 +392,40 @@ struct ProfileView: View {
                                     }
                                 }
                             }
+
+                            HStack(spacing: Spacing.md) {
+                                Button { isEditingAddress = false } label: {
+                                    Text("Cancel")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.surfaceMuted)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    Task { await saveAddress() }
+                                } label: {
+                                    HStack {
+                                        if isSaving {
+                                            ProgressView().tint(.accentDarkText)
+                                        } else {
+                                            Text("Save")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(.accentDarkText)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color.accentGreen)
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isSaving)
+                            }
+                            .padding(.top, 4)
                         }
                         .transition(.opacity)
                     }
@@ -409,11 +444,11 @@ struct ProfileView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color(hex: "#E0E0E0"))
+                                .fill(Color.surfaceMuted)
                                 .frame(width: 28, height: 28)
                             Image(systemName: "pencil")
                                 .font(.subheadline.weight(.bold))
-                                .foregroundColor(.black)
+                                .foregroundColor(.textPrimary)
                         }
                     }
                 }
@@ -488,7 +523,7 @@ struct ProfileView: View {
             
             divider
             
-            Toggle(isOn: $a11yManager.isHighContrastEnabled) {
+            Toggle(isOn: highContrastBinding) {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
@@ -502,13 +537,15 @@ struct ProfileView: View {
                         Text("High Contrast Mode")
                             .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
-                        Text("Color blind safe shapes & contrast")
+                        Text(colorScheme == .dark ? "Available in light mode only" : "Color blind safe shapes & contrast")
                             .font(.caption2)
                             .foregroundColor(.textSecondary)
                     }
                 }
             }
             .tint(.accentGreen)
+            .disabled(colorScheme == .dark)
+            .opacity(colorScheme == .dark ? 0.55 : 1)
             .padding(Spacing.lg)
             
             divider
@@ -636,6 +673,19 @@ struct ProfileView: View {
         .liquidGlass(cornerRadius: 22)
     }
 
+    private var highContrastBinding: Binding<Bool> {
+        Binding(
+            get: { colorScheme == .light && a11yManager.isHighContrastEnabled },
+            set: { newValue in
+                guard colorScheme == .light else {
+                    a11yManager.isHighContrastEnabled = false
+                    return
+                }
+                a11yManager.isHighContrastEnabled = newValue
+            }
+        )
+    }
+
     // MARK: - Reusable Subviews
 
     private func sectionHeader(_ title: String) -> some View {
@@ -739,11 +789,11 @@ struct ProfileView: View {
                     Button(action: onSave) {
                         HStack {
                             if isSaving {
-                                ProgressView().tint(.white)
+                                ProgressView().tint(.accentDarkText)
                             } else {
                                 Text("Save")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.accentDarkText)
                             }
                         }
                         .frame(maxWidth: .infinity)

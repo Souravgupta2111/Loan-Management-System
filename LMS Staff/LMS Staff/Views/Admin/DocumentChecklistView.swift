@@ -29,7 +29,7 @@ struct DocumentChecklistView: View {
                         .padding(.bottom, StaffSpacing.md)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
+                .background(Color.staffPanel)
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -70,7 +70,7 @@ struct DocumentChecklistView: View {
                         .listRowBackground(
                             selectedProduct?.id == product.id
                             ? Color.staffAccent.opacity(0.15)
-                            : Color.white
+                            : Color.staffPanel
                         )
                         .accessibilityElement(children: .combine)
                         .accessibilityHint("Double tap to edit checklist")

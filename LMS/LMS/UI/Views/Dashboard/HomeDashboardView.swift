@@ -185,11 +185,11 @@ struct HomeDashboardView: View {
                     Button { showProfile = true } label: {
                         ZStack {
                             Circle()
-                                .fill(Color(hex: "#1A1A1A"))
+                                .fill(Color.accentDark)
                                 .frame(width: 40, height: 40)
                             Image(systemName: "person.fill")
                                 .font(.body.weight(.medium))
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.accentDarkText)
                         }
                     }
                     .buttonStyle(.plain)
@@ -305,10 +305,10 @@ struct HomeDashboardView: View {
                     } label: {
                         Text("Pay Now")
                             .font(.body.weight(.bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.accentDarkText)
                             .padding(.horizontal, 22)
                             .padding(.vertical, 12)
-                            .background(Color(hex: "#1A1A1A"))
+                            .background(Color.accentDark)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -332,10 +332,10 @@ struct HomeDashboardView: View {
                     } label: {
                         Text("View Updates")
                             .font(.body.weight(.bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.accentDarkText)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
-                            .background(Color(hex: "#1A1A1A"))
+                            .background(Color.accentDark)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -565,10 +565,10 @@ struct HomeDashboardView: View {
                     Spacer()
                     Text("Apply Now")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.accentDarkText)
                     Image(systemName: "arrow.right")
                         .font(.caption.weight(.semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.accentDarkText)
                     Spacer()
                 }
                 .padding(.horizontal, 24)
@@ -647,8 +647,8 @@ struct HomeDashboardView: View {
                     amount: loan.amount,
                     direction: .credit,
                     statusIcon: "indianrupeesign",
-                    statusColor: .white,
-                    statusBg: Color(hex: "#1A1A1A")
+                    statusColor: .accentDarkText,
+                    statusBg: Color.accentDark
                 )
             )
         }

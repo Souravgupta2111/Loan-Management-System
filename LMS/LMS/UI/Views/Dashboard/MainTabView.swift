@@ -45,8 +45,16 @@ struct MainTabView: View {
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
         appearance.backgroundEffect = UIBlurEffect(style: .systemChromeMaterial)
-        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.42)
-        appearance.shadowColor = UIColor.black.withAlphaComponent(0.08)
+        appearance.backgroundColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.06, green: 0.13, blue: 0.09, alpha: 0.82)
+                : UIColor.white.withAlphaComponent(0.42)
+        }
+        appearance.shadowColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.15, green: 0.26, blue: 0.20, alpha: 0.35)
+                : UIColor.black.withAlphaComponent(0.08)
+        }
 
         let selectedColor = UIColor(Color.accentGreen)
         let normalColor = UIColor.secondaryLabel

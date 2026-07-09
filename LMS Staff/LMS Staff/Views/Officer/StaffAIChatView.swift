@@ -11,6 +11,7 @@ struct StaffAIChatView: View {
     @StateObject private var viewModel = StaffAIChatViewModel()
     @StateObject private var speechService = SpeechService()
     @Environment(\.sizeCategory) var sizeCategory
+    @Environment(\.colorScheme) private var colorScheme
     
     // Quick questions tailored for Staff (Officers & Managers)
     private let quickActions = [
@@ -54,7 +55,7 @@ struct StaffAIChatView: View {
                                 HStack {
                                     ZStack {
                                         Circle()
-                                            .fill(Color(hex: "#1A1A1A"))
+                                            .fill(Color.staffAccentBg)
                                             .frame(width: 32, height: 32)
                                         Image(systemName: "sparkles")
                                             .font(.subheadline)
@@ -134,7 +135,7 @@ struct StaffAIChatView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(speechService.isListening ? Color.red.opacity(0.15) : Color(hex: "#F5F6F5"))
+                                    .fill(speechService.isListening ? Color.red.opacity(0.15) : (colorScheme == .dark ? Color.staffSurfaceMuted : Color(hex: "#F5F6F5")))
                                     .frame(width: 44, height: 44) // Match Send button dimension
                                 
                                 Image(systemName: speechService.isListening ? "stop.fill" : "mic")
@@ -148,6 +149,8 @@ struct StaffAIChatView: View {
                             .lineLimit(1...5)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
+                            .foregroundColor(.staffTextPrimary)
+                            .tint(.staffAccent)
                             .background(Color.clear) // Clear to blend with capsule
                             .onSubmit {
                                 viewModel.sendMessage()
@@ -161,7 +164,7 @@ struct StaffAIChatView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "#008A45"))
+                                    .fill(Color.staffAccent)
                                     .frame(width: 44, height: 44)
                                 
                                 Image(systemName: "paperplane.fill")
@@ -177,11 +180,11 @@ struct StaffAIChatView: View {
                     .padding(4) // tighter padding so buttons fit inside the capsule nicely
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.8))
+                            .fill(colorScheme == .dark ? Color.staffSurface.opacity(0.95) : Color.white.opacity(0.8))
                     )
                     .overlay(
                         Capsule()
-                            .stroke(Color.white, lineWidth: 1.5)
+                            .stroke(colorScheme == .dark ? Color.staffBorder.opacity(0.8) : Color.white, lineWidth: 1.5)
                     )
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)

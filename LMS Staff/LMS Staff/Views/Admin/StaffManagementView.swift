@@ -55,7 +55,7 @@ struct StaffManagementView: View {
                         .foregroundColor(.staffTextPrimary)
                         .padding(StaffSpacing.lg)
                 }
-                .background(Color.white)
+                .background(Color.staffPanel)
                 
                 Divider().background(Color.staffBorder)
                 
@@ -98,7 +98,7 @@ struct StaffManagementView: View {
                         .listRowBackground(
                             selectedStaff?.id == item.id
                             ? Color.staffAccent.opacity(0.15)
-                            : Color.white
+                            : Color.staffPanel
                         )
                         .accessibilityElement(children: .combine)
                         .accessibilityHint("Double tap to open")
@@ -688,4 +688,3 @@ struct StaffProfileDetailView: View {
         .presentationBackground(Color.staffBackground)
     }
 }
-
