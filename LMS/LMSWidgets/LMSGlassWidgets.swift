@@ -112,6 +112,26 @@ private func statusColor(_ status: String) -> Color {
     }
 }
 
+private func payURL(_ loan: WidgetLoanDTO) -> URL {
+    guard !loan.id.isEmpty else { return URL(string: "lmsapp://pay")! }
+    var c = URLComponents(); c.scheme = "lmsapp"; c.host = "pay"
+    c.queryItems = [URLQueryItem(name: "loanId", value: loan.id)]
+    return c.url ?? URL(string: "lmsapp://pay")!
+}
+
+private func iconFor(_ type: String) -> String {
+    switch type.lowercased() {
+    case "home": return "house.fill"
+    case "vehicle": return "car.fill"
+    case "business": return "briefcase.fill"
+    case "education": return "graduationcap.fill"
+    case "personal": return "person.fill"
+    case "gold": return "gift.fill"
+    case "agriculture": return "leaf.fill"
+    default: return "indianrupeesign.circle.fill"
+    }
+}
+
 // MARK: - Glass backgrounds (neutral / dark)
 
 /// Liquid glass — frosted material with a soft sheen and a hairline rim so it
@@ -150,15 +170,29 @@ struct LiquidGlassBG: View {
     }
 }
 
+struct GlassWidgetModifier: ViewModifier {
+    @Environment(\.widgetFamily) var family
+    var alignment: Alignment
+
+    func body(content: Content) -> some View {
+        let isSmall = family == .systemSmall
+        let isMedium = family == .systemMedium
+        let hPadding: CGFloat = isSmall ? 10 : 20
+        let vPadding: CGFloat = isSmall ? 12 : (isMedium ? 16 : 28)
+        
+        return content
+            .padding(.horizontal, hPadding)
+            .padding(.vertical, vPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .containerBackground(for: .widget) { LiquidGlassBG() }
+    }
+}
+
 extension View {
     /// Standard glass widget container: consistent inner padding + fill + glass bg.
     /// Use instead of hand-writing `.frame(...).containerBackground(...)`.
     func glassWidget(_ alignment: Alignment = .topLeading) -> some View {
-        self
-            .padding(.horizontal, 20)
-            .padding(.vertical, 28)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-            .containerBackground(for: .widget) { LiquidGlassBG() }
+        self.modifier(GlassWidgetModifier(alignment: alignment))
     }
 }
 
@@ -242,76 +276,7 @@ private extension WidgetSnapshotDTO {
     var totalOutstanding: Double { loans.reduce(0) { $0 + $1.outstanding } }
 }
 
-// MARK: - Next EMI (small + medium, interactive Pay)
 
-struct NextEMIView: View {
-    @Environment(\.widgetFamily) var family
-    var entry: LMSEntry
-
-    var body: some View {
-        let loan = entry.snapshot.nextEMILoan
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Label("Next EMI", systemImage: "calendar")
-                    .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                Spacer()
-                if let loan, let d = daysUntil(loan.nextDue) {
-                    Text(d < 0 ? "Overdue" : "\(max(d,0))d")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(d < 0 ? Color.red : (d <= 3 ? Color.orange : Color.secondary))
-                }
-            }
-
-            if let loan {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(inr(loan.emiAmount)).font(.title2.weight(.bold)).minimumScaleFactor(0.6).lineLimit(1)
-                    Spacer()
-                    Text(dueText(loan.nextDue)).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                }
-                Text(loan.name).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-
-                if family == .systemMedium {
-                    Spacer(minLength: 8)
-                    Link(destination: payURL(loan)) {
-                        Text("Pay Now")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.lmsGreen)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(.thinMaterial, in: Capsule())
-                            .overlay(Capsule().stroke(Color.lmsGreen.opacity(0.35), lineWidth: 2))
-                    }
-                    .padding(.bottom, 6)
-                } else {
-                    Spacer(minLength: 0)
-                }
-            } else {
-                Text("No EMIs due").font(.headline)
-                Text("You're all caught up").font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-        }
-        .glassWidget()
-        .widgetURL(URL(string: "lmsapp://emi"))
-    }
-
-    private func payURL(_ loan: WidgetLoanDTO) -> URL {
-        guard !loan.id.isEmpty else { return URL(string: "lmsapp://pay")! }
-        var c = URLComponents(); c.scheme = "lmsapp"; c.host = "pay"
-        c.queryItems = [URLQueryItem(name: "loanId", value: loan.id)]
-        return c.url ?? URL(string: "lmsapp://pay")!
-    }
-}
-
-struct NextEMIWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "NextEMIWidget", provider: LMSProvider()) { NextEMIView(entry: $0) }
-            .configurationDisplayName("Next EMI")
-            .description("Your upcoming EMI, with a quick Pay action.")
-            .supportedFamilies([.systemSmall, .systemMedium])
-            .contentMarginsDisabled()
-    }
-}
 
 // MARK: - Loan Summary (large, up to 3 loans + cycle)
 
@@ -369,18 +334,7 @@ struct LoanSummaryView: View {
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func iconFor(_ type: String) -> String {
-        switch type.lowercased() {
-        case "home": return "house.fill"
-        case "vehicle": return "car.fill"
-        case "business": return "briefcase.fill"
-        case "education": return "graduationcap.fill"
-        case "personal": return "person.fill"
-        case "gold": return "gift.fill"
-        case "agriculture": return "leaf.fill"
-        default: return "indianrupeesign.circle.fill"
-        }
-    }
+
 }
 
 struct LoanSummaryWidget: Widget {
@@ -392,83 +346,6 @@ struct LoanSummaryWidget: Widget {
     }
 }
 
-// MARK: - EMI Calendar (large)
-
-struct EMICalendarView: View {
-    var entry: LMSEntry
-    private let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
-
-    var body: some View {
-        let cal = Calendar.current
-        let now = Date()
-        let comps = cal.dateComponents([.year, .month], from: now)
-        let firstOfMonth = cal.date(from: comps)!
-        let range = cal.range(of: .day, in: .month, for: firstOfMonth)!
-        let leading = (cal.component(.weekday, from: firstOfMonth) - cal.firstWeekday + 7) % 7
-
-        // Map day-of-month -> status for the visible month.
-        var statusByDay: [Int: String] = [:]
-        for e in entry.snapshot.calendar where cal.isDate(e.date, equalTo: firstOfMonth, toGranularity: .month) {
-            statusByDay[cal.component(.day, from: e.date)] = e.status
-        }
-
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Label(monthTitle(now), systemImage: "calendar")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Spacer()
-                legendDot(.green, "Paid"); legendDot(.orange, "Due"); legendDot(.red, "Late")
-            }
-            LazyVGrid(columns: cols, spacing: 4) {
-                ForEach(Array(["S","M","T","W","T","F","S"].enumerated()), id: \.offset) { _, d in
-                    Text(d).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
-                }
-                ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 20) }
-                ForEach(1...range.count, id: \.self) { day in
-                    dayCell(day: day, status: statusByDay[day], isToday: cal.component(.day, from: now) == day)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .glassWidget()
-        .widgetURL(URL(string: "lmsapp://emi"))
-    }
-
-    private func dayCell(day: Int, status: String?, isToday: Bool) -> some View {
-        let color = status.map { statusColor($0) }
-        return Text("\(day)")
-            .font(.system(size: 11, weight: isToday ? .bold : .regular))
-            .frame(maxWidth: .infinity, minHeight: 20)
-            .background {
-                if let color {
-                    Circle().fill(color.opacity(0.9)).frame(width: 22, height: 22)
-                } else if isToday {
-                    Circle().stroke(Color.primary.opacity(0.4)).frame(width: 22, height: 22)
-                }
-            }
-            .foregroundStyle(color != nil ? Color.white : Color.primary)
-    }
-
-    private func legendDot(_ c: Color, _ label: String) -> some View {
-        HStack(spacing: 2) {
-            Circle().fill(c).frame(width: 6, height: 6)
-            Text(label).font(.system(size: 8)).foregroundStyle(.secondary)
-        }
-    }
-
-    private func monthTitle(_ d: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: d)
-    }
-}
-
-struct EMICalendarWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "EMICalendarWidget", provider: LMSProvider()) { EMICalendarView(entry: $0) }
-            .configurationDisplayName("EMI Calendar")
-            .description("This month's EMIs — paid, due and overdue.")
-            .supportedFamilies([.systemLarge])
-    }
-}
 
 // MARK: - Application Tracker (medium)
 
@@ -505,15 +382,24 @@ struct ApplicationTrackerView: View {
                             ZStack {
                                 Circle().fill(i <= currentIndex ? Color.primary : Color.secondary.opacity(0.3))
                                     .frame(width: 18, height: 18)
-                                if i < currentIndex {
+                                if i <= currentIndex {
                                     Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Color(.systemBackground))
                                 }
                             }
                             Text(name).font(.system(size: 8)).foregroundStyle(i <= currentIndex ? Color.primary : Color.secondary)
                         }
                         if i < stages.count - 1 {
-                            Rectangle().fill(i < currentIndex ? Color.primary : Color.secondary.opacity(0.3))
-                                .frame(height: 2).frame(maxWidth: .infinity).offset(y: -6)
+                            if i == currentIndex {
+                                DottedLine()
+                                    .stroke(style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round, dash: [4, 4]))
+                                    .foregroundStyle(Color.primary)
+                                    .frame(height: 2)
+                                    .frame(maxWidth: .infinity)
+                                    .offset(y: -6)
+                            } else {
+                                Rectangle().fill(i < currentIndex ? Color.primary : Color.secondary.opacity(0.3))
+                                    .frame(height: 2).frame(maxWidth: .infinity).offset(y: -6)
+                            }
                         }
                     }
                 }
@@ -549,7 +435,7 @@ struct AIQuickAskView: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             Label("Ask your advisor", systemImage: "sparkles")
                 .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             ForEach(prompts, id: \.0) { text, icon in
@@ -560,10 +446,11 @@ struct AIQuickAskView: View {
                         Spacer(minLength: 4)
                         Image(systemName: "arrow.up.right").font(.system(size: 8)).foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .padding(.horizontal, 10).padding(.vertical, 4.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.thinMaterial, in: Capsule())
                 }
+                .buttonStyle(.plain)
             }
         }
         .glassWidget()
@@ -592,22 +479,34 @@ struct CreditScoreView: View {
     var body: some View {
         let score = entry.snapshot.creditScore
         let fraction = score.map { Double($0 - 300) / 600.0 } ?? 0
-        VStack(spacing: 6) {
-            Label("Credit Score", systemImage: "chart.bar.fill")
-                .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            ZStack {
-                Circle().stroke(.secondary.opacity(0.25), lineWidth: 8)
-                Circle().trim(from: 0, to: min(max(fraction, 0), 1))
-                    .stroke(scoreColor(score), style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                VStack(spacing: 0) {
-                    Text(score.map { "\($0)" } ?? "—").font(.title2.weight(.bold))
-                    Text(band(score)).font(.system(size: 8)).foregroundStyle(.secondary)
-                }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "chart.bar.fill")
+                Text("Credit Score")
             }
-            .frame(width: 74, height: 74)
+            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            .padding(.bottom, 8)
+            
+            HStack {
+                Spacer()
+                ZStack {
+                    Circle().stroke(.secondary.opacity(0.25), lineWidth: 8)
+                    Circle().trim(from: 0, to: min(max(fraction, 0), 1))
+                        .stroke(scoreColor(score), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 0) {
+                        Text(score.map { "\($0)" } ?? "—").font(.title2.weight(.bold))
+                        Text(band(score)).font(.system(size: 8)).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 74, height: 74)
+                Spacer()
+            }
+            
+            Spacer(minLength: 0)
         }
-        .glassWidget(.center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .glassWidget()
         .widgetURL(URL(string: "lmsapp://advisor?q=How%20can%20I%20improve%20my%20credit%20score%3F"))
     }
 
@@ -634,63 +533,7 @@ struct CreditScoreWidget: Widget {
     }
 }
 
-// MARK: - Loan Calculator (medium, interactive steppers)
 
-struct LoanCalculatorView: View {
-    var entry: LMSEntry
-    private let rate = 10.5 // annual %, illustrative
-
-    private var emi: Double {
-        let p = entry.calcAmount, n = Double(entry.calcTenure), r = rate / 12 / 100
-        guard r > 0, n > 0 else { return p / max(n, 1) }
-        return (p * r * pow(1 + r, n)) / (pow(1 + r, n) - 1)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("EMI Calculator", systemImage: "plus.forwardslash.minus")
-                .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Monthly EMI").font(.caption2).foregroundStyle(.secondary)
-                    Text(inr(emi.rounded())).font(.title3.weight(.bold)).minimumScaleFactor(0.6).lineLimit(1)
-                }
-                Spacer()
-                Text("@ \(rate, specifier: "%.1f")%").font(.caption2).foregroundStyle(.secondary)
-            }
-
-            stepperRow(label: "Amount", value: inrCompact(entry.calcAmount), field: "amount")
-            stepperRow(label: "Tenure", value: "\(entry.calcTenure) mo", field: "tenure")
-            Spacer(minLength: 0)
-        }
-        .glassWidget()
-    }
-
-    private func stepperRow(label: String, value: String, field: String) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary).frame(width: 56, alignment: .leading)
-            Button(intent: CalcAdjustIntent(field: field, direction: -1)) {
-                Image(systemName: "minus").font(.caption.weight(.bold)).frame(width: 26, height: 26)
-                    .background(.thinMaterial, in: Circle())
-            }.buttonStyle(.plain)
-            Text(value).font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
-            Button(intent: CalcAdjustIntent(field: field, direction: 1)) {
-                Image(systemName: "plus").font(.caption.weight(.bold)).frame(width: 26, height: 26)
-                    .background(.thinMaterial, in: Circle())
-            }.buttonStyle(.plain)
-        }
-    }
-}
-
-struct LoanCalculatorWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "LoanCalculatorWidget", provider: LMSProvider()) { LoanCalculatorView(entry: $0) }
-            .configurationDisplayName("EMI Calculator")
-            .description("Estimate an EMI right from your home screen.")
-            .supportedFamilies([.systemMedium])
-    }
-}
 
 // MARK: - Lock Screen accessory trio
 
@@ -739,5 +582,14 @@ struct EMILockWidget: Widget {
             .configurationDisplayName("Next EMI (Lock Screen)")
             .description("Your next EMI on the lock screen.")
             .supportedFamilies([.accessoryInline, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+struct DottedLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path
     }
 }
