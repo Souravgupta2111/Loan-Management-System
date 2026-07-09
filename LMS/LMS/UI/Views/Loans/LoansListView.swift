@@ -471,7 +471,7 @@ struct LoansListView: View {
                     }
                     .frame(height: 5)
 
-                    Text("\(paidEMIs)/\(totalEMIs) paid")
+                    Text("\(Int(loan.paidPercent * 100))% repaid")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(Color.accentGreen)
                         .fixedSize()

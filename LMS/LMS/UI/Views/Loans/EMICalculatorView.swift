@@ -172,7 +172,7 @@ struct EMICalculatorView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, 14)
-                .background(Color.black.opacity(0.05))
+                .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: Corner.md)
@@ -191,9 +191,11 @@ struct EMICalculatorView: View {
             HStack(alignment: .top, spacing: Spacing.md) {
                 // Tenure (Months)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("Tenure (\(Int(tenureRange.lowerBound)) - \(Int(tenureRange.upperBound)) Months)")
+                    Text("Tenure (\(Int(tenureRange.lowerBound))-\(Int(tenureRange.upperBound)) Months)")
                         .font(.subheadline.weight(.regular))
                         .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     TextField("Months", text: $tenureText)
                         .font(.headline.weight(.medium))
@@ -202,7 +204,7 @@ struct EMICalculatorView: View {
                         .focused($activeField, equals: .tenure)
                         .padding(.horizontal, Spacing.lg)
                         .padding(.vertical, 14)
-                        .background(Color.black.opacity(0.05))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                         .overlay(
                             RoundedRectangle(cornerRadius: Corner.md)
@@ -228,9 +230,11 @@ struct EMICalculatorView: View {
 
                 // Interest Rate (%)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("Rate (\(String(format: "%.1f", interestRateRange.lowerBound))% - \(String(format: "%.1f", interestRateRange.upperBound))%)")
+                    Text("Rate (\(String(format: "%.1f", interestRateRange.lowerBound))%-\(String(format: "%.1f", interestRateRange.upperBound))%)")
                         .font(.subheadline.weight(.regular))
                         .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     HStack(spacing: 4) {
                         TextField("Rate", text: $interestRateText)
@@ -252,7 +256,7 @@ struct EMICalculatorView: View {
                     }
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, 14)
-                    .background(Color.black.opacity(0.05))
+                    .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                     .overlay(
                         RoundedRectangle(cornerRadius: Corner.md)
@@ -270,7 +274,7 @@ struct EMICalculatorView: View {
             }
         }
         .padding(Spacing.xl)
-        .liquidGlass()
+        .liquidGlass(tint: .accentGreen, tintOpacity: 0.08)
     }
     
     /// Parses all text fields, validates them against allowed ranges, updates the calculation Doubles, and formats input if valid.
@@ -374,7 +378,7 @@ struct EMICalculatorView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, 14)
-                .background(Color.black.opacity(0.05))
+                .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                 .contentShape(Rectangle())
             }
@@ -417,7 +421,7 @@ struct EMICalculatorView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.lg)
-            .liquidGlass(cornerRadius: 16)
+            .liquidGlass(cornerRadius: 16, tint: .accentGreen, tintOpacity: 0.08)
 
             // Total Amount card
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -430,7 +434,7 @@ struct EMICalculatorView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.lg)
-            .liquidGlass(cornerRadius: 16)
+            .liquidGlass(cornerRadius: 16, tint: .accentGreen, tintOpacity: 0.08)
         }
     }
 
@@ -466,7 +470,7 @@ struct EMICalculatorView: View {
 
         }
         .padding(Spacing.xl)
-        .liquidGlass()
+        .liquidGlass(tint: .accentGreen, tintOpacity: 0.08)
     }
 
     // MARK: - Product Loading

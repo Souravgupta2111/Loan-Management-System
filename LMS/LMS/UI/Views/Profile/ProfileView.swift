@@ -144,13 +144,15 @@ struct ProfileView: View {
                     .foregroundColor(Color.accentGreen)
             }
 
-            Text(userName.isEmpty ? "User" : userName)
-                .font(.title3.weight(.bold)).fontDesign(.rounded)
-                .foregroundColor(.textPrimary)
+            VStack(spacing: 2) {
+                Text(userName.isEmpty ? "User" : userName)
+                    .font(.title3.weight(.bold)).fontDesign(.rounded)
+                    .foregroundColor(.textPrimary)
 
-            Text(userEmail)
-                .font(.bodyRegular)
-                .foregroundColor(.textSecondary)
+                Text(userEmail)
+                    .font(.bodyRegular)
+                    .foregroundColor(.textSecondary)
+            }
 
             if !kycStatus.isEmpty {
                 AccessibleStatusBadge(status: kycStatus)
@@ -242,6 +244,26 @@ struct ProfileView: View {
 
             divider
 
+            // Read-only Credit Score row
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Color.themeGreen.opacity(0.15)).frame(width: 32, height: 32)
+                    Image(systemName: "speedometer").foregroundColor(Color.accentGreen).font(.subheadline)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Credit Score")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                }
+                Spacer()
+                Text("750")
+                    .font(.bodyLarge.weight(.semibold))
+                    .foregroundColor(.textPrimary)
+            }
+            .padding(Spacing.lg)
+
+            divider
+
             // Read-only KYC row
             HStack(spacing: 12) {
                 ZStack {
@@ -279,6 +301,7 @@ struct ProfileView: View {
                     Spacer()
                     if (aaConsentStatus.uppercased() == "ACTIVE" || aaConsentStatus.uppercased() == "APPROVED") {
                         StatusBadge(status: "verified")
+                        Image(systemName: "chevron.right").foregroundColor(.textTertiary)
                     } else {
                         Image(systemName: "chevron.right").foregroundColor(.textTertiary)
                     }
@@ -311,8 +334,14 @@ struct ProfileView: View {
                             .font(.bodyLarge)
                             .foregroundColor(.textPrimary)
                             .lineLimit(1...3)
-                        
-                        // Address proof attachment nested here
+                    } else {
+                        Text(address.isEmpty ? "please enter your address" : address)
+                            .font(.bodyLarge)
+                            .foregroundColor(address.isEmpty ? .textSecondary : .textPrimary)
+                    }
+                    
+                    // Address proof attachment
+                    if isEditingAddress || addressProofImage != nil {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("ADDRESS PROOF")
                                 .font(.system(size: 11, weight: .semibold))
@@ -328,9 +357,11 @@ struct ProfileView: View {
                                             .scaledToFill()
                                             .frame(width: 60, height: 60)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        Text("Change photo")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color.accentGreen)
+                                        if isEditingAddress {
+                                            Text("Change photo")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(Color.accentGreen)
+                                        }
                                     } else {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: 10)
@@ -339,14 +370,19 @@ struct ProfileView: View {
                                                 .frame(width: 60, height: 60)
                                             Image(systemName: "plus")
                                                 .foregroundColor(Color.accentGreen)
+                                                .opacity(isEditingAddress ? 1.0 : 0.5)
                                         }
-                                        Text("Attach proof document")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color.accentGreen)
+                                        if isEditingAddress {
+                                            Text("Attach proof document")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(Color.accentGreen)
+                                                .fixedSize(horizontal: true, vertical: false)
+                                        }
                                     }
                                     Spacer()
                                 }
                             }
+                            .disabled(!isEditingAddress)
                             .onChange(of: addressProofItem) { _, newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -355,46 +391,8 @@ struct ProfileView: View {
                                     }
                                 }
                             }
-
-                            HStack(spacing: Spacing.md) {
-                                Button { isEditingAddress = false } label: {
-                                    Text("Cancel")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.textSecondary)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.surfaceMuted)
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-
-                                Button {
-                                    Task { await saveAddress() }
-                                } label: {
-                                    HStack {
-                                        if isSaving {
-                                            ProgressView().tint(.white)
-                                        } else {
-                                            Text("Save")
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                                    .background(Color.accentGreen)
-                                    .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(isSaving)
-                            }
-                            .padding(.top, 4)
                         }
                         .transition(.opacity)
-                    } else {
-                        Text(address.isEmpty ? "please enter your address" : address)
-                            .font(.bodyLarge)
-                            .foregroundColor(address.isEmpty ? .textSecondary : .textPrimary)
                     }
                 }
                 Spacer()
@@ -422,6 +420,45 @@ struct ProfileView: View {
             }
             .padding(Spacing.lg)
             .contentShape(Rectangle())
+
+            if isEditingAddress {
+                HStack(spacing: Spacing.md) {
+                    Button { isEditingAddress = false } label: {
+                        Text("Cancel")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.surfaceMuted)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        Task { await saveAddress() }
+                    } label: {
+                        HStack {
+                            if isSaving {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Save")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.accentGreen)
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving)
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.bottom, Spacing.md)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(.easeInOut(duration: 0.2), value: isEditingAddress)
+            }
         }
     }
 
