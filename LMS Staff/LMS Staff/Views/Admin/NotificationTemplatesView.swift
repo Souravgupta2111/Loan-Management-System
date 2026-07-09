@@ -64,7 +64,7 @@ struct NotificationTemplatesView: View {
                 .padding(.horizontal, StaffSpacing.lg)
                 .padding(.top, StaffSpacing.lg)
                 .padding(.bottom, StaffSpacing.md)
-                .background(Color.white)
+                .background(Color.staffPanel)
                 
                 Divider()
                     .background(Color.staffBorder)
@@ -97,7 +97,7 @@ struct NotificationTemplatesView: View {
                         .listRowBackground(
                             selectedTemplate?.id == template.id
                             ? Color.staffAccent.opacity(0.15)
-                            : Color.white
+                            : Color.staffPanel
                         )
                         .accessibilityElement(children: .combine)
                         .accessibilityHint("Double tap to edit")

@@ -14,15 +14,15 @@ struct ChatSelectionView: View {
             if viewModel.isLoading {
                 VStack(spacing: Spacing.md) {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .themeGreen))
+                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
                         .scaleEffect(1.5)
                     Text("Loading Chats...")
                         .font(.bodyRegular)
-                        .foregroundColor(.themeGreen)
+                        .foregroundColor(.black)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(Spacing.xxl)
-                .liquidGlass(tint: .themeGreen, tintOpacity: 0.1)
+                .liquidGlass(tint: .black, tintOpacity: 0.05)
                 .padding(Spacing.lg)
             } else if viewModel.loans.isEmpty {
                 VStack(spacing: Spacing.md) {

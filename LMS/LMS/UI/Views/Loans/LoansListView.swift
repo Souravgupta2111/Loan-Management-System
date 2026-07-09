@@ -432,19 +432,35 @@ struct LoansListView: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
 
-                    Text("Balance")
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: "#6B6B6B"))
+                    if loan.status.lowercased() == "closed" {
+                        Text("Finalized Amount")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
 
-                    Text("₹\(formatIndian(loan.remainingAmount))")
-                        .font(
-                            .system(
-                                size: 19,
-                                weight: .bold,
-                                design: .rounded
+                        Text("₹\(formatIndian(loan.amount))")
+                            .font(
+                                .system(
+                                    size: 19,
+                                    weight: .bold,
+                                    design: .rounded
+                                )
                             )
-                        )
-                        .foregroundColor(Color(hex: "#1A1A1A"))
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                    } else {
+                        Text("Balance")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
+
+                        Text("₹\(formatIndian(loan.remainingAmount))")
+                            .font(
+                                .system(
+                                    size: 19,
+                                    weight: .bold,
+                                    design: .rounded
+                                )
+                            )
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                    }
                 }
             }
 

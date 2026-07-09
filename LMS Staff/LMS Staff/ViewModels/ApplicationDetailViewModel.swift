@@ -30,6 +30,10 @@ class ApplicationDetailViewModel: ObservableObject {
     @Published var emiSchedule: [EMIScheduleItem] = []
     
     @Published var assignedOfficerUserId: UUID?
+    @Published var assignedOfficerName: String?
+    @Published var branchName: String?
+    @Published var managerName: String?
+    
     @Published var internalChatParticipantRoles: [UUID: UserRole] = [:]
     
     @Published var isLoading: Bool = false
@@ -188,11 +192,26 @@ class ApplicationDetailViewModel: ObservableObject {
             // Subscribe to real-time chat
             subscribeToChat()
             
+            let allStaff = (try? await StaffManagementService.shared.fetchStaff()) ?? []
+            
             // Map the assigned officer staff ID to their user ID
             if let officerProfileId = application.assignedOfficerId,
-               let allStaff = try? await StaffManagementService.shared.fetchStaff(),
                let officerStaff = allStaff.first(where: { $0.staff.id == officerProfileId }) {
                 self.assignedOfficerUserId = officerStaff.user.id
+                self.assignedOfficerName = officerStaff.user.fullName
+            }
+            
+            // Map the branch and manager name
+            if let branchId = application.branchId {
+                if let branches = try? await BranchService.shared.fetchBranches(),
+                   let branch = branches.first(where: { $0.id == branchId }) {
+                    self.branchName = branch.name
+                    
+                    if let managerId = branch.managerId,
+                       let managerStaff = allStaff.first(where: { $0.staff.id == managerId }) {
+                        self.managerName = managerStaff.user.fullName
+                    }
+                }
             }
             
             // Map roles for internal chat participants

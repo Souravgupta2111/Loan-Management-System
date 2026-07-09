@@ -38,12 +38,18 @@ struct ManagerReportsView: View {
     ]
     
     private let productColors: [Color] = [
-        Color.staffAccent,
-        Color.staffTeal,
-        Color(hex: "#C89A24"),
-        Color.staffPurple,
-        Color(hex: "#B98222"),
-        Color(hex: "#D9534F"),
+        Color(hex: "#4F46E5"),              // Indigo
+        Color(hex: "#0D9488"),              // Teal
+        Color(hex: "#D97706"),              // Amber Gold
+        Color(hex: "#DB2777"),              // Pink/Rose
+        Color(hex: "#059669"),              // Green
+        Color(hex: "#EA580C"),              // Orange
+        Color(hex: "#0891B2"),              // Cyan
+        Color(hex: "#DC2626"),              // Red
+        Color(hex: "#7C3AED"),              // Violet/Purple
+        Color(hex: "#2563EB"),              // Steel Blue
+        Color(hex: "#65A30D"),              // Lime
+        Color(hex: "#B45309"),              // Brown
     ]
     
     private let agingColors: [Color] = [
@@ -324,7 +330,10 @@ struct ManagerReportsView: View {
                             )
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [colorForProduct(item.productName), colorForProduct(item.productName).opacity(0.8)],
+                                    colors: [
+                                        colorForProduct(item.productName, in: vm.productMetrics.map { $0.productName }),
+                                        colorForProduct(item.productName, in: vm.productMetrics.map { $0.productName }).opacity(0.8)
+                                    ],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -680,74 +689,78 @@ struct ManagerReportsView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, StaffSpacing.xxl)
                 } else {
-                    // Table Header
-                    HStack(spacing: 0) {
-                        tableHeaderCell("Loan #", width: 130)
-                        tableHeaderCell("Borrower", width: 160)
-                        tableHeaderCell("Product", width: 180)
-                        tableHeaderCell("Principal", width: 120)
-                        tableHeaderCell("Outstanding", width: 120)
-                        tableHeaderCell("Rate", width: 80)
-                        tableHeaderCell("Status", width: 110)
-                        tableHeaderCell("Overdue", width: 80)
-                    }
-                    .padding(.vertical, 10)
-                    .background(Color.staffAccent.opacity(0.08))
-                    .cornerRadius(StaffCorner.sm)
-                    
-                    // Table Rows
-                    ForEach(Array(list.enumerated()), id: \.element.id) { index, item in
-                        HStack(spacing: 0) {
-                            Text(item.loan.loanNumber ?? "—")
-                                .font(.staffFinePrint.weight(.medium))
-                                .foregroundColor(.staffTextPrimary)
-                                .frame(width: 130, alignment: .leading)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Table Header
+                            HStack(spacing: 0) {
+                                tableHeaderCell("Loan #", width: 190)
+                                tableHeaderCell("Borrower", width: 160)
+                                tableHeaderCell("Product", width: 120)
+                                tableHeaderCell("Principal", width: 120)
+                                tableHeaderCell("Outstanding", width: 120)
+                                tableHeaderCell("Rate", width: 80)
+                                tableHeaderCell("Status", width: 110)
+                                tableHeaderCell("Overdue", width: 80)
+                            }
+                            .padding(.vertical, 10)
+                            .background(Color.staffAccent.opacity(0.08))
+                            .cornerRadius(StaffCorner.sm)
                             
-                            Text(item.borrower.fullName)
-                                .font(.staffFinePrint)
-                                .foregroundColor(.staffTextPrimary)
-                                .lineLimit(1)
-                                .frame(width: 160, alignment: .leading)
-                            
-                            Text(item.product.name)
-                                .font(.staffFinePrint)
-                                .foregroundColor(.staffTextSecondary)
-                                .lineLimit(1)
-                                .frame(width: 180, alignment: .leading)
-                            
-                            Text(vm.formatCurrency(item.loan.principalAmount))
-                                .font(.staffFinePrint.weight(.medium))
-                                .foregroundColor(.staffTextPrimary)
-                                .frame(width: 120, alignment: .trailing)
-                            
-                            Text(vm.formatCurrency(item.loan.outstandingPrincipal))
-                                .font(.staffFinePrint.weight(.medium))
-                                .foregroundColor(.staffTextPrimary)
-                                .frame(width: 120, alignment: .trailing)
-                            
-                            Text(String(format: "%.1f%%", item.loan.interestRate))
-                                .font(.staffFinePrint)
-                                .foregroundColor(.staffTextSecondary)
-                                .frame(width: 80, alignment: .center)
-                            
-                            Text(item.loan.status.displayName)
-                                .font(.staffFinePrint.weight(.semibold))
-                                .foregroundColor(Color.staffStatusForeground(for: item.loan.status.rawValue))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.staffStatusBackground(for: item.loan.status.rawValue))
+                            // Table Rows
+                            ForEach(Array(list.enumerated()), id: \.element.id) { index, item in
+                                HStack(spacing: 0) {
+                                    Text(item.loan.loanNumber ?? "—")
+                                        .font(.staffFinePrint.weight(.medium))
+                                        .foregroundColor(.staffTextPrimary)
+                                        .frame(width: 190, alignment: .leading)
+                                    
+                                    Text(item.borrower.fullName)
+                                        .font(.staffFinePrint)
+                                        .foregroundColor(.staffTextPrimary)
+                                        .lineLimit(1)
+                                        .frame(width: 160, alignment: .leading)
+                                    
+                                    Text(item.product.name)
+                                        .font(.staffFinePrint)
+                                        .foregroundColor(.staffTextSecondary)
+                                        .lineLimit(1)
+                                        .frame(width: 120, alignment: .leading)
+                                    
+                                    Text(vm.formatCurrency(item.loan.principalAmount))
+                                        .font(.staffFinePrint.weight(.medium))
+                                        .foregroundColor(.staffTextPrimary)
+                                        .frame(width: 120, alignment: .trailing)
+                                    
+                                    Text(vm.formatCurrency(item.loan.outstandingPrincipal))
+                                        .font(.staffFinePrint.weight(.medium))
+                                        .foregroundColor(.staffTextPrimary)
+                                        .frame(width: 120, alignment: .trailing)
+                                    
+                                    Text(String(format: "%.1f%%", item.loan.interestRate))
+                                        .font(.staffFinePrint)
+                                        .foregroundColor(.staffTextSecondary)
+                                        .frame(width: 80, alignment: .center)
+                                    
+                                    Text(item.loan.status.displayName)
+                                        .font(.staffFinePrint.weight(.semibold))
+                                        .foregroundColor(Color.staffStatusForeground(for: item.loan.status.rawValue))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Color.staffStatusBackground(for: item.loan.status.rawValue))
+                                        .cornerRadius(StaffCorner.xs)
+                                        .frame(width: 110, alignment: .center)
+                                    
+                                    Text(item.loan.overdueDays > 0 ? "\(item.loan.overdueDays)d" : "—")
+                                        .font(.staffFinePrint.weight(.medium))
+                                        .foregroundColor(item.loan.overdueDays > 0 ? .staffRed : .staffTextTertiary)
+                                        .frame(width: 80, alignment: .center)
+                                }
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 4)
+                                .background(index % 2 == 0 ? Color.clear : Color.staffSurfaceLight.opacity(0.5))
                                 .cornerRadius(StaffCorner.xs)
-                                .frame(width: 110, alignment: .center)
-                            
-                            Text(item.loan.overdueDays > 0 ? "\(item.loan.overdueDays)d" : "—")
-                                .font(.staffFinePrint.weight(.medium))
-                                .foregroundColor(item.loan.overdueDays > 0 ? .staffRed : .staffTextTertiary)
-                                .frame(width: 80, alignment: .center)
+                            }
                         }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 4)
-                        .background(index % 2 == 0 ? Color.clear : Color.staffSurfaceLight.opacity(0.5))
-                        .cornerRadius(StaffCorner.xs)
                     }
                 }
             }
@@ -812,52 +825,39 @@ struct ManagerReportsView: View {
         let normalized = status.lowercased().replacingOccurrences(of: " ", with: "_")
         switch normalized {
         case "active":
-            return Color(hex: "#2ECC71") // Vibrant Green
-        case "submitted":
-            return Color(hex: "#34495E") // Slate Navy
-        case "under_review":
-            return Color(hex: "#F1C40F") // Bright Gold
-        case "sent_back":
-            return Color(hex: "#E67E22") // Orange
+            return Color.staffAccent
         case "approved":
-            return Color(hex: "#16A085") // Deep Teal
-        case "pending_acceptance":
-            return Color(hex: "#9B59B6") // Purple
-        case "pending_disbursal":
-            return Color(hex: "#3498DB") // Bright Blue
-        case "restructured":
-            return Color(hex: "#FD79A8") // Warm Pink
-        case "closed":
-            return Color(hex: "#95A5A6") // Medium Gray
+            return Color(hex: "#10B981") // Emerald Green
+        case "under_review":
+            return Color(hex: "#F59E0B") // Amber Yellow
+        case "submitted":
+            return Color(hex: "#06B6D4") // Cyan/Teal
+        case "sent_back":
+            return Color(hex: "#F97316") // Vibrant Orange
         case "rejected":
-            return Color(hex: "#E74C3C") // Crimson Red
+            return Color(hex: "#EF4444") // Bright Red
         case "npa":
-            return Color(hex: "#C0392B") // Dark Burgundy
+            return Color(hex: "#7F1D1D") // Dark Burgundy Red
+        case "restructured":
+            return Color(hex: "#0D9488") // Cool Teal
         case "written_off":
-            return Color(hex: "#2C3E50") // Charcoal
-        case "draft":
-            return Color(hex: "#BDC3C7") // Light Silver
+            return Color(hex: "#374151") // Dark Charcoal
+        case "pending_acceptance":
+            return Color(hex: "#C084FC") // Light Violet
+        case "pending_disbursal":
+            return Color(hex: "#3B82F6") // Sky Blue
+        case "closed", "draft":
+            return Color(hex: "#6B7280") // Slate Gray
         default:
-            return Color(hex: "#7F8C8D") // Default Gray
+            return Color(hex: "#2563EB") // Cobalt Blue
         }
     }
     
-    private func colorForProduct(_ name: String) -> Color {
-        let cleaned = name.lowercased()
-        if cleaned.contains("personal") {
-            return Color.staffAccent
-        } else if cleaned.contains("home") {
-            return Color.staffTeal
-        } else if cleaned.contains("vehicle") {
-            return Color(hex: "#C89A24")
-        } else if cleaned.contains("education") {
-            return Color(hex: "#B98222")
-        } else if cleaned.contains("business") || cleaned.contains("commercial") {
-            return Color.staffPurple
-        } else {
-            let index = abs(name.hashValue) % productColors.count
-            return productColors[index]
+    private func colorForProduct(_ name: String, in allProducts: [String]) -> Color {
+        if let index = allProducts.firstIndex(of: name) {
+            return productColors[index % productColors.count]
         }
+        return Color.staffAccent
     }
     
     // MARK: - Export Functions

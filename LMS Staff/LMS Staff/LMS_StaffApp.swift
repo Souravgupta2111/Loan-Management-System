@@ -49,7 +49,6 @@ struct LMS_StaffApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light)
                 .tint(.staffAccent)
                 .environment(\.appColorPalette, themeManager.selectedPalette)
                 // Re-inject a value derived from the high-contrast flag so the

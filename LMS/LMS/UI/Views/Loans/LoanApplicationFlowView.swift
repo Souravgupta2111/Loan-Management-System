@@ -275,7 +275,7 @@ struct LoanApplicationFlowView: View {
             detailSection(title: "Fees & Penalties") {
                 detailRow(icon: "creditcard",             label: "Processing Fee",       value: String(format: "%.2f%%", product.processingFeePct))
                 detailRow(icon: "arrow.counterclockwise", label: "Prepayment Penalty",   value: String(format: "%.2f%%", product.prepaymentPenaltyPct))
-                detailRow(icon: "exclamationmark.circle", label: "Late Penalty/Month",   value: String(format: "%.2f%%", product.latePenaltyPctPerMonth))
+                detailRow(icon: "exclamationmark.circle", label: "Late Penalty / Month",   value: String(format: "%.2f%%", product.latePenaltyPctPerMonth))
             }
 
             // Eligibility criteria — from backend JSON column, admin-editable
@@ -347,9 +347,9 @@ struct LoanApplicationFlowView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.subheadline)
+                    .font(.system(size: 15))
                     .foregroundColor(Color.accentGreen)
-                    .frame(width: 24)
+                    .frame(width: 24, height: 24)
                 Text(label)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
@@ -376,27 +376,10 @@ struct LoanApplicationFlowView: View {
             }
             
             HStack(spacing: 12) {
-                // Back button (left of NEXT) — kept as-is per requirement 4
-                if step > 1 {
-                    Button {
-                        withAnimation { step -= 1 }
-                    } label: {
-                        Text("Back")
-                            .font(.body.weight(.semibold))
-                            .foregroundColor(.textPrimary)
-                            .frame(width: 90)
-                            .padding(.vertical, 18)
-                            .background(Color.surfaceMuted)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isSubmitting)
-                }
-
                 if isSubmitting {
                     ZStack {
-                        Capsule().fill(Color(hex: "#1A1A1A")).frame(height: 56)
-                        ProgressView().tint(.white)
+                        Capsule().fill(Color.accentDark).frame(height: 56)
+                        ProgressView().tint(.accentDarkText)
                     }
                     .frame(maxWidth: .infinity)
                 } else {
@@ -436,7 +419,7 @@ struct LoanApplicationFlowView: View {
                     } label: {
                         HStack(spacing: 8) {
                             if isCheckingKYC {
-                                ProgressView().tint(.white)
+                                ProgressView().tint(.accentDarkText)
                                 Text("CHECKING...")
                             } else {
                                 Text(step == 5 ? "SUBMIT" : "NEXT")
@@ -445,10 +428,10 @@ struct LoanApplicationFlowView: View {
                         }
                         .font(.body.weight(.bold))
                         .tracking(1.5)
-                        .foregroundColor(.white)
+                        .foregroundColor(isDisabled ? .textTertiary : .accentDarkText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(isDisabled ? Color(hex: "#1A1A1A").opacity(0.4) : Color(hex: "#1A1A1A"))
+                        .background(isDisabled ? Color.surfaceMuted : Color.accentDark)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -835,4 +818,3 @@ struct ReviewRow: View {
         }
     }
 }
-

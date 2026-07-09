@@ -569,7 +569,7 @@ private struct DateJumpSheet: View {
                         Text("Go to \(shortLabel(pickerDate))")
                             .font(.body.weight(.semibold)).fontDesign(.rounded)
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.accentDarkText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color.accentGreen)

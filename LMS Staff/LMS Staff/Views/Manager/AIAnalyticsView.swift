@@ -158,7 +158,13 @@ struct AIAnalyticsView: View {
                     .lineLimit(1...5)
                     .padding(12)
                     .background(Color.staffSurface)
+                    .foregroundColor(.staffTextPrimary)
+                    .tint(.staffAccent)
                     .cornerRadius(StaffCorner.md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StaffCorner.md)
+                            .stroke(Color.staffBorder.opacity(0.7), lineWidth: 1)
+                    )
                     .onSubmit { sendMessage() }
                     .accessibilityLabel("Chat input field")
                 
@@ -179,7 +185,7 @@ struct AIAnalyticsView: View {
                 .accessibilityHint(currentInput.isEmpty ? "Type a message first" : "Double tap to send your message")
             }
             .padding(StaffSpacing.lg)
-            .background(Color.white)
+            .background(Color.staffPanel)
         }
         .background(Color.staffBackground)
         .onAppear {

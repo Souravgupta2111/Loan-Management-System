@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// A reusable glassmorphic circular back button with a dark green arrow icon,
+/// A reusable glassmorphic circular back button with a green chevron.backward icon,
 /// matching the app's premium frosted glass visual style.
 struct GlassBackButton: View {
     var iconName: String
     let action: () -> Void
     
-    init(iconName: String = "chevron.left", action: @escaping () -> Void) {
+    init(iconName: String = "chevron.backward", action: @escaping () -> Void) {
         self.iconName = iconName
         self.action = action
     }

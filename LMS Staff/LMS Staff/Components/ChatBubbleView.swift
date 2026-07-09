@@ -10,9 +10,36 @@ import SwiftUI
 struct ChatBubbleView: View {
     let message: AIMessage
     var onSpeakTapped: (() -> Void)? = nil
+    @Environment(\.colorScheme) private var colorScheme
     
     private var isUser: Bool {
         message.role == .user
+    }
+
+    private var isDarkMode: Bool {
+        colorScheme == .dark
+    }
+
+    private var messageForeground: Color {
+        isUser ? .white : Color(hex: "#1A1A1A")
+    }
+
+    private var speakerBackground: Color {
+        isDarkMode ? Color.staffSurfaceMuted : Color.white.opacity(0.8)
+    }
+
+    private var bubbleBackground: Color {
+        if isUser {
+            return Color.staffAccent
+        }
+        return isDarkMode ? Color.staffSurface : Color.white.opacity(0.5)
+    }
+
+    private var bubbleStroke: Color {
+        if isUser {
+            return Color.clear
+        }
+        return isDarkMode ? Color.staffBorder.opacity(0.65) : Color.white.opacity(0.6)
     }
     
     var body: some View {
@@ -23,7 +50,7 @@ struct ChatBubbleView: View {
                 // AI Avatar
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#1A1A1A"))
+                        .fill(Color.staffAccentBg)
                         .frame(width: 32, height: 32)
                     Image(systemName: "sparkles")
                         .font(.subheadline)
@@ -36,7 +63,7 @@ struct ChatBubbleView: View {
                 VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
                     Text(.init(message.content)) // Render markdown
                         .font(.body)
-                        .foregroundColor(isUser ? .white : Color(hex: "#1A1A1A"))
+                        .foregroundColor(messageForeground)
                     
                     if !isUser, let onSpeak = onSpeakTapped {
                         Button {
@@ -47,7 +74,7 @@ struct ChatBubbleView: View {
                                 .font(.caption)
                                 .foregroundColor(Color.staffAccent)
                                 .padding(6)
-                                .background(Color.white.opacity(0.8))
+                                .background(speakerBackground)
                                 .clipShape(Circle())
                         }
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -56,20 +83,11 @@ struct ChatBubbleView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    Group {
-                        if isUser {
-                            Color(hex: "#008A45")
-                        } else {
-                            Color.white.opacity(0.5)
-                                .background(.ultraThinMaterial)
-                        }
-                    }
-                )
+                .background(bubbleBackground)
                 .clipShape(ChatBubbleShape(isUser: isUser))
                 .overlay(
                     ChatBubbleShape(isUser: isUser)
-                        .stroke(Color.white.opacity(isUser ? 0 : 0.6), lineWidth: 1)
+                        .stroke(bubbleStroke, lineWidth: 1)
                         .blendMode(.overlay)
                 )
                 .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1) // subtle shadow like WhatsApp

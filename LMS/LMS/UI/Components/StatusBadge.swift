@@ -9,10 +9,11 @@ struct StatusBadge: View {
     let status: String
 
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var a11yManager = AppAccessibilityManager.shared
 
     private var showsShape: Bool {
-        differentiateWithoutColor || a11yManager.isHighContrastEnabled
+        differentiateWithoutColor || (a11yManager.isHighContrastEnabled && colorScheme == .light)
     }
 
     var body: some View {
@@ -38,7 +39,11 @@ struct StatusBadge: View {
     }
 
     private var displayText: String {
-        status.replacingOccurrences(of: "_", with: " ").capitalized
+        let cleaned = status.replacingOccurrences(of: "_", with: " ")
+        if cleaned.lowercased() == "npa" {
+            return "NPA"
+        }
+        return cleaned.capitalized
     }
 
     private func iconName(for status: String) -> String {

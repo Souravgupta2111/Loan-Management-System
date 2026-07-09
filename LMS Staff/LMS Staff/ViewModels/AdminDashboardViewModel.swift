@@ -26,6 +26,8 @@ class AdminDashboardViewModel: ObservableObject {
     @Published var rejectedList: [ApplicationWithBorrower] = []
     @Published var disbursedList: [ApplicationWithBorrower] = []
     
+    @Published var npaList: [LoanWithDetails] = []
+    
     @Published var systemNpaRatio: Double = 0.0
     
     @Published var recentActivities: [AuditLog] = []
@@ -51,8 +53,21 @@ class AdminDashboardViewModel: ObservableObject {
             // 1. Fetch system metrics
             let allApps = try await appService.fetchAllApplications()
             
+            // Fetch all loans to map NPA/Restructured statuses to disbursed applications
+            let allLoans = try await LoanPortfolioService.shared.fetchLoans()
+            self.npaList = allLoans.filter { $0.loan.status == .npa }
+            
+            var mappedApps = allApps
+            for i in 0..<mappedApps.count {
+                if mappedApps[i].application.status == .disbursed || mappedApps[i].application.status == .pendingDisbursal {
+                    if let loan = allLoans.first(where: { $0.loan.applicationId == mappedApps[i].application.id }) {
+                        mappedApps[i].activeLoanStatus = loan.loan.status.displayName
+                    }
+                }
+            }
+            
             // Sort by status priority (actionable first) then by date (newest first)
-            let sorted = allApps.sorted { a, b in
+            let sorted = mappedApps.sorted { a, b in
                 let priorityA = Self.statusPriority(a.application.status)
                 let priorityB = Self.statusPriority(b.application.status)
                 if priorityA != priorityB { return priorityA < priorityB }

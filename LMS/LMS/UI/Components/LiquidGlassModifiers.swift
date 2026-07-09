@@ -29,37 +29,45 @@ struct LiquidGlassModifier: ViewModifier {
     /// sits on a high-contrast surface (WCAG-friendly). Because every card in the
     /// app uses `.liquidGlass(...)`, this upgrades the whole UI at once.
     @ObservedObject private var a11y = AppAccessibilityManager.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
-        let highContrast = a11y.isHighContrastEnabled
+        let highContrast = a11y.isHighContrastEnabled && colorScheme == .light
+        let isDarkMode = colorScheme == .dark
+        let backgroundFill: AnyShapeStyle = isDarkMode
+            ? AnyShapeStyle(Color.surface.opacity(0.90))
+            : AnyShapeStyle(.ultraThinMaterial)
+        let overlayFill = highContrast
+            ? Color.white.opacity(0.95)
+            : (tint?.opacity(isDarkMode ? min(tintOpacity, 0.08) : tintOpacity) ?? Color.clear)
+        let strokeColor = highContrast
+            ? Color(hex: "#1A1A1A")
+            : (isDarkMode ? Color.border.opacity(0.55) : borderColor.opacity(borderOpacity))
+        let strokeWidth: CGFloat = highContrast ? 2 : (isDarkMode ? 0.8 : 1)
+        let cardShadowOpacity = highContrast ? 0 : (isDarkMode ? min(shadowOpacity + 0.10, 0.22) : shadowOpacity)
+        let cardShadowRadius = highContrast ? 0 : (isDarkMode ? shadowRadius * 0.75 : shadowRadius)
+        let cardShadowY = highContrast ? 0 : (isDarkMode ? shadowY * 0.6 : shadowY)
 
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(backgroundFill)
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(
-                                highContrast
-                                    ? Color.white.opacity(0.95)
-                                    : (tint?.opacity(tintOpacity) ?? Color.clear)
-                            )
+                            .fill(overlayFill)
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(
-                        highContrast ? Color(hex: "#1A1A1A") : borderColor.opacity(borderOpacity),
-                        lineWidth: highContrast ? 2 : 1
-                    )
-                    .blendMode(highContrast ? .normal : .overlay)
+                    .stroke(strokeColor, lineWidth: strokeWidth)
+                    .blendMode(highContrast || isDarkMode ? .normal : .overlay)
             )
             .shadow(
-                color: Color.black.opacity(highContrast ? 0 : shadowOpacity),
-                radius: highContrast ? 0 : shadowRadius,
+                color: Color.black.opacity(cardShadowOpacity),
+                radius: cardShadowRadius,
                 x: 0,
-                y: highContrast ? 0 : shadowY
+                y: cardShadowY
             )
     }
 }
