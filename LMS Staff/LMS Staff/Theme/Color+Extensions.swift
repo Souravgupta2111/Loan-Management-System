@@ -267,16 +267,15 @@ extension Color {
         })
     }
 
-    /// System-wide high-contrast toggle. Kept light-mode only so dark mode
-    /// stays on the selected palette instead of turning panes white.
+    /// System-wide high-contrast toggle. Works in both light and dark modes.
     static var staffHighContrast: Bool {
         AccessibilityManager.shared.isHighContrastEnabled
     }
 
-    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String) -> Color {
+    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String, highContrastDark: String = "#000000") -> Color {
         Color(UIColor { traits in
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: dark)
+                return UIColor(hex: staffHighContrast ? highContrastDark : dark)
             }
             return UIColor(hex: staffHighContrast ? highContrastLight : light)
         })
@@ -287,18 +286,18 @@ extension Color {
         Color(UIColor { traits in
             let palette = AppThemeManager.activePalette
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: palette.darkBackgroundHex)
+                return UIColor(hex: staffHighContrast ? "#000000" : palette.darkBackgroundHex)
             }
             return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.backgroundHex)
         })
     }
-    static var staffPanel: Color { accessibleDynamicColor(light: "#FFFFFF", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF") }
-    static var staffSurface: Color { accessibleDynamicColor(light: "#FBFEFA", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF") }    // Card background
+    static var staffPanel: Color { accessibleDynamicColor(light: "#FFFFFF", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF", highContrastDark: "#0A0A0A") }
+    static var staffSurface: Color { accessibleDynamicColor(light: "#FBFEFA", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF", highContrastDark: "#0A0A0A") }    // Card background
     static var staffSurfaceLight: Color {
         Color(UIColor { traits in
             let palette = AppThemeManager.activePalette
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: palette.darkSurfaceLightHex)
+                return UIColor(hex: staffHighContrast ? "#0F0F0F" : palette.darkSurfaceLightHex)
             }
             return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.surfaceLightHex)
         })
@@ -307,7 +306,7 @@ extension Color {
         Color(UIColor { traits in
             let palette = AppThemeManager.activePalette
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: palette.darkMutedHex)
+                return UIColor(hex: staffHighContrast ? "#1A1A1A" : palette.darkMutedHex)
             }
             return UIColor(hex: staffHighContrast ? "#F0F0F0" : palette.mutedHex)
         })
@@ -316,7 +315,7 @@ extension Color {
         Color(UIColor { traits in
             let palette = AppThemeManager.activePalette
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: palette.darkBorderHex)
+                return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.darkBorderHex)
             }
             return UIColor(hex: staffHighContrast ? "#000000" : palette.borderHex)
         })
@@ -325,7 +324,7 @@ extension Color {
         Color(UIColor { traits in
             let palette = AppThemeManager.activePalette
             if traits.userInterfaceStyle == .dark {
-                return UIColor(hex: palette.darkCardHex)
+                return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.darkCardHex)
             }
             return UIColor(hex: staffHighContrast ? "#000000" : palette.cardHex)
         })
