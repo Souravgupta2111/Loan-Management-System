@@ -470,26 +470,6 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Settings")
             
-            Toggle(isOn: $a11yManager.isHapticsEnabled) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.themeGreen.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "hand.tap.fill")
-                            .foregroundColor(.accentGreen)
-                            .font(.subheadline)
-                    }
-                    Text("Haptic Feedback")
-                        .font(.bodyLarge)
-                        .foregroundColor(.textPrimary)
-                }
-            }
-            .tint(.accentGreen)
-            .padding(Spacing.lg)
-            
-            divider
-            
             Toggle(isOn: highContrastBinding) {
                 HStack(spacing: 12) {
                     ZStack {

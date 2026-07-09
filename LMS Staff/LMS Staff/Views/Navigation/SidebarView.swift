@@ -105,27 +105,6 @@ struct SidebarView: View {
                 .accessibilityLabel("High contrast mode")
                 .accessibilityHint("Increases color contrast across the app")
 
-                Toggle(isOn: Binding(
-                    get: { a11y.isHapticsEnabled },
-                    set: { newValue in
-                        a11y.isHapticsEnabled = newValue
-                        if newValue { HapticManager.shared.impact(style: .medium) }
-                    }
-                )) {
-                    HStack(spacing: StaffSpacing.sm) {
-                        Image(systemName: "hand.tap.fill")
-                            .foregroundColor(.staffAccent)
-                            .frame(width: 24)
-                        Text("Haptics")
-                            .font(.staffCaption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.staffTextSecondary)
-                    }
-                }
-                .tint(.staffAccent)
-                .accessibilityLabel("Haptic feedback")
-                .accessibilityHint("Enables vibration feedback for actions")
-
                 HStack(spacing: StaffSpacing.sm) {
                     Image(systemName: "paintpalette.fill")
                         .foregroundColor(.staffAccent)
