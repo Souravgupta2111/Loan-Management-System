@@ -139,7 +139,9 @@ struct SWEntry: TimelineEntry {
 struct SWProvider: TimelineProvider {
     func placeholder(in context: Context) -> SWEntry { SWEntry(date: .now, snapshot: .sample) }
     func getSnapshot(in context: Context, completion: @escaping (SWEntry) -> Void) {
-        completion(SWEntry(date: .now, snapshot: context.isPreview ? .sample : .load()))
+        // Always load the real snapshot so the widget gallery shows role-appropriate
+        // previews (sign-in hints for wrong-role widgets) instead of sample data.
+        completion(SWEntry(date: .now, snapshot: .load()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<SWEntry>) -> Void) {
         let next = Calendar.current.date(byAdding: .minute, value: 60, to: .now) ?? .now
@@ -148,20 +150,35 @@ struct SWProvider: TimelineProvider {
 }
 
 private func wrongRole(_ snap: StaffWidgetSnapshotDTO, _ allowed: [String]) -> Bool {
-    // "sample" is the placeholder/gallery snapshot — show it for every widget so
-    // the gallery preview never shows a "Sign in as…" hint on unrelated roles.
-    if snap.role == "sample" { return false }
+    // When no user is logged in the snapshot is either missing (falls back to
+    // "sample") or explicitly cleared to "none".  In both cases every widget
+    // should show a sign-in hint, NOT mock data.
+    if snap.role == "sample" || snap.role == "none" || snap.role.isEmpty { return true }
     return !allowed.contains(snap.role)
 }
 
 private struct SignInHint: View {
     let role: String
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "person.crop.circle.badge.questionmark").font(.title2).foregroundStyle(.secondary)
-            Text("Sign in as \(role)").font(.caption).foregroundStyle(.secondary)
+        // Button with NoOpIntent intercepts the tap and runs it inside the
+        // widget extension (openAppWhenRun = false), so the app does NOT open.
+        Button(intent: NoOpIntent()) {
+            VStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.badge.questionmark").font(.title2).foregroundStyle(.secondary)
+                Text(signInText).font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .buttonStyle(.plain)
         .glassWidget(.center)
+    }
+    /// Show a generic message when no user is logged in; otherwise role-specific.
+    private var signInText: String {
+        let snap = StaffWidgetSnapshotDTO.load()
+        if snap.role == "sample" || snap.role == "none" || snap.role.isEmpty {
+            return "Sign in to view"
+        }
+        return "Sign in as \(role)"
     }
 }
 
@@ -309,42 +326,9 @@ struct OfficerQueueWidget: Widget {
     }
 }
 
-struct OldestPendingView: View {
-    var entry: SWEntry
-    var body: some View {
-        let s = entry.snapshot
-        if wrongRole(s, ["officer"]) { SignInHint(role: "officer") } else {
-            VStack(alignment: .leading, spacing: 6) {
-                swHeader("Oldest Pending", "clock.badge.exclamationmark")
-                if let name = s.oldestName, let days = s.oldestDays {
-                    Text(name).font(.headline).lineLimit(1)
-                    Text("Waiting \(days) day\(days == 1 ? "" : "s")")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(days >= 5 ? Color.red : (days >= 3 ? Color.orange : Color.secondary))
-                    Text("Review to keep SLA on track").font(.caption2).foregroundStyle(.secondary)
-                } else {
-                    Spacer()
-                    Text("Nothing waiting").font(.headline).frame(maxWidth: .infinity)
-                    Spacer()
-                }
-                Spacer(minLength: 0)
-            }
-            .glassWidget()
-            .widgetURL(URL(string: "lmsstaffapp://applications"))
-        }
-    }
-}
-
-struct OldestPendingWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "OldestPendingWidget", provider: SWProvider()) { OldestPendingView(entry: $0) }
-            .configurationDisplayName("Oldest Pending")
-            .description("The longest-waiting application in your queue.")
-            .supportedFamilies([.systemSmall, .systemMedium])
-    }
-}
 
 struct CopilotQuickAskView: View {
+    var entry: SWEntry
     private let prompts: [(String, String)] = [
         ("Summarize this borrower's risk", "shield"),
         ("Draft a rejection reason", "xmark.square"),
@@ -352,24 +336,27 @@ struct CopilotQuickAskView: View {
         ("Suggest questions to ask", "questionmark.bubble")
     ]
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            swHeader("AI Copilot", "sparkles")
-                .padding(.bottom, 2)
-            ForEach(prompts, id: \.0) { text, icon in
-                Link(destination: askURL(text)) {
-                    HStack(spacing: 8) {
-                        Image(systemName: icon).font(.caption2).frame(width: 15)
-                        Text(text).font(.caption2.weight(.medium)).lineLimit(1)
-                        Spacer(minLength: 4)
-                        Image(systemName: "arrow.up.right").font(.system(size: 8)).foregroundStyle(.secondary)
+        let s = entry.snapshot
+        if wrongRole(s, ["officer"]) { SignInHint(role: "officer") } else {
+            VStack(alignment: .leading, spacing: 4) {
+                swHeader("AI Copilot", "sparkles")
+                    .padding(.bottom, 2)
+                ForEach(prompts, id: \.0) { text, icon in
+                    Link(destination: askURL(text)) {
+                        HStack(spacing: 8) {
+                            Image(systemName: icon).font(.caption2).frame(width: 15)
+                            Text(text).font(.caption2.weight(.medium)).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Image(systemName: "arrow.up.right").font(.system(size: 8)).foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.thinMaterial, in: Capsule())
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.thinMaterial, in: Capsule())
                 }
             }
+            .glassWidget()
         }
-        .glassWidget()
     }
     private func askURL(_ q: String) -> URL {
         var c = URLComponents(); c.scheme = "lmsstaffapp"; c.host = "assistant"
@@ -380,7 +367,7 @@ struct CopilotQuickAskView: View {
 
 struct CopilotQuickAskWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "CopilotQuickAskWidget", provider: SWProvider()) { _ in CopilotQuickAskView() }
+        StaticConfiguration(kind: "CopilotQuickAskWidget", provider: SWProvider()) { CopilotQuickAskView(entry: $0) }
             .configurationDisplayName("AI Copilot")
             .description("One-tap prompts for your underwriting copilot.")
             .supportedFamilies([.systemMedium])
@@ -388,14 +375,14 @@ struct CopilotQuickAskWidget: Widget {
 }
 
 // ============================================================================
-// MANAGER (also serves Admin, which has portfolio data)
+// MANAGER
 // ============================================================================
 
 struct PortfolioPulseView: View {
     var entry: SWEntry
     var body: some View {
         let s = entry.snapshot
-        if wrongRole(s, ["manager", "admin"]) { SignInHint(role: "manager") } else {
+        if wrongRole(s, ["manager"]) { SignInHint(role: "manager") } else {
             VStack(alignment: .leading, spacing: 12) {
                 swHeader("Portfolio Pulse", "chart.pie.fill")
                 Grid(horizontalSpacing: 12, verticalSpacing: 12) {
@@ -450,7 +437,7 @@ struct PendingApprovalsView: View {
     var entry: SWEntry
     var body: some View {
         let s = entry.snapshot
-        if wrongRole(s, ["manager", "admin"]) { SignInHint(role: "manager") } else {
+        if wrongRole(s, ["manager"]) { SignInHint(role: "manager") } else {
             HStack(spacing: 12) {
                 Link(destination: URL(string: "lmsstaffapp://applications")!) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -496,41 +483,6 @@ struct PendingApprovalsWidget: Widget {
     }
 }
 
-struct NPAAlertView: View {
-    var entry: SWEntry
-    var body: some View {
-        let s = entry.snapshot
-        if wrongRole(s, ["manager", "admin"]) { SignInHint(role: "manager") } else {
-            VStack(alignment: .leading, spacing: 8) {
-                swHeader("NPA & Overdue", "exclamationmark.triangle.fill")
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(s.npaCount)").font(.title.weight(.bold)).foregroundStyle(Color.red)
-                        Text("NPA loans").font(.caption2).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(s.overdueEmis)").font(.title.weight(.bold)).foregroundStyle(Color.orange)
-                        Text("overdue EMIs").font(.caption2).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Text(String(format: "NPA %.1f%% of portfolio", s.npaPercentage))
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            .glassWidget()
-            .widgetURL(URL(string: "lmsstaffapp://npa"))
-        }
-    }
-}
-
-struct NPAAlertWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "NPAAlertWidget", provider: SWProvider()) { NPAAlertView(entry: $0) }
-            .configurationDisplayName("NPA & Overdue")
-            .description("Non-performing assets and overdue EMIs.")
-            .supportedFamilies([.systemMedium])
-    }
-}
 
 // ============================================================================
 // ADMIN
@@ -696,71 +648,19 @@ private func swRelative(_ date: Date) -> String {
     return "\(Int(secs / 86_400))d"
 }
 
-// ============================================================================
-// LOCK SCREEN (Officer pending gauge + Manager NPA gauge)
-// ============================================================================
-
-struct StaffLockView: View {
-    @Environment(\.widgetFamily) var family
-    var entry: SWEntry
-    var body: some View {
-        let s = entry.snapshot
-        let isManager = s.role == "manager" || s.role == "admin"
-        switch family {
-        case .accessoryInline:
-            Text(isManager ? "App: \(s.pendingApprovals) · Disb: \(s.pendingDisbursements)"
-                           : "\(s.officerPending) pending")
-        case .accessoryCircular:
-            Gauge(value: gauge(s, isManager)) {
-                Image(systemName: isManager ? "chart.pie" : "tray.full")
-            } currentValueLabel: {
-                Text(isManager ? String(format: "%.0f", s.npaPercentage) : "\(s.officerPending)")
-                    .font(.system(size: 13, weight: .bold))
-            }
-            .gaugeStyle(.accessoryCircular)
-            .containerBackground(for: .widget) { AccessoryWidgetBackground() }
-        default:
-            VStack(alignment: .leading, spacing: 1) {
-                Text(isManager ? "Portfolio" : "My Queue").font(.caption2).foregroundStyle(.secondary)
-                if isManager {
-                    Text("NPA \(String(format: "%.1f%%", s.npaPercentage))").font(.headline)
-                    Text("\(s.pendingApprovals) app. · \(s.pendingDisbursements) disb.").font(.caption2)
-                } else {
-                    Text("\(s.officerPending) pending").font(.headline)
-                    Text("\(s.officerSentBack) sent back").font(.caption2)
-                }
-            }
-            .containerBackground(for: .widget) { Color.clear }
-        }
-    }
-    private func gauge(_ s: StaffWidgetSnapshotDTO, _ isManager: Bool) -> Double {
-        if isManager { return min(max(s.npaPercentage / 15.0, 0), 1) }
-        return min(max(Double(s.officerPending) / 20.0, 0), 1)
-    }
-}
-
-struct StaffLockWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "StaffLockWidget", provider: SWProvider()) { StaffLockView(entry: $0) }
-            .configurationDisplayName("Staff (Lock Screen)")
-            .description("Your queue or portfolio on the lock screen.")
-            .supportedFamilies([.accessoryInline, .accessoryCircular, .accessoryRectangular])
-    }
-}
-
 // MARK: - Bundle
 
 @main
 struct StaffWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        OfficerQueueWidget()
-        OldestPendingWidget()
-        CopilotQuickAskWidget()
-        PortfolioPulseWidget()
-        PendingApprovalsWidget()
-        NPAAlertWidget()
+        // Admin (2)
         SystemOverviewWidget()
         AuditTrailWidget()
-        StaffLockWidget()
+        // Manager (2)
+        PortfolioPulseWidget()
+        PendingApprovalsWidget()
+        // Officer (2)
+        OfficerQueueWidget()
+        CopilotQuickAskWidget()
     }
 }
