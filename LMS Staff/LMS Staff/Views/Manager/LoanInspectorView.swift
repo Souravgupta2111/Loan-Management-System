@@ -82,11 +82,6 @@ struct LoanInspectorView: View {
                 
                 // Primary Application metrics
                 HStack(spacing: StaffSpacing.xl) {
-                    if let app = vm.application {
-                        DetailMetric(label: "Asked", value: "INR \(String(format: "%.2f", app.requestedAmount))")
-                    } else {
-                        DetailMetric(label: "Asked", value: "INR --")
-                    }
                     DetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
                     DetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
                     if vm.loanWithDetails.loan.status == .npa {
@@ -167,8 +162,7 @@ struct LoanInspectorView: View {
                 activeTab = .profile
             }
         }
-        .navigationTitle("Loan Inspector")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("")
         // MODALS/SHEETS LIST
         .sheet(isPresented: $showRestructureSheet) {
             restructureActionSheet()
@@ -214,68 +208,77 @@ struct LoanInspectorView: View {
     
     private var kycAndCreditSection: some View {
         VStack(alignment: .leading, spacing: StaffSpacing.lg) {
-            HStack(alignment: .top, spacing: StaffSpacing.lg) {
-                VStack(spacing: StaffSpacing.lg) {
-                    // Personal KYC info
-                    StaffCard {
-                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                            Text("Borrower Details")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            Divider()
-                            
-                            KYCRow(label: "Full Name", value: vm.loanWithDetails.borrower.fullName)
-                            KYCRow(label: "Email", value: vm.loanWithDetails.borrower.email ?? "N/A")
-                            KYCRow(label: "Phone", value: vm.loanWithDetails.borrower.phone ?? "N/A")
-                            KYCRow(label: "PAN ID", value: vm.borrowerProfile?.panNumber ?? "N/A")
-                            KYCRow(label: "Aadhaar Card", value: vm.borrowerProfile?.aadhaarNumber ?? "N/A")
-                            KYCRow(label: "Employment Type", value: vm.borrowerProfile?.employmentType?.displayName ?? "N/A")
-                            KYCRow(label: "Monthly Income", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
+            HStack(spacing: StaffSpacing.lg) {
+                // Personal KYC info
+                StaffCard {
+                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                        Text("Borrower Details")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Divider()
+                        
+                        KYCRow(label: "Full Name", value: vm.loanWithDetails.borrower.fullName)
+                        KYCRow(label: "Email", value: vm.loanWithDetails.borrower.email ?? "N/A")
+                        KYCRow(label: "Phone", value: vm.loanWithDetails.borrower.phone ?? "N/A")
+                        KYCRow(label: "PAN ID", value: vm.borrowerProfile?.panNumber ?? "N/A")
+                        KYCRow(label: "Aadhaar Card", value: vm.borrowerProfile?.aadhaarNumber ?? "N/A")
+                        if let verifiedAnnual = vm.borrowerProfile?.verifiedAnnualIncome {
+                            KYCRow(label: "Verified Monthly", value: "INR \(String(format: "%.2f", verifiedAnnual / 12))")
+                        } else {
+                            KYCRow(label: "Declared Monthly", value: vm.borrowerProfile?.monthlyIncome != nil ? "INR \(String(format: "%.2f", vm.borrowerProfile!.monthlyIncome!))" : "N/A")
                         }
-                    }
-                    
-                    // Loan Details Card
-                    StaffCard {
-                        VStack(alignment: .leading, spacing: StaffSpacing.md) {
-                            Text("Loan Details & Terms")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            Divider()
-                            
-                            if let app = vm.application {
-                                KYCRow(label: "Asked Amount (Requested)", value: "INR \(String(format: "%.2f", app.requestedAmount))")
-                            } else {
-                                KYCRow(label: "Asked Amount (Requested)", value: "INR --")
-                            }
-                            
-                            KYCRow(label: "Approved & Disbursed Amount", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
-                            KYCRow(label: "Interest Rate", value: String(format: "%.2f%% (Interest Type: %@)", vm.loanWithDetails.loan.interestRate, vm.loanWithDetails.loan.interestType.rawValue.capitalized))
-                            KYCRow(label: "Tenure", value: "\(vm.loanWithDetails.loan.tenureMonths) Months")
-                            KYCRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
-                            KYCRow(label: "Maturity Date", value: vm.loanWithDetails.loan.maturityDate ?? "N/A")
-                            KYCRow(label: "Repayment Mode", value: vm.loanWithDetails.loan.repaymentMode.rawValue.uppercased())
-                        }
+                        
+                        Spacer(minLength: 0)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 // Credit Bureau Score Gauge
-                VStack(spacing: StaffSpacing.md) {
-                    StaffCard {
-                        VStack(spacing: StaffSpacing.md) {
-                            Text("Credit Bureau Rating")
-                                .font(.staffTitle)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            Divider()
-                            
-                            CreditScoreGauge(score: vm.borrowerProfile?.creditScore ?? 300)
-                        }
+                StaffCard {
+                    VStack(spacing: StaffSpacing.md) {
+                        Text("Credit Bureau Rating")
+                            .font(.staffTitle)
+                            .foregroundColor(.staffTextPrimary)
+                        
+                        Divider()
+                        
+                        Spacer(minLength: 0)
+                        
+                        CreditScoreGauge(score: vm.borrowerProfile?.creditScore ?? 300)
+                        
+                        Spacer(minLength: 0)
                     }
                 }
                 .frame(width: 320)
+                .frame(maxHeight: .infinity)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            
+            // Loan Details Card
+            StaffCard {
+                VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                    Text("Loan Details & Terms")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    Divider()
+                    
+                    if let app = vm.application {
+                        KYCRow(label: "Asked Amount (Requested)", value: "INR \(String(format: "%.2f", app.requestedAmount))")
+                    } else {
+                        KYCRow(label: "Asked Amount (Requested)", value: "INR --")
+                    }
+                    
+                    KYCRow(label: "Approved & Disbursed Amount", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
+                    KYCRow(label: "Interest Rate", value: String(format: "%.2f%% (Interest Type: %@)", vm.loanWithDetails.loan.interestRate, vm.loanWithDetails.loan.interestType.rawValue.capitalized))
+                    KYCRow(label: "Tenure", value: "\(vm.loanWithDetails.loan.tenureMonths) Months")
+                    KYCRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
+                    KYCRow(label: "Maturity Date", value: vm.loanWithDetails.loan.maturityDate ?? "N/A")
+                    KYCRow(label: "Repayment Mode", value: vm.loanWithDetails.loan.repaymentMode.rawValue.uppercased())
+                    
+                    KYCRow(label: "Assigned Loan Officer", value: vm.assignedOfficer?.fullName ?? "Unassigned")
+                }
             }
         }
     }
@@ -374,34 +377,89 @@ struct LoanInspectorView: View {
                     message: "The EMI schedule has not been generated for this loan."
                 )
             } else {
-                ForEach(vm.emiSchedule.sorted(by: { $0.installmentNumber < $1.installmentNumber })) { emi in
+                VStack(spacing: 0) {
+                    // Header Row
                     HStack {
-                        VStack(alignment: .leading) {
-                            Text("Installment #\(emi.installmentNumber)")
-                                .font(.staffBody)
-                                .fontWeight(.bold)
-                                .foregroundColor(.staffTextPrimary)
-                            Text("Due: \(emi.dueDate)")
-                                .font(.staffCaption)
-                                .foregroundColor(.staffTextSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing) {
-                            Text("INR \(String(format: "%.2f", emi.totalEmi))")
-                                .font(.staffBody)
-                                .fontWeight(.bold)
-                                .foregroundColor(.staffTextPrimary)
-                            
-                            StaffStatusBadge(status: emi.status.rawValue.capitalized)
-                        }
+                        Text("No.")
+                            .frame(width: 40, alignment: .leading)
+                        Text("Due Date")
+                            .frame(width: 120, alignment: .leading)
+                        Text("EMI Amt")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Principal")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Interest")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Status")
+                            .frame(width: 100, alignment: .leading)
                     }
-                    .padding(StaffSpacing.md)
-                    .background(Color.staffSurface)
-                    .cornerRadius(StaffCorner.md)
+                    .font(.staffCaption)
+                    .foregroundColor(.staffTextSecondary)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, StaffSpacing.lg)
+                    
+                    Divider()
+                    
+                    let sortedSchedule = vm.emiSchedule.sorted(by: { $0.installmentNumber < $1.installmentNumber })
+                    let firstUnpaidIndex = sortedSchedule.firstIndex(where: { $0.status != .paid }) ?? sortedSchedule.count
+                    
+                    ForEach(Array(sortedSchedule.enumerated()), id: \.element.id) { index, emi in
+                        let statusInfo = getEmiStatusAndStyle(index: index, firstUnpaidIndex: firstUnpaidIndex, emi: emi)
+                        
+                        HStack {
+                            Text("\(emi.installmentNumber)")
+                                .frame(width: 40, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                            
+                            Text(emi.dueDate)
+                                .frame(width: 120, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                            
+                            Text(String(format: "%.2f", emi.totalEmi))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                            
+                            Text(String(format: "%.2f", emi.principalComponent))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                            
+                            Text(String(format: "%.2f", emi.interestComponent))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                            
+                            Text(statusInfo.text)
+                                .frame(width: 100, alignment: .leading)
+                                .fontWeight(index == firstUnpaidIndex ? .bold : .regular)
+                                .foregroundColor(statusInfo.color)
+                        }
+                        .font(.staffCaption)
+                        .foregroundColor(.staffTextPrimary)
+                        .opacity(statusInfo.opacity)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, StaffSpacing.lg)
+                        
+                        Divider()
+                    }
                 }
+                .background(Color.staffSurface)
+                .cornerRadius(StaffCorner.md)
             }
+        }
+    }
+    
+    private struct EmiStatusStyle {
+        let text: String
+        let color: Color
+        let opacity: Double
+    }
+    
+    private func getEmiStatusAndStyle(index: Int, firstUnpaidIndex: Int, emi: EMIScheduleItem) -> EmiStatusStyle {
+        if index < firstUnpaidIndex {
+            return EmiStatusStyle(text: "Paid", color: .staffGreen, opacity: 1.0)
+        } else if index == firstUnpaidIndex {
+            return EmiStatusStyle(text: "Upcoming", color: .orange, opacity: 1.0)
+        } else {
+            return EmiStatusStyle(text: "Scheduled", color: .staffTextSecondary, opacity: 0.6)
         }
     }
     

@@ -82,7 +82,7 @@ struct BranchLoansView: View {
         HStack(spacing: 0) {
             // MARK: - Left Column: Loan List
             VStack(alignment: .leading, spacing: 0) {
-                Text("My Applications")
+                Text("Active Loans")
                     .font(.staffTitle)
                     .foregroundColor(.staffTextPrimary)
                     .padding(.horizontal, StaffSpacing.lg)

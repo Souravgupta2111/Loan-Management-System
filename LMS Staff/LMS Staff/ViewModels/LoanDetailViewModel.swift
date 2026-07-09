@@ -19,6 +19,7 @@ class LoanDetailViewModel: ObservableObject {
     @Published var borrowerProfile: BorrowerProfile?
     @Published var application: LoanApplication?
     @Published var appWithBorrower: ApplicationWithBorrower?
+    @Published var assignedOfficer: AppUser? = nil
     
     @Published var documents: [LMSDocument] = []
     @Published var timelineItems: [StaffTimelineView.TimelineItem] = []
@@ -64,6 +65,34 @@ class LoanDetailViewModel: ObservableObject {
                 .execute()
                 .value
             self.application = app
+            
+            if let officerStaffId = app.assignedOfficerId {
+                do {
+                    let staffProfiles: [StaffProfile] = try await supabase.database
+                        .from("staff_profiles")
+                        .select()
+                        .eq("id", value: officerStaffId)
+                        .execute()
+                        .value
+                    if let staffProfile = staffProfiles.first {
+                        let officerUser: AppUser = try await supabase.database
+                            .from("users")
+                            .select()
+                            .eq("id", value: staffProfile.userId)
+                            .single()
+                            .execute()
+                            .value
+                        self.assignedOfficer = officerUser
+                    } else {
+                        self.assignedOfficer = nil
+                    }
+                } catch {
+                    print("Error fetching assigned officer: \(error)")
+                    self.assignedOfficer = nil
+                }
+            } else {
+                self.assignedOfficer = nil
+            }
             
             // Construct ApplicationWithBorrower for Chat Support
             self.appWithBorrower = ApplicationWithBorrower(
