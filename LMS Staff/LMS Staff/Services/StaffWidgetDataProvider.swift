@@ -16,7 +16,7 @@ import Supabase
 
 enum StaffWidgetKeys {
     /// Must match the App Group on BOTH the staff app and the staff widget target.
-    static let appGroupID = "group.com.sourav.hi123.LMS-Staff"
+    static let appGroupID = "group.com.suyash.LMS-Staff"
     static let snapshot = "staffwidget.snapshot"
 }
 

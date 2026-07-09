@@ -14,7 +14,7 @@ import AppIntents
 // MARK: - Shared keys + DTO (mirror StaffWidgetKeys / DTO in the app)
 
 enum SWKeys {
-    static let appGroupID = "group.com.sourav.hi123.LMS-Staff"
+    static let appGroupID = "group.com.suyash.LMS-Staff"
     static let snapshot = "staffwidget.snapshot"
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroupID) }
 }
