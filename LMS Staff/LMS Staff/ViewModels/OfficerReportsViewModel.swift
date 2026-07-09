@@ -70,6 +70,7 @@ class OfficerReportsViewModel: ObservableObject {
     @Published var totalDisbursed: Double = 0
     @Published var avgInterestRate: Double = 0
     @Published var totalLoansCount: Int = 0
+    @Published var totalApplicationsCount: Int = 0
     @Published var npaCount: Int = 0
     @Published var restructuredCount: Int = 0
     @Published var closedCount: Int = 0
@@ -170,13 +171,26 @@ class OfficerReportsViewModel: ObservableObject {
     private func computeChartData(from loans: [LoanWithDetails], applications: [ApplicationWithBorrower]) {
         let allLoans = loans.map { $0.loan }
         
-        // 1. Status Distribution (Applications + Loans)
+        // 1. Calculate active applications count (excluding draft, disbursed, pending disbursal, and pending acceptance)
+        let activeApps = applications.filter {
+            $0.application.status != .disbursed &&
+            $0.application.status != .draft &&
+            $0.application.status != .pendingDisbursal &&
+            $0.application.status != .pendingAcceptance
+        }
+        totalApplicationsCount = activeApps.count
+        
+        // 2. Status Distribution (Applications + Loans)
         var statusGroups: [String: (count: Int, amount: Double)] = [:]
         
-        // Add all applications that are NOT disbursed and NOT draft
+        // Add all applications that match filters
         for app in applications {
-            if app.application.status != .disbursed && app.application.status != .draft {
-                let key = app.application.status.officerDisplayName
+            let status = app.application.status
+            if status != .disbursed &&
+               status != .draft &&
+               status != .pendingDisbursal &&
+               status != .pendingAcceptance {
+                let key = status.displayName
                 var entry = statusGroups[key] ?? (count: 0, amount: 0)
                 entry.count += 1
                 entry.amount += app.application.requestedAmount
@@ -186,11 +200,14 @@ class OfficerReportsViewModel: ObservableObject {
         
         // Add all active/disbursed loans
         for loan in allLoans {
-            let key = loan.status.displayName
-            var entry = statusGroups[key] ?? (count: 0, amount: 0)
-            entry.count += 1
-            entry.amount += loan.outstandingPrincipal
-            statusGroups[key] = entry
+            let status = loan.status
+            if status != .pendingAcceptance {
+                let key = status.displayName
+                var entry = statusGroups[key] ?? (count: 0, amount: 0)
+                entry.count += 1
+                entry.amount += loan.outstandingPrincipal
+                statusGroups[key] = entry
+            }
         }
         
         statusSlices = statusGroups.map { OfcLoanStatusSlice(status: $0.key, count: $0.value.count, amount: $0.value.amount) }
