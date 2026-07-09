@@ -108,79 +108,7 @@ struct ApplicationDetailView: View {
                 
 
                 // MARK: - Pending Acceptance
-                if application.status == "pending_acceptance" {
-                    let approvedAmount = application.approvedAmount ?? application.amount
-                    let tenure = application.approvedTenure ?? 12
-                    let rate = application.approvedInterestRate ?? 12.0 // Annual rate
-                    let monthlyRate = (rate / 100.0) / 12.0
-                    let x = pow(1.0 + monthlyRate, Double(tenure))
-                    let emiAmount = (monthlyRate > 0) ? (approvedAmount * (monthlyRate * x) / (x - 1.0)) : (approvedAmount / Double(tenure))
-                    
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        HStack {
-                            Image(systemName: "signature").foregroundColor(.accentBlue)
-                            Text("Disbursement Terms Ready").font(.cardTitle).foregroundColor(.accentBlue)
-                        }
-                        Text("Your loan has been approved and is ready for disbursement. Please review and accept the final terms below.")
-                            .font(.bodyRegular)
-                            .foregroundColor(.textPrimary)
-                        
-                        Divider().padding(.vertical, Spacing.sm)
-                        
-                        // Show terms
-                        VStack(spacing: Spacing.sm) {
-                            HStack {
-                                Text("Approved Amount")
-                                    .font(.bodyRegular)
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("₹\(formatIndian(approvedAmount))")
-                                    .font(.bodyLarge)
-                                    .foregroundColor(.textPrimary)
-                            }
-                            HStack {
-                                Text("Tenure")
-                                    .font(.bodyRegular)
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("\(tenure) Months")
-                                    .font(.bodyLarge)
-                                    .foregroundColor(.textPrimary)
-                            }
-                            HStack {
-                                Text("Monthly EMI")
-                                    .font(.bodyRegular)
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("₹\(formatIndian(emiAmount))")
-                                    .font(.bodyLarge)
-                                    .foregroundColor(.textPrimary)
-                            }
-                        }
-                        
-                        if let err = errorMessage {
-                            Text(err).font(.caption2).foregroundColor(.accentRed)
-                        }
-                        if let suc = successMessage {
-                            Text(suc).font(.caption2).foregroundColor(.accentGreen)
-                        } else {
-                            HStack(spacing: Spacing.md) {
-                                PillButton(title: isSubmitting ? "Processing..." : "Accept Terms", style: .primary) {
-                                    Task { await acceptTerms() }
-                                }
-                                .disabled(isSubmitting)
-                                
-                                PillButton(title: "Reject", style: .outline) {
-                                    Task { await rejectTerms() }
-                                }
-                                .disabled(isSubmitting)
-                            }
-                        }
-                    }
-                    .padding(Spacing.lg)
-                    .background(Color.accentBlue.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.md))
-                }
+                // (Pending acceptance terms have been moved to detailsCard)
                 
                 // MARK: - Message Officer (US-17)
                 if let officerId = application.officerId, let currentUserId = authViewModel.currentUser?.id {
@@ -516,15 +444,74 @@ struct ApplicationDetailView: View {
                     .font(.bodyLarge)
                     .foregroundColor(.textPrimary)
             }
-            HStack {
-                Text("Requested Amount")
-                    .font(.bodyRegular)
-                    .foregroundColor(.textSecondary)
-                Spacer()
-                Text("₹\(formatIndian(application.amount))")
-                    .font(.bodyLarge)
-                    .foregroundColor(.textPrimary)
+            
+            if application.status == "pending_acceptance" {
+                let approvedAmount = application.approvedAmount ?? application.amount
+                let tenure = application.approvedTenure ?? 12
+                let rate = application.approvedInterestRate ?? 12.0
+                
+                HStack {
+                    Text("Approved Amount")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("₹\(formatIndian(approvedAmount))")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                }
+                HStack {
+                    Text("Tenure")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("\(tenure) Months")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                }
+                HStack {
+                    Text("Interest Rate")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("\(String(format: "%.1f", rate))%")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                }
+                
+                Divider().padding(.vertical, Spacing.sm)
+                
+                if let err = errorMessage {
+                    Text(err).font(.caption2).foregroundColor(.accentRed)
+                }
+                if let suc = successMessage {
+                    Text(suc).font(.caption2).foregroundColor(.accentGreen)
+                } else {
+                    HStack(spacing: Spacing.md) {
+                        PillButton(title: isSubmitting ? "Processing..." : "Accept", style: .primary) {
+                            Task { await acceptTerms() }
+                        }
+                        .disabled(isSubmitting)
+                        
+                        PillButton(title: "Reject", style: .outline) {
+                            Task { await rejectTerms() }
+                        }
+                        .disabled(isSubmitting)
+                    }
+                }
+                
+                Divider().padding(.vertical, Spacing.sm)
+            } else {
+                HStack {
+                    Text("Requested Amount")
+                        .font(.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    Text("₹\(formatIndian(application.amount))")
+                        .font(.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                }
             }
+            
             HStack {
                 Text("Submitted")
                     .font(.bodyRegular)

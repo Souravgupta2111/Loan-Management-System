@@ -12,6 +12,7 @@ struct SidebarView: View {
     @Binding var selectedItem: SidebarItem?
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var themeManager: AppThemeManager
+    @EnvironmentObject var a11y: AccessibilityManager
     @State private var showLogoutAlert: Bool = false
     
     var body: some View {
@@ -82,6 +83,49 @@ struct SidebarView: View {
                 .background(Color.staffBorder)
 
             VStack(alignment: .leading, spacing: 10) {
+                // Accessibility toggles — placed above the color palette picker.
+                Toggle(isOn: Binding(
+                    get: { a11y.isHighContrastEnabled },
+                    set: { newValue in
+                        a11y.isHighContrastEnabled = newValue
+                        HapticManager.shared.impact(style: .medium)
+                    }
+                )) {
+                    HStack(spacing: StaffSpacing.sm) {
+                        Image(systemName: "circle.lefthalf.filled")
+                            .foregroundColor(.staffAccent)
+                            .frame(width: 24)
+                        Text("High Contrast")
+                            .font(.staffCaption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                }
+                .tint(.staffAccent)
+                .accessibilityLabel("High contrast mode")
+                .accessibilityHint("Increases color contrast across the app")
+
+                Toggle(isOn: Binding(
+                    get: { a11y.isHapticsEnabled },
+                    set: { newValue in
+                        a11y.isHapticsEnabled = newValue
+                        if newValue { HapticManager.shared.impact(style: .medium) }
+                    }
+                )) {
+                    HStack(spacing: StaffSpacing.sm) {
+                        Image(systemName: "hand.tap.fill")
+                            .foregroundColor(.staffAccent)
+                            .frame(width: 24)
+                        Text("Haptics")
+                            .font(.staffCaption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.staffTextSecondary)
+                    }
+                }
+                .tint(.staffAccent)
+                .accessibilityLabel("Haptic feedback")
+                .accessibilityHint("Enables vibration feedback for actions")
+
                 HStack(spacing: StaffSpacing.sm) {
                     Image(systemName: "paintpalette.fill")
                         .foregroundColor(.staffAccent)
@@ -172,7 +216,7 @@ struct SidebarView: View {
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
             return [.managerDashboard, .managerBranchLoans, .managerReports, .managerMessages, .managerAIChat]
-            // Hidden: .managerPortfolio, .managerNpa
+            // Removed unused pages
         case .admin:
             return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]
             // Hidden: .adminBorrowers

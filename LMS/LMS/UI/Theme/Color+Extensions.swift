@@ -183,10 +183,21 @@ private struct AppColorPaletteKey: EnvironmentKey {
     static let defaultValue: AppColorPalette = AppThemeManager.activePalette
 }
 
+/// Propagates the high-contrast flag through the environment purely so the view
+/// tree re-renders (and re-reads the palette) whenever the toggle changes.
+private struct AppHighContrastKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
 extension EnvironmentValues {
     var appColorPalette: AppColorPalette {
         get { self[AppColorPaletteKey.self] }
         set { self[AppColorPaletteKey.self] = newValue }
+    }
+
+    var appHighContrastEnabled: Bool {
+        get { self[AppHighContrastKey.self] }
+        set { self[AppHighContrastKey.self] = newValue }
     }
 }
 
@@ -196,6 +207,13 @@ extension EnvironmentValues {
 extension Color {
     static var currentPalette: AppColorPalette {
         AppThemeManager.activePalette
+    }
+
+    /// System-wide high-contrast toggle. When enabled, the palette flips to a
+    /// maximum-legibility scheme (white surfaces, near-black text, solid black
+    /// borders, and a darker accent) that easily clears WCAG AA contrast.
+    static var appHighContrast: Bool {
+        AppAccessibilityManager.shared.isHighContrastEnabled
     }
 
     private static func themedColor(_ hex: @escaping (AppColorPalette) -> String) -> Color {
@@ -234,18 +252,42 @@ extension Color {
         })
     }
 
+    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String) -> Color {
+        Color(UIColor { traits in
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: dark)
+            }
+            return UIColor(hex: appHighContrast ? highContrastLight : light)
+        })
+    }
+
     // MARK: - Core Palette
-    static var appBackground: Color { themedColor(light: \.backgroundHex, dark: \.darkBackgroundHex) }
-    static var surface: Color { themedColor(light: { _ in "#FFFFFF" }, dark: \.darkSurfaceHex) }
-    static var surfaceMuted: Color { themedColor(light: { _ in "#F5F5F0" }, dark: \.darkSurfaceMutedHex) }
-    static let textPrimary     = dynamicColor(light: "#1A1A1A", dark: "#F4F8F3")
-    static let textSecondary   = dynamicColor(light: "#6B6B6B", dark: "#A5B2A9")
-    static let textTertiary    = dynamicColor(light: "#9E9E9E", dark: "#87968C")
-    static var border: Color { themedColor(light: { _ in "#E8E8E4" }, dark: \.darkBorderHex) }
-    static var borderSubtle: Color { themedColor(light: { _ in "#F0F0EC" }, dark: \.darkBorderSubtleHex) }
+    static var appBackground: Color {
+        Color(UIColor { traits in
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: AppThemeManager.activePalette.darkBackgroundHex)
+            }
+            return UIColor(hex: appHighContrast ? "#FFFFFF" : AppThemeManager.activePalette.backgroundHex)
+        })
+    }
+    static var surface: Color { accessibleDynamicColor(light: "#FFFFFF", dark: AppThemeManager.activePalette.darkSurfaceHex, highContrastLight: "#FFFFFF") }
+    static var surfaceMuted: Color { accessibleDynamicColor(light: "#F5F5F0", dark: AppThemeManager.activePalette.darkSurfaceMutedHex, highContrastLight: "#F0F0F0") }
+    static var textPrimary: Color { accessibleDynamicColor(light: "#1A1A1A", dark: "#F4F8F3", highContrastLight: "#000000") }
+    static var textSecondary: Color { accessibleDynamicColor(light: "#6B6B6B", dark: "#A5B2A9", highContrastLight: "#1C1C1C") }
+    static var textTertiary: Color { accessibleDynamicColor(light: "#9E9E9E", dark: "#87968C", highContrastLight: "#3A3A3A") }
+    static var border: Color { accessibleDynamicColor(light: "#E8E8E4", dark: AppThemeManager.activePalette.darkBorderHex, highContrastLight: "#000000") }
+    static var borderSubtle: Color { accessibleDynamicColor(light: "#F0F0EC", dark: AppThemeManager.activePalette.darkBorderSubtleHex, highContrastLight: "#000000") }
 
     // MARK: - Accent Colors
-    static var accentGreen: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
+    static var accentGreen: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkPrimaryHex)
+            }
+            return UIColor(hex: appHighContrast ? palette.darkerHex : palette.primaryHex)
+        })
+    }
     static var accentGreenBg: Color { themedColor(light: \.accentBackgroundHex, dark: \.darkAccentBackgroundHex) }
     static var themeGreen: Color { themedColor(light: \.themeHex, dark: \.darkThemeHex) }
     static var themeGreenBg: Color { themedColor(light: \.themeHex, lightOpacity: 0.2, dark: \.darkThemeHex, darkOpacity: 0.35) }

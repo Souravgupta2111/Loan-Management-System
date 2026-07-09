@@ -16,12 +16,7 @@ struct SignUpView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [Color.gradientMintStart, Color.surface],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: Spacing.xxl) {
@@ -48,13 +43,15 @@ struct SignUpView: View {
                                 FormField(
                                     label: "Full Name",
                                     placeholder: "Enter your full name",
-                                    text: $fullName
+                                    text: $fullName,
+                                    error: fullNameError
                                 )
 
                                 FormField(
                                     label: "Email Address",
                                     placeholder: "you@example.com",
                                     text: $email,
+                                    error: emailError,
                                     keyboardType: .emailAddress
                                 )
                                 
@@ -62,6 +59,7 @@ struct SignUpView: View {
                                     label: "Mobile Number",
                                     placeholder: "Enter 10-digit number",
                                     text: $mobileNumber,
+                                    error: mobileError,
                                     keyboardType: .phonePad
                                 )
 
@@ -69,7 +67,8 @@ struct SignUpView: View {
                                     label: "Password",
                                     placeholder: "Minimum 6 characters",
                                     text: $password,
-                                    isSecure: true
+                                    isSecure: true,
+                                    error: passwordError
                                 )
 
                                 FormField(
@@ -82,10 +81,17 @@ struct SignUpView: View {
                             }
 
                             if let error = localError ?? authViewModel.errorMessage {
-                                Text(error)
-                                    .font(.caption2)
-                                    .foregroundColor(.accentRed)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                    Text(error)
+                                        .font(.caption.weight(.medium))
+                                }
+                                .foregroundColor(.accentRed)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.accentRed.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: Corner.md))
                             }
 
                             if authViewModel.signUpSucceeded {
@@ -143,7 +149,7 @@ struct SignUpView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    GlassBackButton { dismiss() }
+                    GlassBackButton(iconName: "xmark") { dismiss() }
                 }
             }
             .onAppear {
@@ -156,6 +162,37 @@ struct SignUpView: View {
 
     private var isValid: Bool {
         !fullName.isEmpty && !email.isEmpty && !mobileNumber.isEmpty && password.count >= 6 && password == confirmPassword
+    }
+
+    private var fullNameError: String? {
+        if !fullName.isEmpty {
+            let allowedCharacters = CharacterSet.letters.union(.whitespaces)
+            if fullName.rangeOfCharacter(from: allowedCharacters.inverted) != nil {
+                return "Name should only contain letters"
+            }
+        }
+        return nil
+    }
+
+    private var emailError: String? {
+        if !email.isEmpty && !email.contains("@") {
+            return "Invalid email format"
+        }
+        return nil
+    }
+
+    private var mobileError: String? {
+        if !mobileNumber.isEmpty && mobileNumber.count != 10 {
+            return "Must be 10 digits"
+        }
+        return nil
+    }
+
+    private var passwordError: String? {
+        if !password.isEmpty && password.count < 6 {
+            return "Minimum 6 characters required"
+        }
+        return nil
     }
 
     private var passwordMismatchError: String? {

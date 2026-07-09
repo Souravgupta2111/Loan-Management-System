@@ -227,6 +227,8 @@ struct HomeDashboardView: View {
     private func singleHeroLoanCard(for primaryLoan: LoanListItem) -> some View {
         let paidPercent = primaryLoan.paidPercent
         let outstanding = primaryLoan.remainingAmount
+        let totalEMIs = primaryLoan.emiSchedule?.count ?? (primaryLoan.requestedTenure ?? 12)
+        let paidEMIs = primaryLoan.emiAmount > 0 ? Int(primaryLoan.paidAmount / primaryLoan.emiAmount) : 0
 
         return VStack(alignment: .leading, spacing: 12) {
             // Loan title row
@@ -242,7 +244,6 @@ struct HomeDashboardView: View {
                 Text(primaryLoan.name)
                     .font(.headline.weight(.bold)).fontDesign(.rounded)
                     .foregroundColor(Color(hex: "#1A1A1A"))
-                    .lineLimit(1)
                 Spacer()
             }
 
@@ -267,39 +268,23 @@ struct HomeDashboardView: View {
 
             if primaryLoan.status.lowercased() == "active" {
                 // Progress bar + repaid %
-                if paidPercent > 0 {
-                    HStack(alignment: .center, spacing: 8) {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.themeGreen.opacity(0.5))
-                                    .frame(height: 6)
-                                Capsule()
-                                    .fill(Color.accentGreen)
-                                    .frame(width: geo.size.width * CGFloat(min(paidPercent, 1)), height: 6)
-                            }
-                        }
-                        .frame(height: 6)
-
-                        Text("\(Int(paidPercent * 100))% repaid")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(Color.accentGreen)
-                            .fixedSize()
-                    }
-                } else {
-                    HStack(alignment: .center, spacing: 8) {
-                        GeometryReader { geo in
+                HStack(alignment: .center, spacing: 8) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
                             Capsule()
                                 .fill(Color.themeGreen.opacity(0.5))
                                 .frame(height: 6)
+                            Capsule()
+                                .fill(Color.accentGreen)
+                                .frame(width: geo.size.width * CGFloat(min(paidPercent, 1)), height: 6)
                         }
-                        .frame(height: 6)
-
-                        Text("No EMIs paid")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(Color(hex: "#9E9E9E"))
-                            .fixedSize()
                     }
+                    .frame(height: 6)
+
+                    Text("\(paidEMIs)/\(totalEMIs) paid")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color.accentGreen)
+                        .fixedSize()
                 }
 
                 // Next EMI + Pay Now
@@ -361,7 +346,7 @@ struct HomeDashboardView: View {
         .padding(18)
         .liquidGlass(cornerRadius: 22, tint: Color.accentGreen, tintOpacity: 0.06)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(primaryLoan.name), \(primaryLoan.status.lowercased() == "active" ? "Outstanding Balance" : "Requested Amount") ₹ \(formatIndian(primaryLoan.remainingAmount)). \(primaryLoan.status.lowercased() == "active" ? "\(Int(primaryLoan.paidPercent * 100))% repaid" : "Status: \(primaryLoan.status)")")
+        .accessibilityLabel("\(primaryLoan.name), \(primaryLoan.status.lowercased() == "active" ? "Outstanding Balance" : "Requested Amount") ₹ \(formatIndian(primaryLoan.remainingAmount)). \(primaryLoan.status.lowercased() == "active" ? "\(paidEMIs) out of \(totalEMIs) EMIs paid" : "Status: \(primaryLoan.status)")")
         .accessibilityHint("Double tap to view loan details")
     }
 
@@ -454,9 +439,9 @@ struct HomeDashboardView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text("See more")
-                                .font(.body.weight(.semibold))
+                                .font(.footnote.weight(.semibold))
                             Image(systemName: "chevron.right")
-                                .font(.caption.weight(.bold))
+                                .font(.caption2.weight(.bold))
                         }
                         .foregroundColor(Color.accentGreen)
                     }
@@ -516,7 +501,7 @@ struct HomeDashboardView: View {
                     .foregroundColor(item.direction.color)
                 Text("₹\(formatIndian(abs(item.amount)))")
                     .font(.body.weight(.bold)).fontDesign(.rounded)
-                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    .foregroundColor(item.direction == .credit ? item.direction.color : Color(hex: "#1A1A1A"))
             }
         }
         .padding(.horizontal, 14)
@@ -617,14 +602,29 @@ struct HomeDashboardView: View {
 
         for loan in activeLoans {
             let emiAmt = loan.emiAmount
-            let disbursedDateStr = loan.disbursedDate
+            
+            let rawDate = loan.disbursedDate
+            let disbursedDateStr: String
+            if !rawDate.isEmpty {
+                let parseFormatter = DateFormatter()
+                parseFormatter.dateFormat = "yyyy-MM-dd"
+                if let parsed = parseFormatter.date(from: rawDate) {
+                    let outFormatter = DateFormatter()
+                    outFormatter.dateFormat = "d MMM yyyy"
+                    disbursedDateStr = outFormatter.string(from: parsed)
+                } else {
+                    disbursedDateStr = rawDate
+                }
+            } else {
+                disbursedDateStr = "Recently"
+            }
 
             let paidCount = emiAmt > 0 ? Int(loan.paidAmount / emiAmt) : 0
 
             // Add EMI payments
             for i in 0..<paidCount {
                 let formatter = DateFormatter()
-                formatter.dateFormat = "d MMMM yyyy"
+                formatter.dateFormat = "d MMM yyyy"
                 let dateStr = formatter.string(from: Calendar.current.date(byAdding: .month, value: -i, to: Date()) ?? Date())
                 items.append(
                     TxItem(
@@ -643,7 +643,7 @@ struct HomeDashboardView: View {
             items.append(
                 TxItem(
                     title: loan.name,
-                    subtitle: "\(disbursedDateStr ?? "Recently") - Loan Disbursed",
+                    subtitle: "\(disbursedDateStr) - Loan Disbursed",
                     amount: loan.amount,
                     direction: .credit,
                     statusIcon: "indianrupeesign",
@@ -785,7 +785,7 @@ enum TxDirection {
     var sign: String {
         switch self {
         case .credit: return "+"
-        case .debit: return "-"
+        case .debit: return ""
         }
     }
 

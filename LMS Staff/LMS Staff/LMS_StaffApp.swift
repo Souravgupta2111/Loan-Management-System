@@ -36,6 +36,7 @@ struct LMS_StaffApp: App {
     private let supabase = SupabaseManager.shared
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var themeManager = AppThemeManager()
+    @StateObject private var accessibilityManager = AccessibilityManager.shared
     
     // Notification delegate must be retained for the app's lifetime
     private let notificationDelegate = NotificationDelegate()
@@ -50,8 +51,12 @@ struct LMS_StaffApp: App {
             ContentView()
                 .tint(.staffAccent)
                 .environment(\.appColorPalette, themeManager.selectedPalette)
+                // Re-inject a value derived from the high-contrast flag so the
+                // whole tree re-renders (and re-reads the palette) when toggled.
+                .environment(\.staffHighContrastEnabled, accessibilityManager.isHighContrastEnabled)
                 .environmentObject(authViewModel)
                 .environmentObject(themeManager)
+                .environmentObject(accessibilityManager)
 
         }
     }

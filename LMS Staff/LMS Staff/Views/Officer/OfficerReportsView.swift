@@ -248,10 +248,10 @@ struct OfficerReportsView: View {
                         .frame(height: 200)
                         .chartBackground { _ in
                             VStack(spacing: 2) {
-                                Text("\(vm.totalLoansCount)")
+                                Text("\(vm.totalApplicationsCount)")
                                     .font(.staffLargeAmount)
                                     .foregroundColor(.staffTextPrimary)
-                                Text("Total")
+                                Text("Applications")
                                     .font(.staffCaption)
                                     .foregroundColor(.staffTextSecondary)
                             }
@@ -272,10 +272,9 @@ struct OfficerReportsView: View {
                             }
                         }
                     }
-                    Spacer()
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 380)
+            .frame(maxWidth: .infinity)
             
             // Bar Chart — Product Mix
             StaffCard {
@@ -335,12 +334,11 @@ struct OfficerReportsView: View {
                                 }
                             }
                         }
-                        .frame(height: 200)
+                        .frame(height: max(120, CGFloat(vm.productMix.count) * 55 + 30))
                     }
-                    Spacer()
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 380)
+            .frame(maxWidth: .infinity)
         }
     }
     
@@ -551,11 +549,20 @@ struct OfficerReportsView: View {
     // MARK: - Helper Views
     
     private func tableHeaderCell(_ title: String, width: CGFloat) -> some View {
-        Text(title)
+        let alignment: Alignment
+        if title == "Principal" || title == "Outstanding" {
+            alignment = .trailing
+        } else if title == "Rate" || title == "Status" || title == "Overdue" {
+            alignment = .center
+        } else {
+            alignment = .leading
+        }
+        
+        return Text(title)
             .font(.staffFinePrint.weight(.bold))
             .foregroundColor(.staffTextSecondary)
             .textCase(.uppercase)
-            .frame(width: width, alignment: title == "Principal" || title == "Outstanding" ? .trailing : .leading)
+            .frame(width: width, alignment: alignment)
     }
     
     private func colorForStatus(_ status: String) -> Color {

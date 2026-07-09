@@ -211,10 +211,21 @@ private struct AppColorPaletteKey: EnvironmentKey {
     static let defaultValue: AppColorPalette = AppThemeManager.activePalette
 }
 
+/// Propagates the high-contrast flag through the environment purely so the view
+/// tree re-renders (and re-reads the palette) whenever the toggle changes.
+private struct StaffHighContrastKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
 extension EnvironmentValues {
     var appColorPalette: AppColorPalette {
         get { self[AppColorPaletteKey.self] }
         set { self[AppColorPaletteKey.self] = newValue }
+    }
+
+    var staffHighContrastEnabled: Bool {
+        get { self[StaffHighContrastKey.self] }
+        set { self[StaffHighContrastKey.self] = newValue }
     }
 }
 
@@ -256,22 +267,85 @@ extension Color {
         })
     }
 
+    /// System-wide high-contrast toggle. Kept light-mode only so dark mode
+    /// stays on the selected palette instead of turning panes white.
+    static var staffHighContrast: Bool {
+        AccessibilityManager.shared.isHighContrastEnabled
+    }
+
+    private static func accessibleDynamicColor(light: String, dark: String, highContrastLight: String) -> Color {
+        Color(UIColor { traits in
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: dark)
+            }
+            return UIColor(hex: staffHighContrast ? highContrastLight : light)
+        })
+    }
+
     // MARK: - Core Palette
-    static var staffBackground: Color { themedColor(light: \.backgroundHex, dark: \.darkBackgroundHex) }
-    static var staffPanel: Color { themedColor(light: { _ in "#FFFFFF" }, dark: \.darkSurfaceLightHex) }
-    static var staffSurface: Color { themedColor(light: { _ in "#FBFEFA" }, dark: \.darkSurfaceLightHex) }    // Card background
-    static var staffSurfaceLight: Color { themedColor(light: \.surfaceLightHex, dark: \.darkSurfaceLightHex) }
-    static var staffSurfaceMuted: Color { themedColor(light: \.mutedHex, dark: \.darkMutedHex) }
-    static var staffBorder: Color { themedColor(light: \.borderHex, dark: \.darkBorderHex) }
-    static var staffBorderLight: Color { themedColor(light: \.cardHex, dark: \.darkCardHex) }
+    static var staffBackground: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkBackgroundHex)
+            }
+            return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.backgroundHex)
+        })
+    }
+    static var staffPanel: Color { accessibleDynamicColor(light: "#FFFFFF", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF") }
+    static var staffSurface: Color { accessibleDynamicColor(light: "#FBFEFA", dark: AppThemeManager.activePalette.darkSurfaceLightHex, highContrastLight: "#FFFFFF") }    // Card background
+    static var staffSurfaceLight: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkSurfaceLightHex)
+            }
+            return UIColor(hex: staffHighContrast ? "#FFFFFF" : palette.surfaceLightHex)
+        })
+    }
+    static var staffSurfaceMuted: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkMutedHex)
+            }
+            return UIColor(hex: staffHighContrast ? "#F0F0F0" : palette.mutedHex)
+        })
+    }
+    static var staffBorder: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkBorderHex)
+            }
+            return UIColor(hex: staffHighContrast ? "#000000" : palette.borderHex)
+        })
+    }
+    static var staffBorderLight: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkCardHex)
+            }
+            return UIColor(hex: staffHighContrast ? "#000000" : palette.cardHex)
+        })
+    }
 
     // MARK: - Text Colors
-    static let staffTextPrimary   = dynamicColor(light: "#1A1D1A", dark: "#F4F8F3")    // Deep charcoal
-    static let staffTextSecondary = dynamicColor(light: "#71786F", dark: "#A5B2A9")    // Muted labels
-    static let staffTextTertiary  = dynamicColor(light: "#A0AAA0", dark: "#87968C")    // Hints, placeholders
+    static var staffTextPrimary: Color { accessibleDynamicColor(light: "#1A1D1A", dark: "#F4F8F3", highContrastLight: "#000000") }    // Deep charcoal
+    static var staffTextSecondary: Color { accessibleDynamicColor(light: "#71786F", dark: "#A5B2A9", highContrastLight: "#1C1C1C") }    // Muted labels
+    static var staffTextTertiary: Color { accessibleDynamicColor(light: "#A0AAA0", dark: "#87968C", highContrastLight: "#3A3A3A") }    // Hints, placeholders
 
     // MARK: - Accent Colors
-    static var staffAccent: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
+    static var staffAccent: Color {
+        Color(UIColor { traits in
+            let palette = AppThemeManager.activePalette
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: palette.darkPrimaryHex)
+            }
+            return UIColor(hex: staffHighContrast ? palette.darkerHex : palette.primaryHex)
+        })
+    }
     static var staffAccentBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.35, dark: \.darkCardHex, darkOpacity: 0.42) }
     static var staffGreen: Color { themedColor(light: \.primaryHex, dark: \.darkPrimaryHex) }
     static var staffGreenBg: Color { themedColor(light: \.cardHex, lightOpacity: 0.35, dark: \.darkCardHex, darkOpacity: 0.42) }

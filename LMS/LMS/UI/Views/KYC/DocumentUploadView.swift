@@ -197,11 +197,10 @@ struct DocumentUploadView: View {
                     .ignoresSafeArea()
                 )
                 .navigationBarBackButtonHidden(true)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { GlassBackButton { dismiss() } } }
-        .navigationTitle(title)
+                .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button("Close") {
                             showPreview = false
                         }

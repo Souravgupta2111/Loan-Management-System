@@ -30,8 +30,6 @@ struct LoanDetailView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    navigationHeader
-                        .padding(.top, 8)
 
                     LoanSummaryCard(
                         detail: viewModel.detail,
@@ -55,7 +53,7 @@ struct LoanDetailView: View {
                     HStack {
                         Spacer()
                         NavigationLink {
-                            MessageView(applicationId: appId, receiverId: officerInfo.officerUserId)
+                            MessageView(applicationId: appId, receiverId: officerInfo.officerUserId, officerName: officerInfo.officerName)
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "bubble.left.and.text.bubble.right.fill")
@@ -88,7 +86,21 @@ struct LoanDetailView: View {
         }
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                GlassBackButton {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        dismiss()
+                    }
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Text(viewModel.detail.loanName)
+                    .font(.title3.weight(.bold)).fontDesign(.rounded)
+                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    .minimumScaleFactor(0.75)
+            }
+        }
         .onAppear { viewModel.animateProgress() }
         .task {
             await viewModel.loadOfficerInfo()
@@ -106,12 +118,14 @@ struct LoanDetailView: View {
     }
 
     private var navigationHeader: some View {
-        HStack(spacing: 12) {
-            GlassBackButton {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    dismiss()
+        ZStack {
+            HStack {
+                GlassBackButton {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        dismiss()
+                    }
                 }
-
+                Spacer()
             }
 
             Text(viewModel.detail.loanName)
@@ -119,8 +133,7 @@ struct LoanDetailView: View {
                 .foregroundColor(Color(hex: "#1A1A1A"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-
-            Spacer()
+                .padding(.horizontal, 48)
         }
         .frame(height: 36)
     }
@@ -397,7 +410,7 @@ private struct LoanSummaryCard: View {
                             .foregroundColor(Color(hex: "#6B6B6B"))
                         Text(detail.loanStatus.capitalized.replacingOccurrences(of: "_", with: " "))
                             .font(.title3.weight(.bold)).fontDesign(.rounded)
-                            .foregroundColor(Color.accentGreen)
+                            .foregroundColor(detail.loanStatus.lowercased() == "rejected" ? Color.accentRed : Color.accentGreen)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                     }
@@ -779,8 +792,10 @@ private struct TimelineCard: View {
                                     }
                                 }
                             }) {
-                                Text(isRejecting ? "Wait..." : "Reject Terms")
+                                Text(isRejecting ? "Wait..." : "Reject")
                                     .font(.subheadline.weight(.bold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
                                     .foregroundColor(.red)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -808,8 +823,10 @@ private struct TimelineCard: View {
                                     }
                                 }
                             }) {
-                                Text(isAccepting ? "Wait..." : "Accept Disbursement")
+                                Text(isAccepting ? "Wait..." : "Accept")
                                     .font(.subheadline.weight(.bold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -1125,7 +1142,7 @@ private struct DocumentsList: View {
                     .disabled(isProcessing)
                 }
                 
-                if loan.applicationId != nil {
+                if loan.applicationId != nil && loan.status.lowercased() == "sent_back" {
                     VStack(spacing: 12) {
                         TextField("Document Name (e.g. Bank Statement)", text: $customDocumentName)
                             .padding(14)
@@ -1272,20 +1289,9 @@ private struct EMIScheduleRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Side accent bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(accentColor)
-                .frame(width: 3)
-                .padding(.vertical, 4)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Due Date")
-                    .font(.caption)
-                    .foregroundColor(Color(hex: "#9E9E9E"))
-                Text(emi.dueDate)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(hex: "#1A1A1A"))
-            }
+            Text(emi.dueDate)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(Color(hex: "#1A1A1A"))
 
             Spacer()
 

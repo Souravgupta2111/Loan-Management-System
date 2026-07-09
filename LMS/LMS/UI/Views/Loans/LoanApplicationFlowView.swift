@@ -145,7 +145,7 @@ struct LoanApplicationFlowView: View {
         switch step {
         case 1:  return "Select Product"
         case 2:  return selectedProduct?.name ?? "Product Details"
-        case 3:  return "Loan Details"
+        case 3:  return "User Request"
         case 4:  return "Documents"
         case 5:  return "Review & Submit"
         default: return "Apply for Loan"

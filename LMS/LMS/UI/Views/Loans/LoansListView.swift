@@ -378,8 +378,10 @@ struct LoansListView: View {
     // MARK: - Loan Card
 
     private func loanCard(_ loan: LoanListItem) -> some View {
+        let totalEMIs = loan.emiSchedule?.count ?? (loan.requestedTenure ?? 12)
+        let paidEMIs = loan.emiAmount > 0 ? Int(loan.paidAmount / loan.emiAmount) : 0
 
-        VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 10) {
 
             // Top Row
 
@@ -408,7 +410,7 @@ struct LoansListView: View {
                                 )
                             )
                             .foregroundColor(Color(hex: "#1A1A1A"))
-                            .lineLimit(1)
+                            .multilineTextAlignment(.leading)
                         
                         if let appId = loan.applicationId, let count = unreadMessageCounts[appId], count > 0 {
                             ZStack {
@@ -423,6 +425,7 @@ struct LoansListView: View {
                     }
 
                     statusBadge(for: loan.status)
+                        .offset(x: -4) // Optical alignment
                 }
 
                 Spacer()
@@ -447,7 +450,7 @@ struct LoansListView: View {
 
             // Progress
 
-            if loan.paidPercent > 0 {
+            if loan.status.lowercased() == "active" {
                 HStack(spacing: 8) {
 
                     GeometryReader { geo in
@@ -459,11 +462,7 @@ struct LoansListView: View {
                                 .frame(height: 5)
 
                             Capsule()
-                                .fill(
-                                    loan.status.lowercased() == "closed"
-                                    ? Color.gray.opacity(0.45)
-                                    : Color.accentGreen
-                                )
+                                .fill(Color.accentGreen)
                                 .frame(
                                     width: geo.size.width * CGFloat(min(loan.paidPercent, 1)),
                                     height: 5
@@ -484,38 +483,47 @@ struct LoansListView: View {
 
             // Bottom Row
 
-            HStack {
+            if loan.status.lowercased() == "active" || loan.status.lowercased() == "overdue" {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Monthly EMI")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
 
-                VStack(alignment: .leading, spacing: 2) {
+                        Text(
+                            loan.emiAmount > 0
+                            ? "₹\(formatIndian(loan.emiAmount))"
+                            : "N/A"
+                        )
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(Color(hex: "#1A1A1A"))
+                    }
 
-                    Text("Monthly EMI")
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: "#6B6B6B"))
+                    Spacer()
 
-                    Text(
-                        loan.emiAmount > 0
-                        ? "₹\(formatIndian(loan.emiAmount))"
-                        : "N/A"
-                    )
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Next Due")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
+
+                        Text(formattedDate(loan.nextDueDate))
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(Color(hex: "#1A1A1A"))
+                    }
                 }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Remarks")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "#6B6B6B"))
 
-                Spacer()
+                        Text(statusRemark(for: loan.status))
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(Color(hex: "#1A1A1A"))
+                    }
 
-                VStack(alignment: .trailing, spacing: 2) {
-
-                    Text("Next Due")
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: "#6B6B6B"))
-
-                    Text(
-                        loan.status.lowercased() == "closed"
-                        ? "Paid off"
-                        : formattedDate(loan.nextDueDate)
-                    )
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(Color(hex: "#1A1A1A"))
+                    Spacer()
                 }
             }
         }
@@ -586,6 +594,13 @@ struct LoansListView: View {
                     Color(hex: "#F5F5F0")
                 )
 
+            case "sent_back":
+                return (
+                    "Sent_Back",
+                    Color(hex: "#E65100"),
+                    Color(hex: "#FFEDD5")
+                )
+
             default:
 
                 return (
@@ -604,6 +619,33 @@ struct LoansListView: View {
             .padding(.vertical, 3)
             .background(bg)
             .clipShape(Capsule())
+    }
+
+    // MARK: - Status Remark
+
+    private func statusRemark(for status: String) -> String {
+        switch status.lowercased() {
+        case "submitted", "pending":
+            return "Awaiting Initial Review"
+        case "under_review":
+            return "Under Manager Review"
+        case "approved":
+            return "Pending Your Acceptance"
+        case "pending_acceptance":
+            return "Awaiting Agreement"
+        case "pending_disbursal":
+            return "Processing Disbursal"
+        case "sent_back":
+            return "Action Required"
+        case "rejected":
+            return "Application Declined"
+        case "closed":
+            return "Paid in Full"
+        case "draft":
+            return "Incomplete Application"
+        default:
+            return "Processing"
+        }
     }
 
     // MARK: - Empty State
