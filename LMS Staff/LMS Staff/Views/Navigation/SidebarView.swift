@@ -172,7 +172,7 @@ struct SidebarView: View {
             // Hidden: .officerApplications, .officerNotifications
         case .manager:
             return [.managerDashboard, .managerBranchLoans, .managerReports, .managerMessages, .managerAIChat]
-            // Hidden: .managerPortfolio, .managerNpa
+            // Removed unused pages
         case .admin:
             return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts, .adminNotifications, .adminAudit, .adminChecklist]
             // Hidden: .adminBorrowers
