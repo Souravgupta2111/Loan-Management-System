@@ -9,6 +9,7 @@ enum LoanNavigation: Hashable {
 
 struct HomeDashboardView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: AppThemeManager
     @State private var loans: [LoanListItem] = []
     @State private var userName = ""
     @State private var hasLoaded = false
@@ -401,6 +402,7 @@ struct HomeDashboardView: View {
                 }
             }
         }
+        .id(themeManager.selectedPalette)
     }
 
     private func quickActionCard(icon: String, label: String) -> some View {
