@@ -9,6 +9,7 @@
 import SwiftUI
 import Supabase
 import PostgREST
+import Combine
 
 struct AuditTrailView: View {
     @State private var logs: [AuditLog] = []
