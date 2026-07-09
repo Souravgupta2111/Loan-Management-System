@@ -32,6 +32,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     var officerPending: Int
     var officerSubmitted: Int
     var officerUnderReview: Int
+    var officerSentBack: Int
     var oldestName: String?
     var oldestDays: Int?
     var activeLoans: Int
@@ -51,6 +52,7 @@ struct StaffWidgetSnapshotDTO: Codable {
 
     static let sample = StaffWidgetSnapshotDTO(
         role: "sample", officerPending: 7, officerSubmitted: 4, officerUnderReview: 3,
+        officerSentBack: 2,
         oldestName: "Ravi Kumar", oldestDays: 3, activeLoans: 128, totalDisbursed: 48_500_000,
         npaPercentage: 4.2, collectionEfficiency: 92, pendingApprovals: 9, pendingDisbursements: 5, overdueEmis: 15,
         npaCount: 6, totalBorrowers: 342, staffCount: 18, branchCount: 5, auditAlerts24h: 23,
@@ -176,28 +178,125 @@ private func swHeader(_ title: String, _ icon: String) -> some View {
 // ============================================================================
 
 struct OfficerQueueView: View {
+    @Environment(\.widgetFamily) var family
     var entry: SWEntry
+    
     var body: some View {
         let s = entry.snapshot
         if wrongRole(s, ["officer"]) { SignInHint(role: "officer") } else {
-            VStack(alignment: .leading, spacing: 8) {
-                swHeader("My Review Queue", "tray.full")
-                Text("\(s.officerPending)").font(.system(size: 44, weight: .bold)).minimumScaleFactor(0.5)
-                Text("applications pending").font(.caption).foregroundStyle(.secondary)
-                HStack(spacing: 10) {
-                    pill("\(s.officerSubmitted) new", .blue)
-                    pill("\(s.officerUnderReview) reviewing", .orange)
+            VStack(alignment: .leading, spacing: 0) {
+                if family == .systemMedium {
+                    mediumLayout(s)
+                } else {
+                    smallLayout(s)
                 }
-                Spacer(minLength: 0)
             }
             .glassWidget()
             .widgetURL(URL(string: "lmsstaffapp://applications"))
         }
     }
-    private func pill(_ text: String, _ color: Color) -> some View {
-        Text(text).font(.caption2.weight(.semibold))
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(color.opacity(0.18), in: Capsule()).foregroundStyle(color)
+    
+    @ViewBuilder
+    private func smallLayout(_ s: StaffWidgetSnapshotDTO) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            swHeader("My Queue", "tray.full")
+            
+            HStack(spacing: 8) {
+                // Review
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(s.officerPending)")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.primary)
+                    Text("Review")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                
+                // Sent Back
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(s.officerSentBack)")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.orange)
+                    Text("Sent Back")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.orange)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Color.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+    
+    @ViewBuilder
+    private func mediumLayout(_ s: StaffWidgetSnapshotDTO) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            swHeader("My Review Queue", "tray.full")
+            
+            HStack(spacing: 12) {
+                // Under Review Card
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.blue)
+                            .frame(width: 24, height: 24)
+                            .background(Color.blue.opacity(0.12), in: Circle())
+                        Spacer()
+                        Text("\(s.officerPending)")
+                            .font(.system(size: 30, weight: .bold))
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Under Review")
+                            .font(.system(size: 14, weight: .semibold))
+                            .lineLimit(1)
+                        Text("Awaiting decision")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(12)
+                .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                .frame(maxWidth: .infinity)
+                
+                // Sent Back Card
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.orange)
+                            .frame(width: 24, height: 24)
+                            .background(Color.orange.opacity(0.12), in: Circle())
+                        Spacer()
+                        Text("\(s.officerSentBack)")
+                            .font(.system(size: 30, weight: .bold))
+                            .foregroundColor(.orange)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Sent Back")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.orange)
+                            .lineLimit(1)
+                        Text("Returned by manager")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                .frame(maxWidth: .infinity)
+            }
+        }
     }
 }
 
@@ -206,7 +305,7 @@ struct OfficerQueueWidget: Widget {
         StaticConfiguration(kind: "OfficerQueueWidget", provider: SWProvider()) { OfficerQueueView(entry: $0) }
             .configurationDisplayName("My Review Queue")
             .description("Applications assigned to you, pending review.")
-            .supportedFamilies([.systemSmall, .systemMedium])
+            .supportedFamilies([.systemMedium])
     }
 }
 
@@ -253,8 +352,9 @@ struct CopilotQuickAskView: View {
         ("Suggest questions to ask", "questionmark.bubble")
     ]
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             swHeader("AI Copilot", "sparkles")
+                .padding(.bottom, 2)
             ForEach(prompts, id: \.0) { text, icon in
                 Link(destination: askURL(text)) {
                     HStack(spacing: 8) {
@@ -263,7 +363,7 @@ struct CopilotQuickAskView: View {
                         Spacer(minLength: 4)
                         Image(systemName: "arrow.up.right").font(.system(size: 8)).foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.thinMaterial, in: Capsule())
                 }
@@ -627,7 +727,7 @@ struct StaffLockView: View {
                     Text("\(s.pendingApprovals) app. · \(s.pendingDisbursements) disb.").font(.caption2)
                 } else {
                     Text("\(s.officerPending) pending").font(.headline)
-                    Text("\(s.officerUnderReview) in review").font(.caption2)
+                    Text("\(s.officerSentBack) sent back").font(.caption2)
                 }
             }
             .containerBackground(for: .widget) { Color.clear }

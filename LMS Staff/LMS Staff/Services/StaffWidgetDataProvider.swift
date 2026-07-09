@@ -35,6 +35,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     var officerPending: Int
     var officerSubmitted: Int
     var officerUnderReview: Int
+    var officerSentBack: Int
     var oldestName: String?
     var oldestDays: Int?
 
@@ -60,6 +61,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     static func empty(role: String) -> StaffWidgetSnapshotDTO {
         StaffWidgetSnapshotDTO(
             role: role, officerPending: 0, officerSubmitted: 0, officerUnderReview: 0,
+            officerSentBack: 0,
             oldestName: nil, oldestDays: nil, activeLoans: 0, totalDisbursed: 0,
             npaPercentage: 0, collectionEfficiency: 0, pendingApprovals: 0, pendingDisbursements: 0, overdueEmis: 0,
             npaCount: 0, totalBorrowers: 0, staffCount: 0, branchCount: 0, auditAlerts24h: 0,
@@ -90,10 +92,10 @@ enum StaffWidgetDataProvider {
             case .borrower:
                 break
             }
+            write(snap)
         } catch {
             print("StaffWidget refresh error: \(error)")
         }
-        write(snap)
     }
 
     private static func write(_ snap: StaffWidgetSnapshotDTO) {
@@ -107,39 +109,81 @@ enum StaffWidgetDataProvider {
     // MARK: - Officer
 
     private struct AppRow: Decodable {
+        let id: UUID
         let application_number: String?
         let borrower_id: UUID
         let created_at: Date?
         let status: String
+        let assigned_officer_id: UUID?
     }
 
     private static func fillOfficer(_ snap: inout StaffWidgetSnapshotDTO) async throws {
         guard let userId = supabase.currentUserId else { return }
 
         struct ProfileRow: Decodable { let id: UUID }
-        let profile: ProfileRow? = try? await supabase.client
-            .from("staff_profiles").select("id").eq("user_id", value: userId).single().execute().value
+        let profile: ProfileRow? = try? await supabase.database
+            .from("staff_profiles")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value
         guard let profileId = profile?.id else { return }
 
-        let apps: [AppRow] = try await supabase.client
+        let apps: [AppRow] = try await supabase.database
             .from("loan_applications")
-            .select("application_number, borrower_id, created_at, status")
-            .eq("assigned_officer_id", value: profileId)
-            .in("status", values: ["submitted", "under_review"])
+            .select("id, application_number, borrower_id, created_at, status, assigned_officer_id")
+            .or("assigned_officer_id.eq.\(profileId.uuidString),status.eq.submitted")
             .order("created_at", ascending: true)
-            .execute().value
+            .execute()
+            .value
 
-        snap.officerPending = apps.count
-        snap.officerSubmitted = apps.filter { $0.status == "submitted" }.count
-        snap.officerUnderReview = apps.filter { $0.status == "under_review" }.count
+        struct HistoryID: Codable {
+            let application_id: UUID
+        }
+        let historyLogs: [HistoryID] = (try? await supabase.database
+            .from("approval_history")
+            .select("application_id")
+            .eq("actor_id", value: userId.uuidString)
+            .execute()
+            .value) ?? []
+        let actionedAppIds = Array(Set(historyLogs.map { $0.application_id }))
 
-        if let oldest = apps.first {
+        var allApps = apps
+        if !actionedAppIds.isEmpty {
+            let additionalApps: [AppRow] = (try? await supabase.database
+                .from("loan_applications")
+                .select("id, application_number, borrower_id, created_at, status, assigned_officer_id")
+                .in("id", values: actionedAppIds)
+                .execute()
+                .value) ?? []
+            
+            var seenIds = Set(allApps.map { $0.id })
+            for app in additionalApps {
+                if !seenIds.contains(app.id) {
+                    allApps.append(app)
+                    seenIds.insert(app.id)
+                }
+            }
+        }
+
+        snap.officerPending = allApps.filter { $0.status == "submitted" }.count
+        snap.officerSubmitted = allApps.filter { $0.status == "under_review" }.count
+        snap.officerUnderReview = allApps.filter { $0.status == "submitted" }.count
+        snap.officerSentBack = allApps.filter { $0.status == "sent_back" }.count
+
+        if let oldest = allApps.first(where: { $0.status == "submitted" }) {
             snap.oldestDays = oldest.created_at.map {
                 Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? 0
             }
             struct NameRow: Decodable { let full_name: String }
-            let name: NameRow? = try? await supabase.client
-                .from("users").select("full_name").eq("id", value: oldest.borrower_id).single().execute().value
+            let name: NameRow? = try? await supabase.database
+                .from("users")
+                .select("full_name")
+                .eq("id", value: oldest.borrower_id.uuidString)
+                .single()
+                .execute()
+                .value
             snap.oldestName = name?.full_name
         }
     }
