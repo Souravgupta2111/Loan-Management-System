@@ -743,16 +743,27 @@ struct ApplicationDetailView: View {
                                 Spacer(minLength: 20)
                                 
                                 let allVerified = vm.documents.allSatisfy { $0.isVerified } && !vm.documents.isEmpty
-                                StaffButton(
-                                    title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
-                                    style: .primary,
-                                    icon: "hand.thumbsup.fill"
-                                ) {
-                                    showRecommendSheet = true
+                                if allVerified {
+                                    StaffButton(
+                                        title: vm.application.status == .sentBack ? "Resubmit to Manager" : "Recommend to Manager",
+                                        style: .primary,
+                                        icon: "hand.thumbsup.fill"
+                                    ) {
+                                        showRecommendSheet = true
+                                    }
+                                    .frame(minWidth: 240)
+                                } else {
+                                    StaffButton(
+                                        title: "Verify Documents",
+                                        style: .primary,
+                                        icon: "checkmark.circle"
+                                    ) {
+                                        withAnimation {
+                                            activeTab = .documents
+                                        }
+                                    }
+                                    .frame(minWidth: 240)
                                 }
-                                .frame(minWidth: 240)
-                                .disabled(!allVerified)
-                                .opacity(allVerified ? 1.0 : 0.5)
                             } else if vm.application.status == .underReview {
                                 Spacer()
                                 Text("Escalated to Manager")
