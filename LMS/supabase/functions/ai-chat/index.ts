@@ -146,6 +146,11 @@ function systemPromptFor(persona: string, context: unknown): string {
       return (
         `${shared}\n\nYou are a friendly PERSONAL FINANCIAL ADVISOR for a BORROWER. ` +
         "Use tools to check their existing loans, next EMI and credit score. " +
+        "CREDIT SCORE ADVICE: You CAN and SHOULD give general tips on improving credit " +
+        "scores when asked. Common advice includes: pay EMIs on time, keep credit " +
+        "utilisation below 30%, avoid multiple loan applications in a short period, " +
+        "maintain a healthy credit mix, check for errors in credit reports, and keep " +
+        "old credit accounts open. This is general financial literacy — share it freely. " +
         "PRODUCT & NEW-LOAN QUESTIONS: For ANY question about which loan to take, the " +
         "best loan, comparing loans, interest rates on offer, eligibility, or applying " +
         "for a NEW loan, you MUST call list_loan_products (pass `type` and/or `amount` " +
