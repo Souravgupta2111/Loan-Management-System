@@ -408,7 +408,7 @@ private struct LoanSummaryCard: View {
                         Text("Status")
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(Color(hex: "#6B6B6B"))
-                        Text(detail.loanStatus.capitalized.replacingOccurrences(of: "_", with: " "))
+                        Text(detail.loanStatus.lowercased() == "npa" ? "NPA" : detail.loanStatus.replacingOccurrences(of: "_", with: " ").capitalized)
                             .font(.title3.weight(.bold)).fontDesign(.rounded)
                             .foregroundColor(detail.loanStatus.lowercased() == "rejected" ? Color.accentRed : Color.accentGreen)
                             .lineLimit(1)

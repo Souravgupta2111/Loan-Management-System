@@ -151,14 +151,6 @@ struct ChatSupportConsole: View {
                         .font(.staffTitle)
                         .foregroundColor(.staffTextPrimary)
                         .accessibilityAddTraits(.isHeader)
-                    HStack(spacing: 6) {
-                        Text(appWithBorrower.borrower.fullName)
-                        Text("•")
-                        Text(appWithBorrower.application.applicationNumber ?? "APP-NEW")
-                            .fontWeight(.semibold)
-                    }
-                    .font(.staffCaption)
-                    .foregroundColor(.staffTextSecondary)
                 }
                 
                 Spacer()

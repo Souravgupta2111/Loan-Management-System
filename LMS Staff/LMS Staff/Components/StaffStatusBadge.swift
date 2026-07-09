@@ -52,9 +52,11 @@ struct StaffStatusBadge: View {
     }
 
     private var displayText: String {
-        status
-            .replacingOccurrences(of: "_", with: " ")
-            .capitalized
+        let cleaned = status.replacingOccurrences(of: "_", with: " ")
+        if cleaned.lowercased() == "npa" {
+            return "NPA"
+        }
+        return cleaned.capitalized
     }
 
     private var badgeFont: Font {

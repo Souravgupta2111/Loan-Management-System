@@ -18,16 +18,48 @@ struct MetricDetailSheet: View {
     
     @State private var selectedLoan: LoanWithDetails?
     @State private var selectedApplication: ApplicationWithBorrower?
+    @State private var searchText: String = ""
+    
+    var filteredLoans: [LoanWithDetails] {
+        guard case .loans(let loans) = data else { return [] }
+        if searchText.isEmpty { return loans }
+        let query = searchText.lowercased()
+        return loans.filter { loan in
+            loan.borrower.fullName.lowercased().contains(query) ||
+            (loan.loan.loanNumber ?? "").lowercased().contains(query)
+        }
+    }
+    
+    var filteredApplications: [ApplicationWithBorrower] {
+        guard case .applications(let apps) = data else { return [] }
+        if searchText.isEmpty { return apps }
+        let query = searchText.lowercased()
+        return apps.filter { app in
+            app.borrower.fullName.lowercased().contains(query) ||
+            (app.application.applicationNumber ?? "").lowercased().contains(query)
+        }
+    }
     
     var body: some View {
         ZStack {
             Color.staffBackground.ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Search field
+                TextField("Search...", text: $searchText)
+                    .padding(12)
+                    .background(Color.staffSurface)
+                    .cornerRadius(StaffCorner.md)
+                    .foregroundColor(.staffTextPrimary)
+                    .padding(.horizontal, StaffSpacing.md)
+                    .padding(.top, StaffSpacing.sm)
+                    .padding(.bottom, StaffSpacing.sm)
+
                 ScrollView {
                     VStack(spacing: StaffSpacing.md) {
                         switch data {
-                        case .loans(let loans):
+                        case .loans:
+                            let loans = filteredLoans
                             if loans.isEmpty {
                                 EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No loans match this metric.")
                                     .padding(.top, 40)
@@ -41,7 +73,8 @@ struct MetricDetailSheet: View {
                                     .buttonStyle(PlainButtonStyle())
                                 }
                             }
-                        case .applications(let apps):
+                        case .applications:
+                            let apps = filteredApplications
                             if apps.isEmpty {
                                 EmptyStateView(icon: "list.bullet.rectangle", title: "No Data", message: "No applications match this metric.")
                                     .padding(.top, 40)
@@ -141,7 +174,11 @@ struct ApplicationRow: View {
                         .fontWeight(.medium)
                         .foregroundColor(.staffAccent)
                     
-                    StaffStatusBadge(status: app.application.status.displayName)
+                    if let loanStatus = app.activeLoanStatus {
+                        StaffStatusBadge(status: loanStatus)
+                    } else {
+                        StaffStatusBadge(status: app.application.status.displayName)
+                    }
                 }
             }
         }

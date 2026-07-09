@@ -276,6 +276,47 @@ struct ApplicationDetailView: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             
+            // Loan Details Card
+            StaffCard {
+                VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                    Text("Loan Details & Terms")
+                        .font(.staffTitle)
+                        .foregroundColor(.staffTextPrimary)
+                    
+                    Divider()
+                    
+                    KYCRow(label: "Product", value: vm.product.name)
+                    KYCRow(label: "Asked Amount (Requested)", value: "INR \(String(format: "%.2f", vm.application.requestedAmount))")
+                    
+                    if let loan = vm.activeLoan {
+                        KYCRow(label: "Approved & Disbursed Amount", value: "INR \(String(format: "%.2f", loan.principalAmount))")
+                        KYCRow(label: "Interest Rate", value: String(format: "%.2f%% (Interest Type: %@)", loan.interestRate, loan.interestType.rawValue.capitalized))
+                        KYCRow(label: "Tenure", value: "\(loan.tenureMonths) Months")
+                        KYCRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", loan.outstandingPrincipal))")
+                        KYCRow(label: "Maturity Date", value: loan.maturityDate ?? "N/A")
+                        KYCRow(label: "Repayment Mode", value: loan.repaymentMode.rawValue.uppercased())
+                    } else {
+                        KYCRow(label: "Approved & Disbursed Amount", value: "Pending")
+                        KYCRow(label: "Product Rate Range", value: "\(vm.product.formattedRateRange) (\(vm.product.formattedInterestTypes))")
+                        KYCRow(label: "Requested Tenure", value: "\(vm.application.requestedTenureMonths) Months")
+                    }
+                    
+                    if let collateral = vm.application.collateralDescription, !collateral.isEmpty {
+                        KYCRow(label: "Collateral", value: collateral)
+                    }
+                    
+                    if let branchName = vm.branchName {
+                        KYCRow(label: "Branch Name", value: branchName)
+                    }
+                    if let managerName = vm.managerName {
+                        KYCRow(label: "Branch Manager", value: managerName)
+                    }
+                    if let officerName = vm.assignedOfficerName {
+                        KYCRow(label: "Assigned Loan Officer", value: officerName)
+                    }
+                }
+            }
+            
             // Underwriting Analysis Card
             if let suggestion = vm.underwritingSuggestion {
                 StaffCard {
