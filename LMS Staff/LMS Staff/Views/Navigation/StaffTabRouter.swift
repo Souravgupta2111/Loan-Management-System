@@ -45,7 +45,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .officerAIChat: return "AI Assistant"
         
         case .managerDashboard: return "Overview Dashboard"
-        case .managerBranchLoans: return "My Applications"
+        case .managerBranchLoans: return "Active Loans"
         case .managerReports: return "Analytics"
         case .managerMessages: return "Chats"
         case .managerAI: return "AI Analytics"
@@ -115,13 +115,30 @@ struct StaffTabRouter: View {
         case .aiChat:
             return role == .manager ? .managerAIChat : .officerAIChat
         case .applications:
-            return role == .manager ? .managerReports : .officerApplications
+            return role == .manager ? .managerBranchLoans : .officerApplications
         case .portfolio:
-            return role == .manager ? .managerReports : .officerPortfolio
+            return role == .manager ? .managerDashboard : .officerPortfolio
         case .npa:
             return role == .manager ? .managerReports : .officerReports
         case .disbursements:
-            return role == .manager ? .managerReports : .managerBranchLoans
+            return role == .manager ? .managerBranchLoans : .managerBranchLoans
+        }
+    }
+
+    /// Sidebar items that belong to each role — deep links outside this set are blocked.
+    private func itemBelongsToRole(_ item: SidebarItem) -> Bool {
+        switch role {
+        case .officer:
+            return [.officerDashboard, .officerApplications, .officerPortfolio,
+                    .officerMessages, .officerNotifications, .officerReports, .officerAIChat].contains(item)
+        case .manager:
+            return [.managerDashboard, .managerBranchLoans, .managerReports,
+                    .managerMessages, .managerAI, .managerAIChat].contains(item)
+        case .admin:
+            return [.adminDashboard, .adminStaff, .adminBranches, .adminProducts,
+                    .adminBorrowers, .adminAudit, .adminNotifications, .adminChecklist].contains(item)
+        default:
+            return false
         }
     }
 
@@ -152,10 +169,13 @@ struct StaffTabRouter: View {
             .id(themeManager.selectedPalette.id)
         }
         .accentColor(.staffAccent)
-        // Siri / Shortcuts intents route here.
+        // Siri / Shortcuts intents route here — guarded to current role only.
         .onReceive(intentRouter.$pending) { destination in
             guard let destination else { return }
-            selectedItem = sidebarItem(for: destination)
+            let target = sidebarItem(for: destination)
+            // Only navigate if the resolved item belongs to the current role.
+            guard itemBelongsToRole(target) else { return }
+            selectedItem = target
         }
         .onAppear {
             Task {

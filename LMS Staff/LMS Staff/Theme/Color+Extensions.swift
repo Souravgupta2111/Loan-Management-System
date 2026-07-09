@@ -130,10 +130,21 @@ private struct AppColorPaletteKey: EnvironmentKey {
     static let defaultValue: AppColorPalette = AppThemeManager.activePalette
 }
 
+/// Propagates the high-contrast flag through the environment purely so the view
+/// tree re-renders (and re-reads the palette) whenever the toggle changes.
+private struct StaffHighContrastKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
 extension EnvironmentValues {
     var appColorPalette: AppColorPalette {
         get { self[AppColorPaletteKey.self] }
         set { self[AppColorPaletteKey.self] = newValue }
+    }
+
+    var staffHighContrastEnabled: Bool {
+        get { self[StaffHighContrastKey.self] }
+        set { self[StaffHighContrastKey.self] = newValue }
     }
 }
 
@@ -145,21 +156,48 @@ extension Color {
         AppThemeManager.activePalette
     }
 
+    /// System-wide high-contrast toggle. When enabled, the palette flips to a
+    /// maximum-legibility scheme (white surfaces, near-black text, solid black
+    /// borders, and a darker accent) that easily clears WCAG AA contrast.
+    static var staffHighContrast: Bool {
+        AccessibilityManager.shared.isHighContrastEnabled
+    }
+
     // MARK: - Core Palette
-    static var staffBackground: Color { Color(hex: currentPalette.backgroundHex) }
-    static let staffSurface       = Color(hex: "#FBFEFA")    // Card background
-    static var staffSurfaceLight: Color { Color(hex: currentPalette.surfaceLightHex) }
-    static var staffSurfaceMuted: Color { Color(hex: currentPalette.mutedHex) }
-    static var staffBorder: Color { Color(hex: currentPalette.borderHex) }
-    static var staffBorderLight: Color { Color(hex: currentPalette.cardHex) }
+    static var staffBackground: Color {
+        staffHighContrast ? Color(hex: "#FFFFFF") : Color(hex: currentPalette.backgroundHex)
+    }
+    static var staffSurface: Color {
+        staffHighContrast ? Color(hex: "#FFFFFF") : Color(hex: "#FBFEFA")    // Card background
+    }
+    static var staffSurfaceLight: Color {
+        staffHighContrast ? Color(hex: "#FFFFFF") : Color(hex: currentPalette.surfaceLightHex)
+    }
+    static var staffSurfaceMuted: Color {
+        staffHighContrast ? Color(hex: "#F0F0F0") : Color(hex: currentPalette.mutedHex)
+    }
+    static var staffBorder: Color {
+        staffHighContrast ? Color(hex: "#000000") : Color(hex: currentPalette.borderHex)
+    }
+    static var staffBorderLight: Color {
+        staffHighContrast ? Color(hex: "#000000") : Color(hex: currentPalette.cardHex)
+    }
 
     // MARK: - Text Colors
-    static let staffTextPrimary   = Color(hex: "#1A1D1A")    // Deep charcoal
-    static let staffTextSecondary = Color(hex: "#71786F")    // Muted labels
-    static let staffTextTertiary  = Color(hex: "#A0AAA0")    // Hints, placeholders
+    static var staffTextPrimary: Color {
+        staffHighContrast ? Color(hex: "#000000") : Color(hex: "#1A1D1A")    // Deep charcoal
+    }
+    static var staffTextSecondary: Color {
+        staffHighContrast ? Color(hex: "#1C1C1C") : Color(hex: "#71786F")    // Muted labels
+    }
+    static var staffTextTertiary: Color {
+        staffHighContrast ? Color(hex: "#3A3A3A") : Color(hex: "#A0AAA0")    // Hints, placeholders
+    }
 
     // MARK: - Accent Colors
-    static var staffAccent: Color { Color(hex: currentPalette.primaryHex) }
+    static var staffAccent: Color {
+        staffHighContrast ? Color(hex: currentPalette.darkerHex) : Color(hex: currentPalette.primaryHex)
+    }
     static var staffAccentBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
     static var staffGreen: Color { Color(hex: currentPalette.primaryHex) }
     static var staffGreenBg: Color { Color(hex: currentPalette.cardHex).opacity(0.35) }
