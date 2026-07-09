@@ -327,7 +327,7 @@ struct HomeDashboardView: View {
                         Text("Application Status")
                             .font(.subheadline.weight(.regular))
                             .foregroundColor(Color(hex: "#6B6B6B"))
-                        Text(primaryLoan.status.capitalized.replacingOccurrences(of: "_", with: " "))
+                        Text(primaryLoan.status.lowercased() == "npa" ? "NPA" : primaryLoan.status.replacingOccurrences(of: "_", with: " ").capitalized)
                             .font(.body.weight(.semibold))
                             .foregroundColor(primaryLoan.status.lowercased() == "rejected" ? .red : Color.accentGreen)
                     }
