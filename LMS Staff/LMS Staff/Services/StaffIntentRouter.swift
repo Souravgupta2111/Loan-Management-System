@@ -25,6 +25,10 @@ final class StaffIntentRouter: ObservableObject {
 
     @Published var pending: Destination?
 
+    /// An application number Siri asked to open for approval (e.g. "LMS-APP-007").
+    /// The applications screen can read this to focus the matching application.
+    @Published var approvalTargetNumber: String?
+
     /// Optional question to auto-send to the AI assistant when it opens.
     private var assistantPrefill: String?
 
@@ -33,6 +37,12 @@ final class StaffIntentRouter: ObservableObject {
     func request(_ destination: Destination, prefill: String? = nil) {
         assistantPrefill = prefill
         pending = destination
+    }
+
+    /// Route to the applications screen with a specific application flagged for approval.
+    func requestApproval(applicationNumber: String) {
+        approvalTargetNumber = applicationNumber
+        pending = .applications
     }
 
     /// Read-once prefill so the assistant only auto-asks the Siri question once.

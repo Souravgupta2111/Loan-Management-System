@@ -41,13 +41,16 @@ struct WidgetEMIDayDTO: Codable {
 }
 
 struct WidgetSnapshotDTO: Codable {
-    var loans: [WidgetLoanDTO]
+    var loans: [WidgetLoanDTO]        // active loans only
     var creditScore: Int?
     var applicationStage: String?     // raw status of an in-progress application
     var applicationLoanName: String?
     var applicationUpdated: Date?
     var calendar: [WidgetEMIDayDTO]
     var generated: Date
+    /// Number of fully closed / written-off loans (optional for backward-compat
+    /// with older cached snapshots). Used by Siri inline intents for loan counts.
+    var closedLoans: Int? = nil
 }
 
 @MainActor

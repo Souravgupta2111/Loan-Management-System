@@ -22,6 +22,9 @@ final class IntentRouter: ObservableObject {
     @Published var selectedTab: Tab = .home
     /// Whether the AI Advisor sheet should be presented.
     @Published var showAIChat = false
+    /// Incremented when Siri asks to start a new loan application; the home
+    /// screen observes this to push the apply flow.
+    @Published var applyRequested = 0
     /// An optional question to auto-send to the advisor when it opens.
     @Published var advisorPrefill: String?
     /// A loan whose EMI payment page should be presented (from the widget "Pay Now").
@@ -51,5 +54,12 @@ final class IntentRouter: ObservableObject {
     func switchTab(_ tab: Tab) {
         showAIChat = false
         selectedTab = tab
+    }
+
+    /// Start a new loan application from Siri: switch to Home and push the flow.
+    func startLoanApplication() {
+        showAIChat = false
+        selectedTab = .home
+        applyRequested += 1
     }
 }

@@ -12,6 +12,7 @@ struct OfficerDashboardView: View {
     
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var vm = OfficerDashboardViewModel()
+    @StateObject private var intentRouter = StaffIntentRouter.shared
     @State private var selectedApp: ApplicationWithBorrower?
     
     // Sheets/Modals state
@@ -169,8 +170,32 @@ struct OfficerDashboardView: View {
                 if let staff = authViewModel.currentStaff {
                     await vm.loadApplications(forOfficerId: staff.id)
                 }
+                focusApprovalTargetIfNeeded()
             }
         }
+        // Siri "Approve application <number>" focuses that application when it arrives.
+        .onReceive(intentRouter.$approvalTargetNumber) { number in
+            guard number != nil else { return }
+            Task {
+                if let staff = authViewModel.currentStaff {
+                    await vm.loadApplications(forOfficerId: staff.id)
+                }
+                focusApprovalTargetIfNeeded()
+            }
+        }
+    }
+
+    /// If Siri asked to open a specific application number, select it (opening its
+    /// detail inspector) and clear the request so it only fires once.
+    private func focusApprovalTargetIfNeeded() {
+        guard let number = intentRouter.approvalTargetNumber?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !number.isEmpty else { return }
+        if let match = vm.applications.first(where: {
+            ($0.application.applicationNumber ?? "").caseInsensitiveCompare(number) == .orderedSame
+        }) {
+            selectedApp = match
+        }
+        intentRouter.approvalTargetNumber = nil
     }
 }
 

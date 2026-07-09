@@ -65,7 +65,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "18D183732FFD328F001A39E0"
             BuildableName = "StaffWidgetsExtension.appex"
-            BlueprintName = "StaffWidgetsExtension"
             ReferencedContainer = "container:LMS Staff.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>

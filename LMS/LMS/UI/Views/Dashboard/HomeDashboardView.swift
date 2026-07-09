@@ -137,6 +137,11 @@ struct HomeDashboardView: View {
             .onReceive(NotificationCenter.default.publisher(for: .loanDataDidChange)) { _ in
                 Task { await loadData() }
             }
+            // Siri "Apply for a loan" pushes the apply flow onto this stack.
+            .onReceive(IntentRouter.shared.$applyRequested) { count in
+                guard count > 0 else { return }
+                path.append(LoanNavigation.selectLoanType)
+            }
         }
     }
 
@@ -734,6 +739,9 @@ struct HomeDashboardView: View {
 
                 // ----- Widgets: publish a rich snapshot to the shared App Group -----
                 let active = loans.filter { $0.status.lowercased() == "active" }
+                let closedCount = loans.filter {
+                    ["closed", "written_off", "settled"].contains($0.status.lowercased())
+                }.count
 
                 let loanDTOs: [WidgetLoanDTO] = active.map { loan in
                     WidgetLoanDTO(
@@ -783,7 +791,8 @@ struct HomeDashboardView: View {
                     applicationLoanName: pendingItem?.name,
                     applicationUpdated: appUpdated,
                     calendar: calendar,
-                    generated: Date()
+                    generated: Date(),
+                    closedLoans: closedCount
                 ))
             }
             hasLoaded = true

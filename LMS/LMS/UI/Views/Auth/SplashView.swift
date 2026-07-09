@@ -136,13 +136,14 @@ struct LoanzAnimatedLogo: View {
                 )
         }
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.65).delay(0.15)) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.68).delay(0.25)) {
                 drawL = true
             }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.65).delay(0.4)) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.68).delay(0.6)) {
                 drawZ = true
             }
-            withAnimation(.easeInOut(duration: 1.0).delay(0.9)) {
+            // Shimmer sweep repeats so the logo keeps moving through the full splash
+            withAnimation(.easeInOut(duration: 1.3).delay(1.2).repeatForever(autoreverses: false)) {
                 shimmer = true
             }
         }
@@ -235,15 +236,15 @@ struct SplashView: View {
                 showContainer = true
             }
             // Text fades in after logo draws
-            withAnimation(.easeOut(duration: 0.5).delay(1.0)) {
+            withAnimation(.easeOut(duration: 0.6).delay(1.3)) {
                 showText = true
             }
             // Rings start pulsing
             ringPulse = true
 
-            // Mandatory 2-second minimum splash, then check session
+            // Mandatory 3-second minimum splash, then check session
             Task {
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
                 authViewModel.checkSession()
             }
         }
