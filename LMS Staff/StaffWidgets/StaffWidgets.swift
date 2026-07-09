@@ -39,6 +39,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     var npaPercentage: Double
     var collectionEfficiency: Double
     var pendingApprovals: Int
+    var pendingDisbursements: Int
     var overdueEmis: Int
     var npaCount: Int
     var totalBorrowers: Int
@@ -51,7 +52,7 @@ struct StaffWidgetSnapshotDTO: Codable {
     static let sample = StaffWidgetSnapshotDTO(
         role: "sample", officerPending: 7, officerSubmitted: 4, officerUnderReview: 3,
         oldestName: "Ravi Kumar", oldestDays: 3, activeLoans: 128, totalDisbursed: 48_500_000,
-        npaPercentage: 4.2, collectionEfficiency: 92, pendingApprovals: 9, overdueEmis: 15,
+        npaPercentage: 4.2, collectionEfficiency: 92, pendingApprovals: 9, pendingDisbursements: 5, overdueEmis: 15,
         npaCount: 6, totalBorrowers: 342, staffCount: 18, branchCount: 5, auditAlerts24h: 23,
         auditEntries: [
             StaffAuditEntryDTO(id: "1", action: "loan_approved", actor: "Priya Nair", role: "manager", date: Date().addingTimeInterval(-1_200)),
@@ -163,7 +164,11 @@ private struct SignInHint: View {
 }
 
 private func swHeader(_ title: String, _ icon: String) -> some View {
-    Label(title, systemImage: icon).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+    Label(title, systemImage: icon)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
 }
 
 // ============================================================================
@@ -293,29 +298,42 @@ struct PortfolioPulseView: View {
         if wrongRole(s, ["manager", "admin"]) { SignInHint(role: "manager") } else {
             VStack(alignment: .leading, spacing: 12) {
                 swHeader("Portfolio Pulse", "chart.pie.fill")
-                HStack(spacing: 12) {
-                    metric("Active Loans", "\(s.activeLoans)", .primary)
-                    metric("Disbursed", swInrCompact(s.totalDisbursed), .primary)
-                }
-                HStack(spacing: 12) {
-                    metric("NPA", String(format: "%.1f%%", s.npaPercentage), s.npaPercentage > 5 ? .red : .orange)
-                    metric("Collection", String(format: "%.0f%%", s.collectionEfficiency), s.collectionEfficiency >= 90 ? .green : .orange)
+                Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                    GridRow {
+                        metric("Active Loans", "\(s.activeLoans)", "indianrupeesign.circle.fill", .primary)
+                        metric("Disbursed", swInrCompact(s.totalDisbursed), "banknote.fill", .primary)
+                    }
+                    GridRow {
+                        metric("NPA", String(format: "%.1f%%", s.npaPercentage), "exclamationmark.triangle.fill", s.npaPercentage > 5 ? .red : .orange)
+                        metric("Collection", String(format: "%.0f%%", s.collectionEfficiency), "checkmark.circle.fill", s.collectionEfficiency >= 90 ? .swGreen : .orange)
+                    }
                 }
                 Spacer(minLength: 0)
-                Text("\(s.pendingApprovals) approvals pending").font(.caption).foregroundStyle(.secondary)
+                Text("\(s.pendingApprovals) approvals · \(s.pendingDisbursements) disbursals pending").font(.caption).foregroundStyle(.secondary)
             }
             .glassWidget()
             .widgetURL(URL(string: "lmsstaffapp://portfolio"))
         }
     }
-    private func metric(_ title: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.title3.weight(.bold)).foregroundStyle(color).minimumScaleFactor(0.6).lineLimit(1)
-            Text(title).font(.caption2).foregroundStyle(.secondary)
+    private func metric(_ title: String, _ value: String, _ icon: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .font(.headline)
+                .foregroundStyle(color == .primary ? Color.swGreen : color)
+            Text(value)
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(color)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .padding(14)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -333,14 +351,38 @@ struct PendingApprovalsView: View {
     var body: some View {
         let s = entry.snapshot
         if wrongRole(s, ["manager", "admin"]) { SignInHint(role: "manager") } else {
-            VStack(alignment: .leading, spacing: 6) {
-                swHeader("Pending Approvals", "checkmark.circle")
-                Text("\(s.pendingApprovals)").font(.system(size: 44, weight: .bold)).minimumScaleFactor(0.5)
-                Text("awaiting your decision").font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
+            HStack(spacing: 12) {
+                Link(destination: URL(string: "lmsstaffapp://applications")!) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        swHeader("Approvals", "checkmark.circle")
+                        Text("\(s.pendingApprovals)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.primary)
+                        Text("awaiting decision")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                
+                Link(destination: URL(string: "lmsstaffapp://disbursements")!) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        swHeader("Disbursements", "banknote")
+                        Text("\(s.pendingDisbursements)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.primary)
+                        Text("awaiting transfer")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
             }
             .glassWidget()
-            .widgetURL(URL(string: "lmsstaffapp://disbursements"))
         }
     }
 }
@@ -348,9 +390,9 @@ struct PendingApprovalsView: View {
 struct PendingApprovalsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "PendingApprovalsWidget", provider: SWProvider()) { PendingApprovalsView(entry: $0) }
-            .configurationDisplayName("Pending Approvals")
-            .description("Applications awaiting your approval.")
-            .supportedFamilies([.systemSmall, .systemMedium])
+            .configurationDisplayName("Approvals & Disbursals")
+            .description("Applications awaiting your approval or disbursement.")
+            .supportedFamilies([.systemMedium])
     }
 }
 
@@ -566,8 +608,8 @@ struct StaffLockView: View {
         let isManager = s.role == "manager" || s.role == "admin"
         switch family {
         case .accessoryInline:
-            Text(isManager ? "NPA \(String(format: "%.1f%%", s.npaPercentage)) · \(s.pendingApprovals) to approve"
-                           : "\(s.officerPending) applications pending")
+            Text(isManager ? "App: \(s.pendingApprovals) · Disb: \(s.pendingDisbursements)"
+                           : "\(s.officerPending) pending")
         case .accessoryCircular:
             Gauge(value: gauge(s, isManager)) {
                 Image(systemName: isManager ? "chart.pie" : "tray.full")
@@ -582,7 +624,7 @@ struct StaffLockView: View {
                 Text(isManager ? "Portfolio" : "My Queue").font(.caption2).foregroundStyle(.secondary)
                 if isManager {
                     Text("NPA \(String(format: "%.1f%%", s.npaPercentage))").font(.headline)
-                    Text("\(s.pendingApprovals) approvals pending").font(.caption2)
+                    Text("\(s.pendingApprovals) app. · \(s.pendingDisbursements) disb.").font(.caption2)
                 } else {
                     Text("\(s.officerPending) pending").font(.headline)
                     Text("\(s.officerUnderReview) in review").font(.caption2)
