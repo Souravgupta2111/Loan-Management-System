@@ -238,7 +238,7 @@ struct SidebarView: View {
         switch role {
         case .admin: return .staffGreen
         case .manager: return .staffAccent
-        case .officer: return .staffAmber
+        case .officer: return .staffGreen
         case .borrower: return .staffTextSecondary
         }
     }

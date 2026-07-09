@@ -84,9 +84,6 @@ struct LoanInspectorView: View {
                 HStack(spacing: StaffSpacing.lg) {
                     InspectorDetailMetric(label: "Disbursed", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.principalAmount))")
                     InspectorDetailMetric(label: "Outstanding", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
-                    if vm.loanWithDetails.loan.status == .npa {
-                        InspectorDetailMetric(label: "Overdue Days", value: "\(vm.loanWithDetails.loan.overdueDays)")
-                    }
                     InspectorDetailMetric(label: "Branch", value: "HQ - Main Branch")
                 }
             }
@@ -279,6 +276,34 @@ struct LoanInspectorView: View {
                     
                     if authViewModel.currentUser?.role != .officer {
                         KYCRow(label: "Assigned Loan Officer", value: vm.assignedOfficer?.fullName ?? "Unassigned")
+                    }
+                }
+            }
+            
+            if vm.loanWithDetails.loan.status == .npa {
+                StaffCard {
+                    VStack(alignment: .leading, spacing: StaffSpacing.md) {
+                        HStack(spacing: StaffSpacing.sm) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundColor(.staffRed)
+                            Text("NPA Status Details")
+                                .font(.staffTitle)
+                                .foregroundColor(.staffTextPrimary)
+                        }
+                        
+                        Divider()
+                        
+                        KYCRow(label: "Overdue Days (DPD)", value: "\(vm.loanWithDetails.loan.overdueDays) Days")
+                        KYCRow(label: "Total Overdue Amount", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.totalOverdue))")
+                        
+                        if let npaDate = vm.loanWithDetails.loan.npaTriggeredAt {
+                            KYCRow(label: "NPA Classification Date", value: DateFormatter.localizedString(from: npaDate, dateStyle: .medium, timeStyle: .none))
+                        } else {
+                            KYCRow(label: "NPA Classification Date", value: "N/A")
+                        }
+                        
+                        KYCRow(label: "Outstanding Principal", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingPrincipal))")
+                        KYCRow(label: "Outstanding Interest", value: "INR \(String(format: "%.2f", vm.loanWithDetails.loan.outstandingInterest))")
                     }
                 }
             }

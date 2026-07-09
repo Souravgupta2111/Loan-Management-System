@@ -976,48 +976,50 @@ fileprivate struct ReportMetricCard: View {
     var gradientEnd: Color
     
     var body: some View {
-        HStack(alignment: .center, spacing: StaffSpacing.md) {
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        LinearGradient(colors: [accentColor, gradientEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: StaffCorner.sm))
-                    .shadow(color: accentColor.opacity(0.2), radius: 3, x: 0, y: 1.5)
-                    .padding(.bottom, 2)
-                
-                Text(title)
-                    .font(.staffCaption)
-                    .foregroundColor(.staffTextSecondary)
-                
-                if let subtitle = subtitle {
-                    Text(subtitle)
-                        .font(.staffFinePrint)
-                        .foregroundColor(.staffTextTertiary)
+        VStack(alignment: .leading, spacing: StaffSpacing.xs) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [accentColor.opacity(0.15), gradientEnd.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.body)
+                        .foregroundColor(accentColor)
                 }
+                Spacer()
             }
+            .padding(.bottom, 4)
             
-            Spacer()
+            Text(title)
+                .font(.staffCaption)
+                .fontWeight(.medium)
+                .foregroundColor(.staffTextSecondary)
+                .lineLimit(1)
             
             Text(value)
-                .font(.staffLargeAmount)
+                .font(.staffTitle)
+                .fontWeight(.bold)
                 .foregroundColor(.staffTextPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(0.7)
+            
+            if let subtitle = subtitle {
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.staffTextTertiary)
+                    .lineLimit(1)
+            } else {
+                Text(" ")
+                    .font(.caption2)
+                    .lineLimit(1)
+            }
         }
-        .padding(.horizontal, StaffSpacing.md)
-        .padding(.vertical, 12)
-        .background(
+        .padding(StaffSpacing.md)
+        .background(Color.staffSurface)
+        .cornerRadius(StaffCorner.md)
+        .overlay(
             RoundedRectangle(cornerRadius: StaffCorner.md)
-                .fill(Color(hex: "#FAFAF8"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StaffCorner.md)
-                        .stroke(accentColor.opacity(0.15), lineWidth: 1)
-                )
+                .stroke(Color.staffBorder, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: StaffCorner.md))
     }
 }
