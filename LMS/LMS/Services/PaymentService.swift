@@ -26,7 +26,6 @@ final class PaymentService {
     static let shared = PaymentService()
     private init() {}
 
-    /// Creates an authenticated, server-priced order without exposing the Razorpay secret.
     func createOrder(emiId: UUID, loanId: UUID) async throws -> RazorpayOrder {
         struct Payload: Encodable { let emiId: UUID; let loanId: UUID }
         do {

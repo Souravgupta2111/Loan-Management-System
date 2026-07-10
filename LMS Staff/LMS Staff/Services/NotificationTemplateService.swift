@@ -1,10 +1,3 @@
-//
-//  NotificationTemplateService.swift
-//  LMS Staff
-//
-//  Service for managing notification templates.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class NotificationTemplateService {
     
     private init() {}
     
-    /// Fetches all notification templates from the database
     func fetchTemplates() async throws -> [NotificationTemplate] {
         let templates: [NotificationTemplate] = try await supabase.database
             .from("notification_templates")
@@ -26,7 +18,6 @@ class NotificationTemplateService {
         return templates
     }
     
-    /// Updates only the template text (backward-compatible)
     func updateTemplate(id: UUID, templateText: String) async throws -> Bool {
         try await supabase.database
             .from("notification_templates")
@@ -39,7 +30,6 @@ class NotificationTemplateService {
         return true
     }
     
-    /// Updates all editable fields of a notification template
     func updateTemplateFull(
         id: UUID,
         eventName: String,
@@ -65,7 +55,6 @@ class NotificationTemplateService {
         return true
     }
     
-    /// Toggles the active status of a template
     func toggleActive(id: UUID, isActive: Bool) async throws {
         try await supabase.database
             .from("notification_templates")
@@ -77,7 +66,6 @@ class NotificationTemplateService {
             .execute()
     }
     
-    /// Deletes a notification template
     func deleteTemplate(id: UUID) async throws {
         try await supabase.database
             .from("notification_templates")
@@ -86,7 +74,6 @@ class NotificationTemplateService {
             .execute()
     }
     
-    /// Creates a new template
     func createTemplate(eventName: String, templateText: String, description: String, placeholders: [String]) async throws -> NotificationTemplate {
         let payload: [String: AnyEncodable] = [
             "event_name": AnyEncodable(eventName),

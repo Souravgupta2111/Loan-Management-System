@@ -1,10 +1,3 @@
-//
-//  HapticManager.swift
-//  LMS
-//
-//  Provides consistent haptic feedback across the application.
-//
-
 import UIKit
 
 @MainActor

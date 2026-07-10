@@ -1,11 +1,3 @@
-//
-//  StaffAIChatService.swift
-//  LMS Staff
-//
-//  Service layer for communicating with the ai-chat edge function.
-//  Detects the user's role and sends real context data for managers/officers.
-//
-
 import Foundation
 import Supabase
 
@@ -20,7 +12,6 @@ final class StaffAIChatService {
     func sendMessage(content: String, conversationId: UUID?) async throws -> AIChatResponse {
         guard let userId = supabase.currentUserId else { throw URLError(.userAuthenticationRequired) }
         
-        // Detect user role from DB
         let role = await fetchUserRole(userId: userId)
         
         if role == "manager" || role == "admin" {
@@ -30,7 +21,6 @@ final class StaffAIChatService {
         }
     }
     
-    // MARK: - Manager/Admin context (real DB data)
     
     private func sendWithManagerContext(content: String, userId: UUID, role: String, conversationId: UUID?) async throws -> AIChatResponse {
         let context = try await buildManagerContext()
@@ -50,7 +40,6 @@ final class StaffAIChatService {
         return response
     }
     
-    // MARK: - Officer context (real assigned applications)
     
     private func sendWithOfficerContext(content: String, userId: UUID, conversationId: UUID?) async throws -> AIChatResponse {
         let context = try await buildOfficerContext(userId: userId)
@@ -70,7 +59,6 @@ final class StaffAIChatService {
         return response
     }
     
-    // MARK: - Role Detection
     
     private func fetchUserRole(userId: UUID) async -> String {
         do {
@@ -86,7 +74,6 @@ final class StaffAIChatService {
         }
     }
     
-    // MARK: - Build Manager Context
     
     private func buildManagerContext() async throws -> ChatManagerContext {
         let activeLoans: [ChatLoanRow] = try await supabase.database
@@ -147,7 +134,6 @@ final class StaffAIChatService {
         )
     }
     
-    // MARK: - Build Officer Context
     
     private func buildOfficerContext(userId: UUID) async throws -> ChatOfficerContext {
         struct ProfileRow: Decodable { let id: UUID }
@@ -189,8 +175,6 @@ final class StaffAIChatService {
     }
 }
 
-// MARK: - Private Models (prefixed to avoid conflicts with ManagerAIService)
-
 private struct ChatRoleRow: Decodable {
     let role: String
 }
@@ -211,8 +195,6 @@ private struct ChatLoanRow: Decodable {
 private struct ChatIdRow: Decodable {
     let id: UUID
 }
-
-// MARK: - Context Models (prefixed to avoid conflicts)
 
 struct ChatManagerContext: Codable {
     let portfolioSummary: ChatPortfolioSummary

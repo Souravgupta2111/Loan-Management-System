@@ -1,21 +1,8 @@
-//
-//  StaffWidgetDataProvider.swift
-//  LMS Staff
-//
-//  Fetches role-appropriate metrics and publishes them to a shared App Group so
-//  the staff widgets can render them. Runs in-app (has an auth session), so it
-//  queries Supabase directly, then writes a snapshot. No-op until the App Group
-//  entitlement exists (UserDefaults(suiteName:) returns nil).
-//
-//  The DTO is mirrored (identical shape) in the widget target.
-//
-
 import Foundation
 import WidgetKit
 import Supabase
 
 enum StaffWidgetKeys {
-    /// Must match the App Group on BOTH the staff app and the staff widget target.
     static let appGroupID = "group.com.sourav.hi123.LMS"
     static let snapshot = "staffwidget.snapshot"
 }
@@ -31,7 +18,6 @@ struct StaffAuditEntryDTO: Codable, Identifiable {
 struct StaffWidgetSnapshotDTO: Codable {
     var role: String
 
-    // Officer
     var officerPending: Int
     var officerSubmitted: Int
     var officerUnderReview: Int
@@ -39,7 +25,6 @@ struct StaffWidgetSnapshotDTO: Codable {
     var oldestName: String?
     var oldestDays: Int?
 
-    // Manager (also used by Admin)
     var activeLoans: Int
     var totalDisbursed: Double
     var npaPercentage: Double
@@ -49,7 +34,6 @@ struct StaffWidgetSnapshotDTO: Codable {
     var overdueEmis: Int
     var npaCount: Int
 
-    // Admin
     var totalBorrowers: Int
     var staffCount: Int
     var branchCount: Int
@@ -76,7 +60,6 @@ enum StaffWidgetDataProvider {
     private static var defaults: UserDefaults? { UserDefaults(suiteName: StaffWidgetKeys.appGroupID) }
     private static var supabase: SupabaseManager { SupabaseManager.shared }
 
-    /// Fetch metrics for the given role and publish them.
     static func refresh(role: UserRole) async {
         guard defaults != nil else { return } // App Group not configured yet.
         var snap = StaffWidgetSnapshotDTO.empty(role: role.rawValue)
@@ -98,11 +81,8 @@ enum StaffWidgetDataProvider {
         }
     }
 
-    /// Clear the shared snapshot on logout so all widgets show "Sign in" hints.
     static func clearSnapshot() {
         guard let defaults else { return }
-        // Write a snapshot with role "none" — wrongRole() in the widget extension
-        // treats this the same as "sample" (no user) and shows sign-in hints.
         var empty = StaffWidgetSnapshotDTO.empty(role: "none")
         empty.generated = Date()
         if let data = try? JSONEncoder().encode(empty) {
@@ -118,8 +98,6 @@ enum StaffWidgetDataProvider {
         }
         WidgetCenter.shared.reloadAllTimelines()
     }
-
-    // MARK: - Officer
 
     private struct AppRow: Decodable {
         let id: UUID
@@ -216,8 +194,6 @@ enum StaffWidgetDataProvider {
         }
     }
 
-    // MARK: - Portfolio (Manager / Admin)
-
     private static func fillPortfolio(_ snap: inout StaffWidgetSnapshotDTO) async throws {
         struct LoanRow: Decodable { let principal_amount: Double? }
         let active: [LoanRow] = try await supabase.client
@@ -237,8 +213,6 @@ enum StaffWidgetDataProvider {
         snap.npaPercentage = denom == 0 ? 0 : (Double(snap.npaCount) / Double(denom) * 100 * 10).rounded() / 10
     }
 
-    // MARK: - Admin
-
     private static func fillAdmin(_ snap: inout StaffWidgetSnapshotDTO) async throws {
         snap.totalBorrowers = (try? await count("users", eq: ("role", "borrower"))) ?? 0
         snap.staffCount = (try? await countAll("staff_profiles")) ?? 0
@@ -250,7 +224,6 @@ enum StaffWidgetDataProvider {
             .gte("created_at", value: since).execute()
         snap.auditAlerts24h = resp.count ?? 0
 
-        // Recent audit entries for the list widget (last ~10 actions).
         snap.auditEntries = (try? await fetchRecentAudit()) ?? []
     }
 
@@ -270,7 +243,6 @@ enum StaffWidgetDataProvider {
             .limit(10)
             .execute().value
 
-        // Resolve actor display names in one batch.
         let ids = Array(Set(rows.compactMap { $0.actor_id }))
         var names: [UUID: String] = [:]
         if !ids.isEmpty {
@@ -293,8 +265,6 @@ enum StaffWidgetDataProvider {
             )
         }
     }
-
-    // MARK: - Count helpers
 
     private static func count(_ table: String, eq: (String, String)) async throws -> Int {
         let resp = try await supabase.client

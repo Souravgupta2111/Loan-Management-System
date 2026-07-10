@@ -1,35 +1,13 @@
-//
-//  StaffAppIntents.swift
-//  LMS Staff
-//
-//  Siri & Shortcuts automations for the staff portal (officers & managers).
-//
-//  Two kinds of intents live here:
-//   1. "Open" intents (openAppWhenRun = true) that jump into a screen, routed
-//      through StaffIntentRouter, which StaffTabRouter observes.
-//   2. "Inline" intents (openAppWhenRun = false) that answer a question by
-//      speaking a dialog WITHOUT foregrounding the app. They read the shared
-//      App Group snapshot that StaffWidgetDataProvider keeps up to date, so the
-//      numbers match the staff widgets exactly.
-//
-//  App Intents compile into the main target automatically (the project uses
-//  Xcode file-system-synchronized groups).
-//
-
 import AppIntents
 import Foundation
 
-// MARK: - Shared snapshot reader + formatting helpers
-
 enum StaffSiri {
 
-    /// Read the latest staff snapshot the app published to the App Group.
     static func snapshot() -> StaffWidgetSnapshotDTO? {
         guard let defaults = UserDefaults(suiteName: StaffWidgetKeys.appGroupID),
               let data = defaults.data(forKey: StaffWidgetKeys.snapshot),
               let snap = try? JSONDecoder().decode(StaffWidgetSnapshotDTO.self, from: data)
         else { return nil }
-        // A cleared/logged-out snapshot uses role "none".
         return snap.role == "none" ? nil : snap
     }
 
@@ -37,14 +15,10 @@ enum StaffSiri {
 
     static let notForRole = "That metric is available on a manager or admin account."
 
-    /// Whether portfolio-wide metrics (NPA, collection, overdue) apply to this role.
     static func isPortfolioRole(_ snap: StaffWidgetSnapshotDTO) -> Bool {
         snap.role == "manager" || snap.role == "admin"
     }
 
-    // MARK: Currency
-
-    /// Compact rupee string using lakh / crore, e.g. "₹12.4L", "₹4.85Cr".
     static func inrCompact(_ amount: Double) -> String {
         let a = abs(amount)
         if a >= 1_00_00_000 { return "₹" + trimmed(amount / 1_00_00_000) + "Cr" }
@@ -61,14 +35,11 @@ enum StaffSiri {
         return s.replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
     }
 
-    /// Format a percentage without trailing ".0" (92.0 -> "92", 92.3 -> "92.3").
     static func pct(_ value: Double) -> String {
         let s = String(format: "%.1f", value)
         return s.replacingOccurrences(of: "\\.0$", with: "", options: .regularExpression)
     }
 }
-
-// MARK: - Inline: Pending Applications
 
 struct PendingApplicationsCountIntent: AppIntent {
     static var title: LocalizedStringResource = "How Many Pending Applications"
@@ -87,8 +58,6 @@ struct PendingApplicationsCountIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: NPAs
 
 struct NPACountIntent: AppIntent {
     static var title: LocalizedStringResource = "How Many NPAs"
@@ -114,8 +83,6 @@ struct NPACountIntent: AppIntent {
     }
 }
 
-// MARK: - Inline: Collection Efficiency
-
 struct CollectionEfficiencyIntent: AppIntent {
     static var title: LocalizedStringResource = "What's My Collection Efficiency"
     static var description = IntentDescription("Tells you this month's collection efficiency.")
@@ -132,8 +99,6 @@ struct CollectionEfficiencyIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: Overdue EMIs
 
 struct OverdueEMIsIntent: AppIntent {
     static var title: LocalizedStringResource = "Any Overdue EMIs"
@@ -159,8 +124,6 @@ struct OverdueEMIsIntent: AppIntent {
     }
 }
 
-// MARK: - Inline: Portfolio Summary
-
 struct PortfolioSummaryIntent: AppIntent {
     static var title: LocalizedStringResource = "How's My Portfolio"
     static var description = IntentDescription("Summarizes active loans, amount disbursed, and NPA level.")
@@ -179,8 +142,6 @@ struct PortfolioSummaryIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: Oldest Pending Application
 
 struct OldestPendingApplicationIntent: AppIntent {
     static var title: LocalizedStringResource = "Oldest Pending Application"
@@ -201,8 +162,6 @@ struct OldestPendingApplicationIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Open: Approve an Application
 
 struct ApproveApplicationIntent: AppIntent {
     static var title: LocalizedStringResource = "Approve Application"
@@ -230,8 +189,6 @@ struct ApproveApplicationIntent: AppIntent {
     }
 }
 
-// MARK: - Open Staff AI Assistant
-
 struct OpenStaffAssistantIntent: AppIntent {
     static var title: LocalizedStringResource = "Open Loanz Assistant"
     static var description = IntentDescription(
@@ -258,8 +215,6 @@ struct OpenStaffAssistantIntent: AppIntent {
     }
 }
 
-// MARK: - Open Pending Applications
-
 struct ShowPendingApplicationsIntent: AppIntent {
     static var title: LocalizedStringResource = "Show Pending Applications"
     static var description = IntentDescription("Opens applications awaiting your review.")
@@ -271,8 +226,6 @@ struct ShowPendingApplicationsIntent: AppIntent {
         return .result(dialog: "Here are your pending applications.")
     }
 }
-
-// MARK: - Open Portfolio
 
 struct ShowPortfolioIntent: AppIntent {
     static var title: LocalizedStringResource = "Show Portfolio"
@@ -286,11 +239,8 @@ struct ShowPortfolioIntent: AppIntent {
     }
 }
 
-// MARK: - App Shortcuts (spoken phrases)
-
 struct StaffAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        // --- Inline answers (no app open) ---
         AppShortcut(
             intent: PendingApplicationsCountIntent(),
             phrases: [
@@ -346,7 +296,6 @@ struct StaffAppShortcuts: AppShortcutsProvider {
             systemImageName: "hourglass"
         )
 
-        // --- Actions that open the app ---
         AppShortcut(
             intent: ApproveApplicationIntent(),
             phrases: [

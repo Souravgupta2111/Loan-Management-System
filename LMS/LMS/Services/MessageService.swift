@@ -76,7 +76,6 @@ class MessageService: ObservableObject {
                     .execute()
             }
             
-            // Update local state
             for i in 0..<messages.count {
                 if unreadIds.contains(messages[i].id) {
                     messages[i].isRead = true
@@ -88,8 +87,6 @@ class MessageService: ObservableObject {
     }
     
     func subscribeToMessages() {
-        // Namespace the channel per application so multiple open threads don't
-        // collide on a single shared "public:messages" channel.
         channel = SupabaseManager.shared.client.realtimeV2.channel("messages:\(applicationId.uuidString)")
         
         Task {
@@ -106,12 +103,9 @@ class MessageService: ObservableObject {
                 try await channel.subscribeWithError()
 
                 for await insertion in insertions {
-                    // Append the single inserted row instead of refetching the
-                    // whole thread on every message (previously O(n) per insert).
                     if let message = Self.message(from: insertion.record) {
                         appendIfNew(message)
                     } else {
-                        // Fallback if the payload can't be parsed.
                         await self.fetchMessages()
                     }
                 }
@@ -128,7 +122,6 @@ class MessageService: ObservableObject {
         Task { await self.markUnreadAsRead() }
     }
 
-    /// Builds a Message from a realtime INSERT payload (AnyJSON dictionary).
     private static func message(from record: [String: AnyJSON]) -> Message? {
         guard
             let idStr = record["id"]?.stringValue, let id = UUID(uuidString: idStr),

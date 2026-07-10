@@ -1,15 +1,5 @@
-//
-//  BranchService.swift
-//  LMS Staff
-//
-//  Service for branch CRUD, pincode management, staff roster,
-//  loan metrics, and proximity-based loan assignment.
-//
-
 import Foundation
 import Supabase
-
-// MARK: - Branch Metrics Model
 
 struct BranchMetrics {
     let totalLoans: Int
@@ -25,8 +15,6 @@ struct BranchMetrics {
     let collectionEfficiency: Double
 }
 
-// MARK: - Branch Service
-
 class BranchService {
 
     static let shared = BranchService()
@@ -34,9 +22,6 @@ class BranchService {
 
     private init() {}
 
-    // MARK: - Branch CRUD
-
-    /// Fetches all branches ordered by name
     func fetchBranches() async throws -> [Branch] {
         let branches: [Branch] = try await supabase.database
             .from("branches")
@@ -47,7 +32,6 @@ class BranchService {
         return branches
     }
 
-    /// Creates a new branch and auto-inserts its pincode into branch_pincodes
     func createBranch(
         name: String,
         code: String,
@@ -87,7 +71,6 @@ class BranchService {
             .execute()
             .value
 
-        // Auto-insert the branch pincode into branch_pincodes if provided
         if let pincode = pincode, !pincode.isEmpty {
             try? await addPincode(branchId: branch.id, pincode: pincode)
         }
@@ -102,7 +85,6 @@ class BranchService {
         return branch
     }
 
-    /// Updates branch details
     func updateBranch(
         branchId: UUID,
         name: String,
@@ -136,7 +118,6 @@ class BranchService {
         )
     }
 
-    /// Toggles branch active/inactive status
     func toggleBranchActive(branchId: UUID, isActive: Bool) async throws {
         try await supabase.database
             .from("branches")
@@ -152,18 +133,13 @@ class BranchService {
         )
     }
 
-    // MARK: - Manager Assignment
-
-    /// Assigns a manager to a branch (updates branches.manager_id and staff_profiles.branch_id)
     func assignManager(branchId: UUID, managerId: UUID) async throws {
-        // Update the branch's manager_id
         try await supabase.database
             .from("branches")
             .update(["manager_id": AnyEncodable(managerId)])
             .eq("id", value: branchId)
             .execute()
 
-        // Also update the manager's staff_profile to point to this branch
         try await supabase.database
             .from("staff_profiles")
             .update(["branch_id": AnyEncodable(branchId)])
@@ -178,7 +154,6 @@ class BranchService {
         )
     }
 
-    /// Removes the manager from a branch
     func removeManager(branchId: UUID) async throws {
         try await supabase.database
             .from("branches")
@@ -194,15 +169,23 @@ class BranchService {
         )
     }
 
-    // MARK: - Officer Assignment
-
-    /// Assigns a loan officer to a branch by updating their staff_profiles.branch_id
     func assignOfficer(branchId: UUID, officerUserId: UUID) async throws {
         try await supabase.database
             .from("staff_profiles")
             .update(["branch_id": AnyEncodable(branchId)])
             .eq("user_id", value: officerUserId)
             .execute()
+
+        struct ProfileIdRow: Decodable { let id: UUID }
+        if let profile: ProfileIdRow = try? await supabase.database
+            .from("staff_profiles")
+            .select("id")
+            .eq("user_id", value: officerUserId)
+            .single()
+            .execute()
+            .value {
+            try await reassignBranchForOfficer(profileId: profile.id, branchId: branchId)
+        }
 
         try await AuditService.shared.logAction(
             action: "ASSIGN_OFFICER_TO_BRANCH",
@@ -212,7 +195,101 @@ class BranchService {
         )
     }
 
-    /// Removes an officer from a branch (sets branch_id to nil)
+    /// Moves every application (and its loans) handled by this officer to the
+    /// given branch, so branch-level loan metrics reflect the officer's branch.
+    private func reassignBranchForOfficer(profileId: UUID, branchId: UUID) async throws {
+        struct AppIdRow: Decodable { let id: UUID }
+        let apps: [AppIdRow] = try await supabase.database
+            .from("loan_applications")
+            .select("id")
+            .eq("assigned_officer_id", value: profileId)
+            .execute()
+            .value
+
+        let appIds = apps.map { $0.id }
+        guard !appIds.isEmpty else { return }
+
+        try await supabase.database
+            .from("loan_applications")
+            .update(["branch_id": AnyEncodable(branchId)])
+            .in("id", values: appIds)
+            .execute()
+
+        try await supabase.database
+            .from("loans")
+            .update(["branch_id": AnyEncodable(branchId)])
+            .in("application_id", values: appIds)
+            .execute()
+    }
+
+    /// Repairs stale branch assignments: re-tags every application and loan to
+    /// the branch of its assigned officer. Idempotent — only rows that differ
+    /// are written, so repeat runs are no-ops. Runs automatically when the admin
+    /// opens Branch Management.
+    func syncLoanBranchesToOfficers() async throws {
+        struct ProfileRow: Decodable { let id: UUID; let branch_id: UUID? }
+        let profiles: [ProfileRow] = try await supabase.database
+            .from("staff_profiles")
+            .select("id, branch_id")
+            .execute()
+            .value
+
+        var officerBranch: [UUID: UUID] = [:]
+        for p in profiles {
+            if let b = p.branch_id { officerBranch[p.id] = b }
+        }
+        guard !officerBranch.isEmpty else { return }
+
+        struct AppRow: Decodable { let id: UUID; let assigned_officer_id: UUID?; let branch_id: UUID? }
+        let apps: [AppRow] = try await supabase.database
+            .from("loan_applications")
+            .select("id, assigned_officer_id, branch_id")
+            .execute()
+            .value
+
+        var appTargetBranch: [UUID: UUID] = [:]
+        var appsByBranch: [UUID: [UUID]] = [:]
+        for app in apps {
+            guard let officer = app.assigned_officer_id,
+                  let target = officerBranch[officer] else { continue }
+            appTargetBranch[app.id] = target
+            if app.branch_id != target {
+                appsByBranch[target, default: []].append(app.id)
+            }
+        }
+
+        for (branch, ids) in appsByBranch {
+            try await supabase.database
+                .from("loan_applications")
+                .update(["branch_id": AnyEncodable(branch)])
+                .in("id", values: ids)
+                .execute()
+        }
+
+        struct LoanRow: Decodable { let id: UUID; let application_id: UUID; let branch_id: UUID? }
+        let loans: [LoanRow] = try await supabase.database
+            .from("loans")
+            .select("id, application_id, branch_id")
+            .execute()
+            .value
+
+        var loansByBranch: [UUID: [UUID]] = [:]
+        for loan in loans {
+            guard let target = appTargetBranch[loan.application_id] else { continue }
+            if loan.branch_id != target {
+                loansByBranch[target, default: []].append(loan.id)
+            }
+        }
+
+        for (branch, ids) in loansByBranch {
+            try await supabase.database
+                .from("loans")
+                .update(["branch_id": AnyEncodable(branch)])
+                .in("id", values: ids)
+                .execute()
+        }
+    }
+
     func removeOfficerFromBranch(officerUserId: UUID) async throws {
         try await supabase.database
             .from("staff_profiles")
@@ -221,9 +298,6 @@ class BranchService {
             .execute()
     }
 
-    // MARK: - Pincode Management
-
-    /// Fetches all pincodes assigned to a branch
     func fetchBranchPincodes(branchId: UUID) async throws -> [BranchPincode] {
         let pincodes: [BranchPincode] = try await supabase.database
             .from("branch_pincodes")
@@ -235,7 +309,6 @@ class BranchService {
         return pincodes
     }
 
-    /// Adds a pincode to a branch
     func addPincode(branchId: UUID, pincode: String) async throws {
         let payload: [String: AnyEncodable] = [
             "branch_id": AnyEncodable(branchId),
@@ -248,7 +321,6 @@ class BranchService {
             .execute()
     }
 
-    /// Removes a pincode mapping
     func removePincode(id: UUID) async throws {
         try await supabase.database
             .from("branch_pincodes")
@@ -257,9 +329,6 @@ class BranchService {
             .execute()
     }
 
-    // MARK: - Branch Staff Roster
-
-    /// Fetches all staff members assigned to a branch (joins staff_profiles + users)
     func fetchBranchStaff(branchId: UUID) async throws -> [StaffWithUser] {
         let staffProfiles: [StaffProfile] = try await supabase.database
             .from("staff_profiles")
@@ -288,9 +357,6 @@ class BranchService {
         }
     }
 
-    // MARK: - Branch Loan Metrics
-
-    /// Fetches all loans belonging to a branch
     func fetchBranchLoans(branchId: UUID) async throws -> [Loan] {
         let loans: [Loan] = try await supabase.database
             .from("loans")
@@ -301,7 +367,6 @@ class BranchService {
         return loans
     }
 
-    /// Computes loan metrics for a specific branch
     func fetchBranchMetrics(branchId: UUID) async throws -> BranchMetrics {
         let loans = try await fetchBranchLoans(branchId: branchId)
 
@@ -314,7 +379,6 @@ class BranchService {
         let npaAmount = npaLoans.reduce(0.0) { $0 + $1.outstandingPrincipal + $1.outstandingInterest }
         let npaRatio = (activePortfolio + npaAmount) > 0 ? (npaAmount / (activePortfolio + npaAmount)) * 100.0 : 0.0
 
-        // Fetch EMI schedules for branch loans to calculate collection efficiency
         let loanIds = loans.map { $0.id }
         var totalCollected = 0.0
         var totalDue = 0.0
@@ -355,9 +419,6 @@ class BranchService {
         )
     }
 
-    // MARK: - Proximity-Based Loan Assignment
-
-    /// Finds the matching branch for a borrower's pincode using the DB RPC
     func findBranchForPincode(pincode: String) async throws -> UUID {
         struct PincodeParam: Encodable {
             let p_pincode: String
@@ -371,9 +432,7 @@ class BranchService {
         return branchId
     }
 
-    /// Auto-assigns unassigned loan applications to branches based on borrower pincode
     func autoAssignUnassignedApplications() async throws -> Int {
-        // Fetch applications without a branch
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
             .select()
@@ -386,7 +445,6 @@ class BranchService {
         var assignedCount = 0
 
         for app in applications {
-            // Get borrower's pincode from profile
             let profile: BorrowerProfile? = try? await supabase.database
                 .from("borrower_profiles")
                 .select()
@@ -397,10 +455,8 @@ class BranchService {
 
             guard let borrowerPincode = profile?.pincode, !borrowerPincode.isEmpty else { continue }
 
-            // Find matching branch
             let branchId = try await findBranchForPincode(pincode: borrowerPincode)
 
-            // Update the application
             try await supabase.database
                 .from("loan_applications")
                 .update(["branch_id": AnyEncodable(branchId)])
@@ -422,9 +478,6 @@ class BranchService {
         return assignedCount
     }
 
-    // MARK: - Fetch Unassigned Staff
-
-    /// Fetches all managers not currently assigned as manager of any branch
     func fetchAvailableManagers() async throws -> [StaffWithUser] {
         let allStaff = try await StaffManagementService.shared.fetchStaff()
         let branches = try await fetchBranches()
@@ -433,11 +486,9 @@ class BranchService {
         return allStaff.filter { $0.user.role == .manager && !assignedManagerIds.contains($0.user.id) }
     }
 
-    /// Fetches all officers (can be assigned to any branch via staff_profiles.branch_id)
     func fetchAvailableOfficers(excludingBranchId: UUID) async throws -> [StaffWithUser] {
         let allStaff = try await StaffManagementService.shared.fetchStaff()
 
-        // Officers not assigned to this branch (or unassigned)
         return allStaff.filter { staffWithUser in
             staffWithUser.user.role == .officer &&
             staffWithUser.staff.branchId != excludingBranchId

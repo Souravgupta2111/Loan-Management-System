@@ -1,28 +1,14 @@
-//
-//  SupabaseManager.swift
-//  LMS
-//
-//  Singleton managing the Supabase client connection.
-//  Reads URL and anon key from Config/Supabase.plist.
-//
-
 import Foundation
 import Supabase
 
 @MainActor
 final class SupabaseManager {
 
-    // MARK: - Singleton
-
     static let shared = SupabaseManager()
-
-    // MARK: - Client
 
     let client: SupabaseClient
     let baseURL: URL
     let anonKey: String
-
-    // MARK: - Init
 
     private init() {
         guard let path = Bundle.main.path(forResource: "Supabase", ofType: "plist"),
@@ -56,8 +42,6 @@ final class SupabaseManager {
         return URLSession(configuration: configuration)
     }
 
-    // MARK: - Convenience Accessors
-
     var auth: AuthClient {
         client.auth
     }
@@ -65,8 +49,6 @@ final class SupabaseManager {
     var storage: SupabaseStorageClient {
         client.storage
     }
-
-    // MARK: - Current User
 
     var currentUser: User? {
         client.auth.currentUser

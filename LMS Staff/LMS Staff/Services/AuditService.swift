@@ -1,10 +1,3 @@
-//
-//  AuditService.swift
-//  LMS Staff
-//
-//  Service for managing and querying the read-only system audit trail.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class AuditService {
     
     private init() {}
     
-    /// Writes an audit record to the `audit_log` table
     func logAction(
         action: String,
         tableName: String,
@@ -26,9 +18,6 @@ class AuditService {
     ) async throws {
         guard let currentUserId = supabase.currentUserId else { return }
         
-        // Fetch the actual role from the users table. Parsing it from the email
-        // was unreliable (e.g. admins were logged as officers when the email
-        // didn't match the expected prefix pattern).
         struct RoleRow: Decodable { let role: UserRole }
         let roleRow: RoleRow? = try? await supabase.database
             .from("users")
@@ -54,14 +43,12 @@ class AuditService {
             "user_agent": AnyEncodable("iOS/iPadOS Staff App")
         ]
         
-        // Use try? because audit logging should fail-safe and not block critical transaction flows
         _ = try? await supabase.database
             .from("audit_log")
             .insert(payload)
             .execute()
     }
     
-    /// Fetches audit logs with pagination and optional search.
     func fetchAuditLogs(offset: Int = 0, limit: Int = 50, searchQuery: String? = nil) async throws -> [AuditLog] {
         var query = supabase.database
             .from("audit_log")
@@ -80,7 +67,6 @@ class AuditService {
         return logs
     }
     
-    /// Fetches audit logs specific to a given record ID.
     func fetchAuditLogs(forRecordId recordId: UUID, limit: Int = 100) async throws -> [AuditLog] {
         let logs: [AuditLog] = try await supabase.database
             .from("audit_log")

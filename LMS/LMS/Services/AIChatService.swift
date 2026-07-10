@@ -1,10 +1,3 @@
-//
-//  AIChatService.swift
-//  LMS
-//
-//  Service layer for communicating with the ai-chat edge function
-//
-
 import Foundation
 import Supabase
 
@@ -16,7 +9,6 @@ final class AIChatService {
     
     private init() {}
     
-    // MARK: - Conversations
     
     func fetchConversations() async throws -> [AIConversation] {
         guard let userId = supabase.currentUserId else { throw URLError(.userAuthenticationRequired) }
@@ -45,7 +37,6 @@ final class AIChatService {
         return response
     }
     
-    // MARK: - Sending Messages
     
     func sendMessage(content: String, conversationId: UUID?, context: BorrowerContext) async throws -> AIChatResponse {
         guard let userId = supabase.currentUserId else { throw URLError(.userAuthenticationRequired) }
@@ -68,12 +59,10 @@ final class AIChatService {
         return response
     }
     
-    // MARK: - Context Building
     
     func buildBorrowerContext() async throws -> BorrowerContext {
         guard let userId = supabase.currentUserId else { throw URLError(.userAuthenticationRequired) }
         
-        // Fetch Profile
         let profile: BorrowerProfile = try await supabase.client
             .from("borrower_profiles")
             .select()
@@ -82,7 +71,6 @@ final class AIChatService {
             .execute()
             .value
             
-        // Fetch User (for name)
         let name = supabase.currentUser?.userMetadata["full_name"]?.value as? String ?? "Borrower"
         
         let profileContext = BorrowerContextProfile(
@@ -95,7 +83,6 @@ final class AIChatService {
             aaConsentStatus: profile.aaConsentStatus
         )
         
-        // Fetch Active Loans
         let loans: [Loan] = try await supabase.client
             .from("loans")
             .select()
@@ -109,7 +96,6 @@ final class AIChatService {
         let dateFormatter = ISO8601DateFormatter()
         
         for loan in loans where loan.status == .active {
-            // Fetch next EMI (real table is `emi_schedule`, not `emis`)
             let emis: [EMIScheduleItem] = try await supabase.client
                 .from("emi_schedule")
                 .select()
@@ -131,7 +117,6 @@ final class AIChatService {
                 nextEmiDate: emiDateString
             ))
             
-            // Build EMI schedule (upcoming + next 6 months)
             for emi in emis.prefix(12) {
                 allEmiSchedule.append(EmiContextItem(
                     loanId: loan.id,
@@ -143,7 +128,6 @@ final class AIChatService {
                 ))
             }
             
-            // Build payment history (paid EMIs)
             for emi in emis where emi.status == .paid {
                 allPaymentHistory.append(PaymentContextItem(
                     loanId: loan.id,
@@ -154,7 +138,6 @@ final class AIChatService {
             }
         }
         
-        // Fetch Available Products
         let products: [LoanProduct] = try await supabase.client
             .from("loan_products")
             .select()

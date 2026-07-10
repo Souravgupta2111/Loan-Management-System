@@ -1,10 +1,3 @@
-//
-//  ReportService.swift
-//  LMS Staff
-//
-//  Service for compiling portfolio report metrics, collection efficiency, and exports.
-//
-
 import Foundation
 import Supabase
 
@@ -30,36 +23,29 @@ class ReportService {
     
     private init() {}
     
-    /// Compiles consolidated portfolio metrics
     func compileConsolidatedReport() async throws -> PortfolioReport {
-        // Fetch all loans
         let loans: [Loan] = try await supabase.database
             .from("loans")
             .select()
             .execute()
             .value
             
-        // Calculate principal total disbursed
         let totalDisbursed = loans.reduce(0.0) { $0 + $1.principalAmount }
         
-        // Active Portfolio (outstanding principal + outstanding interest for non-written-off/non-closed loans)
         let activeLoans = loans.filter { $0.status == .active || $0.status == .npa || $0.status == .restructured }
         let activePortfolio = activeLoans.reduce(0.0) { $0 + $1.outstandingPrincipal + $1.outstandingInterest }
         
-        // NPA Loans
         let npaLoans = loans.filter { $0.status == .npa }
         let npaPortfolio = npaLoans.reduce(0.0) { $0 + $1.outstandingPrincipal + $1.outstandingInterest }
         
         let npaRatio = activePortfolio > 0 ? (npaPortfolio / activePortfolio) * 100.0 : 0.0
         
-        // Fetch EMI schedules to calculate collection efficiency
         let emiItems: [EMIScheduleItem] = try await supabase.database
             .from("emi_schedule")
             .select()
             .execute()
             .value
             
-        // Fetch all confirmed payments
         struct PaymentFetch: Decodable {
             let emi_id: UUID?
             let amount_paid: Double
@@ -80,7 +66,6 @@ class ReportService {
             }
         }
             
-        // Filter EMIs whose due dates are in the past or today
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
@@ -88,10 +73,6 @@ class ReportService {
         let historicalDueEMIs = emiItems.filter { $0.dueDate <= todayStr && $0.status != .writtenOff }
         let totalDue = historicalDueEMIs.reduce(0.0) { $0 + $1.totalEmi }
         
-        // Collected must be scoped to the SAME set of EMIs as `totalDue` (i.e.
-        // only EMIs that are already due). Counting prepaid/future EMIs here
-        // would push efficiency above 100%. Cap each EMI's collection at its
-        // scheduled amount so an overpayment (e.g. penalty) can't inflate it.
         var totalCollected = 0.0
         for emi in historicalDueEMIs {
             if let collectedAmount = paidMap[emi.id] {
@@ -113,7 +94,6 @@ class ReportService {
         )
     }
     
-    /// Generates standard CSV export data for report downloads
     func generateCSVReport(loansList: [Loan]) -> String {
         var csvString = "Loan Number,Borrower ID,Principal Amount,Interest Rate,Status,Disbursed Date,Outstanding Principal,Overdue Days\n"
         
@@ -125,7 +105,6 @@ class ReportService {
         return csvString
     }
     
-    /// Compiles live historical collection efficiency trends (by month) for graphs
     func fetchCollectionTrends() async throws -> [CollectionTrendItem] {
         let emiItems: [EMIScheduleItem] = try await supabase.database
             .from("emi_schedule")
@@ -133,7 +112,6 @@ class ReportService {
             .execute()
             .value
             
-        // Fetch all confirmed payments
         struct PaymentFetch: Decodable {
             let emi_id: UUID?
             let amount_paid: Double
@@ -158,21 +136,14 @@ class ReportService {
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
         
-        // Include any EMI that is historically due OR has a payment, excluding
-        // written-off installments (they've left the performing book).
         let historicalEMIs = emiItems.filter { ($0.dueDate <= todayStr || paidMap[$0.id] != nil) && $0.status != .writtenOff }
         
-        // Group by YYYY-MM
         var monthlyTotals: [String: (due: Double, collected: Double)] = [:]
         
         for emi in historicalEMIs {
             let prefix = String(emi.dueDate.prefix(7)) // "2026-06"
             var current = monthlyTotals[prefix] ?? (due: 0.0, collected: 0.0)
             
-            // Only count an EMI (both due and collected) once it is actually
-            // due in the past or today. Counting prepaid future EMIs as
-            // collected without a matching "due" would exceed 100%. Cap each
-            // EMI's collection at its scheduled amount.
             if emi.dueDate <= todayStr {
                 current.due += emi.totalEmi
                 if let collectedAmount = paidMap[emi.id] {
@@ -207,15 +178,12 @@ class ReportService {
             }
         }
         
-        // Return last 12 months if there are many
         if trends.count > 12 {
             return Array(trends.suffix(12))
         }
         return trends
     }
     
-    /// Compiles overall (all-time) collection efficiency from EMI schedules and confirmed payments.
-    /// This reflects the true overall collection efficiency historically across all due installments.
     func fetchOverallCollectionEfficiency() async throws -> Double {
         let emiItems: [EMIScheduleItem] = try await supabase.database
             .from("emi_schedule")
@@ -247,7 +215,6 @@ class ReportService {
         formatter.dateFormat = "yyyy-MM-dd"
         let todayStr = formatter.string(from: Date())
         
-        // Include any EMI that is historically due, excluding written-off installments.
         let historicalDueEMIs = emiItems.filter { $0.dueDate <= todayStr && $0.status != .writtenOff }
         let totalDue = historicalDueEMIs.reduce(0.0) { $0 + $1.totalEmi }
         

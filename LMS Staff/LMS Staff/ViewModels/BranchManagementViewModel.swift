@@ -57,6 +57,10 @@ class BranchManagementViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        // Repair any stale branch tags so per-branch metrics match the officer's
+        // current branch (best-effort; never blocks the branch list).
+        try? await branchService.syncLoanBranchesToOfficers()
+
         do {
             self.branches = try await branchService.fetchBranches()
             applyFilter(search: searchText)

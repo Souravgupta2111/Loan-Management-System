@@ -824,9 +824,7 @@ struct CalculatorAmortizationSheet: View {
         var remainingPrincipal = amount
         let r = (interestRate / 12) / 100
 
-        // For Fixed/Compound loans the interest is derived up front and spread
-        // evenly, so the schedule split must match how the headline EMI was
-        // computed. Only Reducing/Floating uses a true reducing-balance split.
+
         let n = Double(tenureMonths)
         let flatMonthlyInterest: Double?
         switch interestType {

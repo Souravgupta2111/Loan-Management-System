@@ -58,7 +58,7 @@ CREATE OR REPLACE FUNCTION public.seed_loan(
 ) RETURNS void
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_branch      uuid := 'a1000001-0000-0000-0000-000000000001';
+    v_branch      uuid;
     v_product     uuid;
     v_fee_pct     numeric;
     v_app         uuid := gen_random_uuid();
@@ -118,7 +118,10 @@ BEGIN
     -- Keep the rate inside the chosen product's allowed band.
     v_rate := LEAST(GREATEST(p_rate, COALESCE(v_min_rate, p_rate)), COALESCE(v_max_rate, p_rate));
 
-    SELECT user_id INTO v_officer_user FROM public.staff_profiles WHERE id = p_officer;
+    SELECT user_id, branch_id INTO v_officer_user, v_branch FROM public.staff_profiles WHERE id = p_officer;
+    IF v_branch IS NULL THEN
+        v_branch := 'a1000001-0000-0000-0000-000000000001';
+    END IF;
 
     v_app_no  := 'LMS-APP-' || upper(substr(replace(v_app::text,  '-', ''), 1, 8));
     v_loan_no := 'LMS-' || to_char(p_disburse_date, 'YYYYMM') || '-' ||

@@ -1,10 +1,3 @@
-//
-//  AICopilotService.swift
-//  LMS Staff
-//
-//  Service layer for communicating with the ai-chat edge function as an Officer
-//
-
 import Foundation
 import Supabase
 
@@ -85,15 +78,11 @@ final class AICopilotService {
     }
 }
 
-// MARK: - Shared Response Model (used by both Officer and Manager services)
 struct StaffAIChatResponse: Codable {
     let reply: String
     let conversationId: UUID?
 }
 
-// Note: `AnyEncodable` is defined once in ApplicationService.swift and reused here.
-
-// MARK: - Officer Context Models
 struct OfficerContext: Codable {
     let borrower: OfficerContextProfile
     let application: OfficerContextApplication

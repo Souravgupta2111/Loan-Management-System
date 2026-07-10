@@ -1,10 +1,3 @@
-//
-//  DisbursementService.swift
-//  LMS Staff
-//
-//  Service for bank IFSC verification, loan creation, and EMI amortization generation.
-//
-
 import Foundation
 import Supabase
 
@@ -31,8 +24,6 @@ class DisbursementService {
     
     private init() {}
     
-    /// Validates IFSC code using the Razorpay IFSC API.
-    /// Returns bank and branch name if valid.
     func validateIFSC(_ ifsc: String) async throws -> IFSCResponse {
         let cleanIfsc = ifsc.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard cleanIfsc.count == 11 else {
@@ -59,7 +50,6 @@ class DisbursementService {
         return bankDetails
     }
     
-    /// Processes disbursement: creates loan record, generates EMI schedule, updates application status
     func disburseLoan(
         application: LoanApplication,
         bankAccount: String,
@@ -74,7 +64,6 @@ class DisbursementService {
             throw NSError(domain: "DisbursementService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
-        // Fetch the staff profile ID because `loans.disbursed_by` references `staff_profiles.id`, not `users.id`
         struct StaffIdResult: Decodable { let id: UUID }
         let staffResult: StaffIdResult = try await supabase.database
             .from("staff_profiles")
@@ -86,7 +75,6 @@ class DisbursementService {
             
         let staffId = staffResult.id
         
-        // 1. Calculate values
         let processingFee = approvedAmount * (processingFeePct / 100.0)
         let monthlyRate = (interestRate / 12.0) / 100.0
         
@@ -109,9 +97,6 @@ class DisbursementService {
         }
         
         let loanId = UUID()
-        // Derive human-readable identifiers from the (globally unique) loan UUID
-        // instead of Int.random, which had a real collision risk. The UUID hex
-        // guarantees uniqueness; a date prefix keeps it readable/sortable.
         let idHex = loanId.uuidString.replacingOccurrences(of: "-", with: "").uppercased()
         let disbursementDate = Date()
         let ymFormatter = DateFormatter()
@@ -120,12 +105,10 @@ class DisbursementService {
         let disbursementReference = "TXN-\(idHex.prefix(12))"
         let calendar = Calendar.current
         
-        // First EMI is due next month
         guard let firstEmiDate = calendar.date(byAdding: .month, value: 1, to: disbursementDate) else {
             throw NSError(domain: "DisbursementService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Date calculation error"])
         }
         
-        // Maturity Date
         guard let maturityDate = calendar.date(byAdding: .month, value: approvedTenure, to: disbursementDate) else {
             throw NSError(domain: "DisbursementService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Date calculation error"])
         }
@@ -137,7 +120,6 @@ class DisbursementService {
         let firstEmiDateStr = dateFormatter.string(from: firstEmiDate)
         let maturityDateStr = dateFormatter.string(from: maturityDate)
         
-        // 2. Insert Loan Record
         var loanPayload: [String: AnyEncodable] = [
             "id": AnyEncodable(loanId),
             "application_id": AnyEncodable(application.id),
@@ -180,7 +162,6 @@ class DisbursementService {
             .execute()
             .value
             
-        // 3. Generate and Insert EMI Schedule Items
         var balance = approvedAmount
         var emiPayloads: [[String: AnyEncodable]] = []
         
@@ -229,10 +210,8 @@ class DisbursementService {
                 .execute()
         }
         
-        // 4. Update Application Status to disbursed
         try await ApplicationService.shared.updateStatus(applicationId: application.id, status: .disbursed)
         
-        // 5. Notify Borrower
         try await NotificationService.shared.createNotification(
             userId: application.borrowerId,
             title: "Loan Disbursed",

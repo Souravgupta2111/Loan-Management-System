@@ -1,10 +1,3 @@
-//
-//  NotificationService.swift
-//  LMS Staff
-//
-//  Service for managing user notifications.
-//
-
 import Foundation
 import Supabase
 import UserNotifications
@@ -17,17 +10,12 @@ class NotificationService {
     private let supabase = SupabaseManager.shared
     private var channel: RealtimeChannelV2?
     
-    /// Tracks whether we are currently subscribed
     private var isSubscribed = false
-    /// The user id the current subscription is bound to.
     private var subscribedUserId: UUID?
     
-    // Track recently sent message contents to prevent echo notifications
     var recentlySentMessages: Set<String> = []
     
     private init() {
-        // Re-subscribe when app returns to foreground (iPad sleep/wake cycle
-        // kills the WebSocket — this ensures reconnection).
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appDidBecomeActive),
@@ -40,7 +28,6 @@ class NotificationService {
         subscribeToNotifications()
     }
     
-    /// Fetches notifications for the logged in staff member
     func fetchNotifications() async throws -> [LMSNotification] {
         guard let userId = supabase.currentUserId else { return [] }
         
@@ -55,7 +42,6 @@ class NotificationService {
         return notifications
     }
     
-    /// Marks a notification as read
     func markAsRead(notificationId: UUID) async throws {
         let formatter = ISO8601DateFormatter()
         let nowString = formatter.string(from: Date())
@@ -70,7 +56,6 @@ class NotificationService {
             .execute()
     }
     
-    /// Utility function to create a new notification in the database for a target user
     func createNotification(
         userId: UUID,
         title: String,
@@ -112,11 +97,8 @@ class NotificationService {
     func subscribeToNotifications() {
         guard let userId = supabase.currentUserId else { return }
         
-        // Already subscribed for THIS user — nothing to do.
         if isSubscribed && subscribedUserId == userId { return }
         
-        // Subscribed for a different user (e.g. logout → login as someone else):
-        // tear down the stale channel before re-binding.
         if let existing = channel {
             channel = nil
             isSubscribed = false
@@ -124,7 +106,6 @@ class NotificationService {
             Task { await supabase.client.removeChannel(existing) }
         }
         
-        // Namespace the channel per user so it can't collide across accounts.
         channel = supabase.client.realtimeV2.channel("notifications:\(userId.uuidString)")
         
         Task {
@@ -148,7 +129,6 @@ class NotificationService {
                     if let title = record["title"]?.stringValue,
                        let body = record["body"]?.stringValue {
                         
-                        // Prevent triggering local push if the message was sent by the current user
                         if (title == "New Message" || title == "New Message from Borrower") && self.recentlySentMessages.contains(body) {
                             print("🔔 [LMS Staff] Ignored echo notification for sent message: \(body)")
                             continue

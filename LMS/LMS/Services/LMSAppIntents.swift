@@ -1,29 +1,8 @@
-//
-//  LMSAppIntents.swift
-//  LMS
-//
-//  Siri & Shortcuts automations for the borrower app.
-//
-//  Two kinds of intents live here:
-//   1. "Open" intents (openAppWhenRun = true) that jump into a flow, routed via
-//      IntentRouter.shared.
-//   2. "Inline" intents (openAppWhenRun = false) that answer a question by
-//      speaking a dialog WITHOUT foregrounding the app. They read the shared
-//      App Group snapshot that WidgetDataProvider keeps up to date, so the
-//      numbers match the home-screen widgets exactly.
-//
-//  Because the project uses Xcode file-system-synchronized groups, this file is
-//  compiled into the LMS target automatically — no extension target required.
-//
-
 import AppIntents
 import Foundation
 
-// MARK: - Shared snapshot reader + formatting helpers
-
 enum BorrowerSiri {
 
-    /// Read the latest borrower snapshot the app published to the App Group.
     static func snapshot() -> WidgetSnapshotDTO? {
         guard let defaults = UserDefaults(suiteName: WidgetKeys.appGroupID),
               let data = defaults.data(forKey: WidgetKeys.snapshot),
@@ -32,10 +11,7 @@ enum BorrowerSiri {
         return snap
     }
 
-    /// Dialog shown when there's no cached data yet (e.g. before first sign-in).
     static let noData = "I couldn't find your loan details yet. Open Loanz and sign in, then try again."
-
-    // MARK: Currency
 
     private static let inrFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -45,13 +21,11 @@ enum BorrowerSiri {
         return f
     }()
 
-    /// Full Indian-grouped rupee string, e.g. "₹2,24,382".
     static func inr(_ amount: Double) -> String {
         let n = NSNumber(value: amount.rounded())
         return "₹" + (inrFormatter.string(from: n) ?? String(Int(amount)))
     }
 
-    /// Compact rupee string using lakh / crore, e.g. "₹12.4L", "₹4.85Cr".
     static func inrCompact(_ amount: Double) -> String {
         let a = abs(amount)
         if a >= 1_00_00_000 { return "₹" + trimmed(amount / 1_00_00_000) + "Cr" }
@@ -61,13 +35,9 @@ enum BorrowerSiri {
 
     private static func trimmed(_ value: Double) -> String {
         let s = String(format: "%.2f", value)
-        // Drop trailing zeros / dot: 4.50 -> 4.5, 12.00 -> 12
         return s.replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
     }
 
-    // MARK: Dates
-
-    /// "July 9th" style date.
     static func pretty(_ date: Date) -> String {
         let cal = Calendar.current
         let day = cal.component(.day, from: date)
@@ -86,8 +56,6 @@ enum BorrowerSiri {
         }
     }
 
-    // MARK: Credit score band
-
     static func creditBand(_ score: Int) -> String {
         switch score {
         case ..<580: return "poor"
@@ -98,7 +66,6 @@ enum BorrowerSiri {
         }
     }
 
-    /// The soonest-due active loan (prefers a future due date, else the earliest).
     static func nextDueLoan(_ snap: WidgetSnapshotDTO) -> WidgetLoanDTO? {
         let withDates = snap.loans.filter { $0.nextDue != nil }
         let now = Date()
@@ -113,8 +80,6 @@ private extension Array {
         indices.contains(index) ? self[index] : nil
     }
 }
-
-// MARK: - Inline: Next EMI
 
 struct NextEMIInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "When Is My Next EMI"
@@ -132,8 +97,6 @@ struct NextEMIInlineIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: Total Outstanding
 
 struct TotalOutstandingInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "How Much Do I Owe"
@@ -155,8 +118,6 @@ struct TotalOutstandingInlineIntent: AppIntent {
     }
 }
 
-// MARK: - Inline: Credit Score
-
 struct CreditScoreInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "What's My Credit Score"
     static var description = IntentDescription("Tells you your current credit score.")
@@ -173,8 +134,6 @@ struct CreditScoreInlineIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: Loan Count
 
 struct LoanCountInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "How Many Loans Do I Have"
@@ -197,8 +156,6 @@ struct LoanCountInlineIntent: AppIntent {
     }
 }
 
-// MARK: - Inline: EMI This Month
-
 struct EMIThisMonthInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "What's My EMI This Month"
     static var description = IntentDescription("Tells you this month's EMI and repayment progress.")
@@ -216,8 +173,6 @@ struct EMIThisMonthInlineIntent: AppIntent {
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
 }
-
-// MARK: - Inline: Loan Status
 
 struct LoanStatusInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "Show My Loan Status"
@@ -244,7 +199,6 @@ struct LoanStatusInlineIntent: AppIntent {
 }
 
 extension BorrowerSiri {
-    /// Turn a raw application status into human words.
     static func humanStage(_ raw: String) -> String {
         switch raw.lowercased() {
         case "submitted": return "submitted"
@@ -258,8 +212,6 @@ extension BorrowerSiri {
         }
     }
 }
-
-// MARK: - Inline: Eligibility
 
 struct LoanEligibilityInlineIntent: AppIntent {
     static var title: LocalizedStringResource = "Am I Eligible for a Loan"
@@ -286,8 +238,6 @@ struct LoanEligibilityInlineIntent: AppIntent {
     }
 }
 
-// MARK: - Open: Apply for a Loan
-
 struct ApplyForLoanIntent: AppIntent {
     static var title: LocalizedStringResource = "Apply for a Loan"
     static var description = IntentDescription("Opens the loan application flow.")
@@ -300,15 +250,12 @@ struct ApplyForLoanIntent: AppIntent {
     }
 }
 
-// MARK: - Open AI Advisor
-
 struct OpenAdvisorIntent: AppIntent {
     static var title: LocalizedStringResource = "Ask Loan Advisor"
     static var description = IntentDescription(
         "Opens your AI Financial Advisor, optionally with a question."
     )
 
-    // Foreground the app so the advisor UI can appear.
     static var openAppWhenRun: Bool = true
 
     @Parameter(
@@ -330,8 +277,6 @@ struct OpenAdvisorIntent: AppIntent {
     }
 }
 
-// MARK: - Open EMI Schedule
-
 struct CheckEMIScheduleIntent: AppIntent {
     static var title: LocalizedStringResource = "Check EMI Schedule"
     static var description = IntentDescription("Shows your upcoming EMI schedule.")
@@ -344,8 +289,6 @@ struct CheckEMIScheduleIntent: AppIntent {
     }
 }
 
-// MARK: - Open Pay EMI
-
 struct PayEMIIntent: AppIntent {
     static var title: LocalizedStringResource = "Pay My EMI"
     static var description = IntentDescription("Opens your loans so you can pay an EMI.")
@@ -357,8 +300,6 @@ struct PayEMIIntent: AppIntent {
         return .result(dialog: "Opening your loans so you can make a payment.")
     }
 }
-
-// MARK: - Open Advisor for Credit-Score Improvement
 
 struct ImproveCreditScoreIntent: AppIntent {
     static var title: LocalizedStringResource = "How to Improve My Credit Score"
@@ -376,11 +317,8 @@ struct ImproveCreditScoreIntent: AppIntent {
     }
 }
 
-// MARK: - App Shortcuts (spoken phrases)
-
 struct LMSAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        // --- Inline answers (no app open) ---
         AppShortcut(
             intent: NextEMIInlineIntent(),
             phrases: [
@@ -445,7 +383,6 @@ struct LMSAppShortcuts: AppShortcutsProvider {
             systemImageName: "checkmark.seal"
         )
 
-        // --- Actions that open the app ---
         AppShortcut(
             intent: ApplyForLoanIntent(),
             phrases: [
@@ -474,7 +411,5 @@ struct LMSAppShortcuts: AppShortcutsProvider {
             shortTitle: "Pay EMI",
             systemImageName: "creditcard"
         )
-        // Note: Apple limits AppShortcutsProvider to 10 entries. CheckEMISchedule
-        // and ImproveCreditScore intents remain available in the Shortcuts app.
     }
 }

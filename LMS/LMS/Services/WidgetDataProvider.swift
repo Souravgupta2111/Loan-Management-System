@@ -1,28 +1,13 @@
-//
-//  WidgetDataProvider.swift
-//  LMS
-//
-//  Publishes a rich snapshot of the borrower's data into a shared App Group so
-//  the home-screen / lock-screen widgets can render it. No-op until the App
-//  Group entitlement exists (UserDefaults(suiteName:) returns nil).
-//
-//  The DTOs below are mirrored (identical shape) in the widget target's
-//  LMSGlassWidgets.swift — they're plain JSON, decoded independently on each side.
-//
-
 import Foundation
 import WidgetKit
 
 enum WidgetKeys {
-    /// Must match the App Group on BOTH the app and widget targets.
     static let appGroupID = "group.com.sourav.hi123.LMS"
     static let snapshot = "widget.snapshot"
     static let calcAmount = "widget.calc.amount"
     static let calcTenure = "widget.calc.tenure"
     static let loanIndex = "widget.loanIndex"
 }
-
-// MARK: - DTOs (mirror these in the widget target)
 
 struct WidgetLoanDTO: Codable {
     var id: String            // loan UUID (for deep-linking to its payment page)
@@ -48,8 +33,6 @@ struct WidgetSnapshotDTO: Codable {
     var applicationUpdated: Date?
     var calendar: [WidgetEMIDayDTO]
     var generated: Date
-    /// Number of fully closed / written-off loans (optional for backward-compat
-    /// with older cached snapshots). Used by Siri inline intents for loan counts.
     var closedLoans: Int? = nil
 }
 
@@ -64,7 +47,6 @@ enum WidgetDataProvider {
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: WidgetKeys.snapshot)
         }
-        // Seed calculator defaults once so the calculator widget has a starting point.
         if defaults.object(forKey: WidgetKeys.calcAmount) == nil {
             defaults.set(500_000.0, forKey: WidgetKeys.calcAmount)
         }

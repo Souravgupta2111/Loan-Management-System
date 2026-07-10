@@ -1,10 +1,3 @@
-//
-//  AuthService.swift
-//  LMS Staff
-//
-//  Service for managing user authentication and role parsing.
-//
-
 import Foundation
 import Supabase
 import Combine
@@ -18,7 +11,6 @@ class AuthService: ObservableObject {
     
     private init() {}
     
-    /// Resolves the email address associated with an employee ID.
     nonisolated func resolveEmail(from employeeId: String) -> String {
         let cleanedId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         if cleanedId == "ADM-0001" {
@@ -27,8 +19,6 @@ class AuthService: ObservableObject {
         return "\(cleanedId.lowercased())@lms.internal"
     }
     
-    /// Signs in a staff member using their Employee ID and password.
-    /// Under the hood, this resolves the ID to its registered email address and uses Supabase Auth.
     func signIn(employeeId: String, password: String) async throws -> (AppUser, StaffProfile) {
         let cleanedId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard isValidEmployeeId(cleanedId) else {
@@ -37,11 +27,9 @@ class AuthService: ObservableObject {
         
         let email = resolveEmail(from: cleanedId)
         
-        // Sign in using email auth
         let response = try await supabase.auth.signIn(email: email, password: password)
         let userId = response.user.id
         
-        // Fetch user from public.users
         let appUser: AppUser = try await supabase.database
             .from("users")
             .select()
@@ -50,7 +38,6 @@ class AuthService: ObservableObject {
             .execute()
             .value
             
-        // Fetch staff profile from public.staff_profiles
         let staffProfile: StaffProfile = try await supabase.database
             .from("staff_profiles")
             .select()
@@ -62,12 +49,10 @@ class AuthService: ObservableObject {
         return (appUser, staffProfile)
     }
     
-    /// Signs out the current user session
     func signOut() async throws {
         try await supabase.auth.signOut()
     }
     
-    /// Helper to parse role from employee ID prefix
     func parseRole(from employeeId: String) -> UserRole? {
         let cleanId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         if cleanId.hasPrefix("ADM-") {
@@ -80,7 +65,6 @@ class AuthService: ObservableObject {
         return nil
     }
     
-    /// Validates employee ID format (e.g. ADM-0001, MGR-1234)
     func isValidEmployeeId(_ employeeId: String) -> Bool {
         let cleanId = employeeId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let regex = "^(ADM|MGR|OFF)-\\d{4}$"

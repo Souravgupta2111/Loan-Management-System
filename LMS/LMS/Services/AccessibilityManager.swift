@@ -2,7 +2,6 @@ import SwiftUI
 
 import Combine
 
-/// Global manager for system-wide accessibility toggles (Haptics & High Contrast)
 final class AppAccessibilityManager: ObservableObject {
     let objectWillChange = ObservableObjectPublisher()
     static let shared = AppAccessibilityManager()
@@ -17,9 +16,6 @@ final class AppAccessibilityManager: ObservableObject {
     }
     
     private init() {
-        // Haptics should be ON by default (matches the Staff app and standard iOS
-        // UX). `UserDefaults.bool(forKey:)` returns false for an unset key, which
-        // silently disabled haptics on first launch — register a default instead.
         UserDefaults.standard.register(defaults: [
             "isHapticsEnabled": true,
             "isHighContrastEnabled": false

@@ -1,10 +1,3 @@
-//
-//  MessageService.swift
-//  LMS Staff
-//
-//  Service for managing application chats and messaging between staff and borrowers.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class MessageService {
     
     private init() {}
     
-    /// Fetches message history for a specific application.
     func fetchMessages(forApplicationId applicationId: UUID) async throws -> [Message] {
         let messages: [Message] = try await supabase.database
             .from("messages")
@@ -27,7 +19,6 @@ class MessageService {
         return messages
     }
     
-    /// Sends a text message to a receiver (e.g. borrower or manager)
     func sendMessage(
         applicationId: UUID,
         receiverId: UUID,
@@ -39,12 +30,10 @@ class MessageService {
             throw NSError(domain: "MessageService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
-        // Prevent echo notification for the message sent by us
         await MainActor.run {
             NotificationService.shared.recentlySentMessages.insert(content)
         }
         
-        // Clean it up after 15 seconds
         Task {
             try? await Task.sleep(nanoseconds: 15_000_000_000)
             await MainActor.run {
@@ -85,8 +74,6 @@ class MessageService {
         return sentMessage
     }
     
-    /// Subscribes to real-time chat messages for an application.
-    /// Passes new messages to the callback.
     func subscribeToMessages(forApplicationId applicationId: UUID, onUpdate: @escaping () -> Void) -> RealtimeChannelV2 {
         let channel = supabase.client.realtimeV2.channel("public:messages:\(applicationId.uuidString)")
         
@@ -106,12 +93,10 @@ class MessageService {
         return channel
     }
     
-    /// Unsubscribes a realtime channel
     func unsubscribe(_ channel: RealtimeChannelV2) async {
         await supabase.client.realtimeV2.removeChannel(channel)
     }
     
-    /// Marks a message as read by the receiver
     func markAsRead(messageId: UUID) async throws {
         try await supabase.database
             .from("messages")
@@ -120,7 +105,6 @@ class MessageService {
             .execute()
     }
     
-    /// Marks a message as deleted for the current user
     func deleteMessage(messageId: UUID, isSender: Bool) async throws {
         let field = isSender ? "is_deleted_by_sender" : "is_deleted_by_receiver"
         try await supabase.database

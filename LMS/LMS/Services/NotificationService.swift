@@ -8,18 +8,12 @@ class NotificationService {
     static let shared = NotificationService()
     
     private var channel: RealtimeChannelV2?
-    /// Tracks whether we are currently subscribed
     private var isSubscribed = false
-    /// The user id the current subscription is bound to.
     private var subscribedUserId: UUID?
 
     private init() {
-        // Notifications are ON by default; users can opt out in settings. Using
-        // register(defaults:) makes `.bool(forKey:)` return true when unset
-        // while still honoring an explicit user choice of false.
         UserDefaults.standard.register(defaults: ["notificationsEnabled": true])
 
-        // Re-subscribe when app returns to foreground
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appDidBecomeActive),
@@ -29,9 +23,6 @@ class NotificationService {
     }
     
     @objc private func appDidBecomeActive() {
-        // Reconnect / re-bind the realtime channel when the user re-opens the
-        // app. subscribeToNotifications() no-ops if already bound to this user
-        // and re-binds if the signed-in user changed.
         subscribeToNotifications()
     }
     
@@ -43,11 +34,8 @@ class NotificationService {
     
     func subscribeToNotifications() {
         guard let userId = SupabaseManager.shared.currentUserId else { return }
-        // Already subscribed for THIS user — nothing to do.
         if isSubscribed && subscribedUserId == userId { return }
 
-        // Subscribed for a different user (e.g. logout → login as someone else):
-        // tear down the stale channel before re-binding to the new user.
         if let existing = channel {
             channel = nil
             isSubscribed = false
@@ -55,7 +43,6 @@ class NotificationService {
             Task { await SupabaseManager.shared.client.removeChannel(existing) }
         }
         
-        // Namespace the channel per user so it can't collide across accounts.
         channel = SupabaseManager.shared.client.realtimeV2.channel("notifications:\(userId.uuidString)")
         
         Task {
@@ -78,7 +65,6 @@ class NotificationService {
                     let record = insert.record
                     if let title = record["title"]?.stringValue,
                        let body = record["body"]?.stringValue {
-                        // Only fire if the user hasn't disabled notifications in settings
                         if UserDefaults.standard.bool(forKey: "notificationsEnabled") {
                             await MainActor.run {
                                 self.triggerLocalPush(title: title, body: body)
@@ -102,7 +88,6 @@ class NotificationService {
         content.sound = .default
         content.categoryIdentifier = "LMS_NOTIFICATION"
 
-        // Use a tiny time-interval trigger instead of nil for reliable simulator delivery
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
@@ -112,19 +97,13 @@ class NotificationService {
         }
     }
     
-    // MARK: - Proactive EMI Reminders (local, on-device)
 
-    /// A single upcoming EMI to remind the borrower about.
     struct EMIReminder {
         let loanName: String
         let amount: Double
         let dueDate: Date
     }
 
-    /// Schedules local "EMI due soon" nudges 3 days and 1 day before each due
-    /// date (at 9am). Safe to call repeatedly — it clears previously scheduled
-    /// EMI reminders first, so it always reflects the latest schedule. Respects
-    /// the in-app "Notifications" toggle.
     func scheduleEMIReminders(_ reminders: [EMIReminder]) {
         let center = UNUserNotificationCenter.current()
 

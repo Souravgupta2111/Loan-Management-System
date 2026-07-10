@@ -81,7 +81,6 @@ class KYCService {
         return (response.pan_in_use, response.aadhaar_in_use)
     }
     
-    /// Invokes the authenticated Edge Function so KYC credentials never ship in the app.
     func verifyPAN(_ pan: String, name: String, dob: String) async throws -> PANVerificationResponse {
         struct Request: Encodable { let pan: String; let name: String; let dateOfBirth: String }
         return try await SupabaseManager.shared.client.functions.invoke(
@@ -90,7 +89,6 @@ class KYCService {
         )
     }
 
-    /// Step 1: Send OTP to user's Aadhaar-linked mobile
     func generateAadhaarOTP(_ aadhaar: String) async throws -> AadhaarOTPResponse {
         struct Request: Encodable { let action: String; let aadhaar: String }
         return try await SupabaseManager.shared.client.functions.invoke(
@@ -99,7 +97,6 @@ class KYCService {
         )
     }
 
-    /// Step 2: Verify the OTP and complete e-KYC
     func verifyAadhaarOTP(referenceId: String, otp: String) async throws -> AadhaarVerifyOTPResponse {
         struct Request: Encodable { let action: String; let reference_id: String; let otp: String }
         return try await SupabaseManager.shared.client.functions.invoke(
@@ -108,7 +105,6 @@ class KYCService {
         )
     }
     
-    /// Uploads documents to Supabase storage
     func uploadDocument(data: Data, type: String, userId: String) async throws -> String {
         let filePath = "\(userId.lowercased())/\(type)_\(UUID().uuidString.lowercased()).jpg"
         
@@ -129,7 +125,6 @@ class KYCService {
         return filePath
     }
     
-    /// Updates the KYC status in the database, inserting the profile if it doesn't exist
     func updateKYCStatus(userId: UUID, status: String) async throws {
         struct ProfileRow: Decodable {
             let user_id: UUID
@@ -186,7 +181,6 @@ class KYCService {
         )).execute()
     }
 
-    /// Submits KYC details for review after the user completes verification and uploads documents.
     func submitFullKYCDocs(
         userId: UUID,
         aadhaar: String,
@@ -273,10 +267,8 @@ class KYCService {
     }
     
     func resubmitDocument(userId: UUID, type: String, data: Data) async throws {
-        // 1. Upload new document
         let storagePath = try await uploadDocument(data: data, type: type, userId: userId.uuidString)
         
-        // 2. Update the existing document
         struct DocumentUpdate: Encodable {
             let storage_path: String
             let file_size_bytes: Int
@@ -296,7 +288,6 @@ class KYCService {
             .eq("category", value: "kyc")
             .execute()
         
-        // Clear rejection reason using raw dictionary to avoid needing Optional struct wrappers that PostgREST might skip
         let clearRejection: [String: AnyJSON] = ["rejection_reason": .null, "verified_by": .null, "verified_at": .null]
         try await SupabaseManager.shared.client.from("documents")
             .update(clearRejection)
@@ -305,7 +296,6 @@ class KYCService {
             .eq("category", value: "kyc")
             .execute()
         
-        // 3. Update KYC status to verified (auto-verified)
         try await updateKYCStatus(userId: userId, status: "verified")
     }
 }
@@ -317,10 +307,6 @@ extension Formatter {
         return formatter
     }()
 
-    /// Parses ISO8601 timestamps whether or not they include fractional seconds.
-    /// The fixed `.withFractionalSeconds` parser above returns nil for Supabase
-    /// timestamps that lack a fractional component, which broke message
-    /// ordering; this tolerant parser tries both formats.
     static let iso8601Flexible = FlexibleISO8601Parser()
 }
 

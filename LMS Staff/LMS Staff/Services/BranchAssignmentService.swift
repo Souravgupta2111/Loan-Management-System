@@ -1,15 +1,5 @@
-//
-//  BranchAssignmentService.swift
-//  LMS Staff
-//
-//  Service for automated and manual branch/officer assignment.
-//  Provides workload visibility for managers and manual assignment triggers.
-//
-
 import Foundation
 import Supabase
-
-// MARK: - Officer Workload Model
 
 struct OfficerWorkload: Identifiable {
     let id: UUID  // staff_profile id
@@ -17,8 +7,6 @@ struct OfficerWorkload: Identifiable {
     let officerName: String
     let activeApplications: Int
 }
-
-// MARK: - Service
 
 @MainActor
 class BranchAssignmentService {
@@ -28,10 +16,6 @@ class BranchAssignmentService {
 
     private init() {}
 
-    // MARK: - Auto-Assign via RPC
-
-    /// Triggers auto-assignment for a specific application.
-    /// Calls the Postgres RPC that handles pincode → geo → fallback chain.
     func autoAssign(applicationId: UUID) async throws -> BranchAssignmentResult {
         struct Params: Encodable {
             let p_application_id: UUID
@@ -58,10 +42,6 @@ class BranchAssignmentService {
         return result
     }
 
-    // MARK: - Officer Workload Query
-
-    /// Fetches the workload (active application count) for all officers in a branch.
-    /// Uses the Postgres RPC for efficient server-side computation.
     func fetchOfficerWorkload(branchId: UUID) async throws -> [OfficerWorkload] {
         struct Params: Encodable {
             let p_branch_id: UUID
@@ -89,10 +69,6 @@ class BranchAssignmentService {
         }
     }
 
-    // MARK: - Batch Auto-Assign Unassigned Applications
-
-    /// Finds all unassigned applications and triggers auto-assignment for each.
-    /// Returns the number of successfully assigned applications.
     func autoAssignAllUnassigned() async throws -> Int {
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
@@ -118,17 +94,11 @@ class BranchAssignmentService {
         return assignedCount
     }
 
-    // MARK: - Find Least-Loaded Officer (Swift-side helper)
-
-    /// Finds the officer with the fewest active applications in a branch.
-    /// Useful for manual reassignment from the manager dashboard.
     func findLeastLoadedOfficer(branchId: UUID) async throws -> OfficerWorkload? {
         let workload = try await fetchOfficerWorkload(branchId: branchId)
         return workload.first // Already sorted ASC by the RPC
     }
 }
-
-// MARK: - Assignment Result (shared decode struct)
 
 struct BranchAssignmentResult: Codable {
     let branchId: UUID?

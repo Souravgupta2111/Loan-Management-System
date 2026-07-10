@@ -1,10 +1,3 @@
-//
-//  BiometricAuthService.swift
-//  LMS
-//
-//  Handles LocalAuthentication (Face ID / Touch ID)
-//
-
 import LocalAuthentication
 import Foundation
 
@@ -14,14 +7,12 @@ final class BiometricAuthService {
     
     private init() {}
     
-    /// Checks if the device supports biometric authentication
     func canEvaluatePolicy() -> Bool {
         let context = LAContext()
         var error: NSError?
         return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
     }
     
-    /// Authenticates the user using biometrics
     func authenticate(reason: String = "Log in to your LMS account") async -> Bool {
         let context = LAContext()
         var error: NSError?

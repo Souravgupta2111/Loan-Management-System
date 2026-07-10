@@ -1,12 +1,3 @@
-//
-//  HapticManager.swift
-//  LMS Staff
-//
-//  Provides consistent haptic feedback across the Staff application.
-//  Note: Haptic feedback requires iPhone with Taptic Engine.
-//  On iPad and Simulator, haptics are silently ignored by iOS.
-//
-
 import UIKit
 
 final class HapticManager {

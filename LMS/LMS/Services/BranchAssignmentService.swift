@@ -1,21 +1,6 @@
-//
-//  BranchAssignmentService.swift
-//  LMS
-//
-//  Handles automatic branch and officer assignment for loan applications.
-//  Strategy:
-//    1. Exact pincode match from branch_pincodes
-//    2. 3-digit prefix match (same postal zone)
-//    3. Nearest branch by GPS coordinates (user location or geocoded pincode)
-//    4. Fallback to first active branch
-//  Then assigns the least-loaded loan officer from the matched branch.
-//
-
 import Foundation
 import CoreLocation
 import Supabase
-
-// MARK: - Assignment Result
 
 struct BranchAssignmentResult: Codable {
     let branchId: UUID?
@@ -33,8 +18,6 @@ struct BranchAssignmentResult: Codable {
     }
 }
 
-// MARK: - Assigned Officer Info (for display in borrower app)
-
 struct AssignedOfficerInfo: Codable {
     let officerName: String
     let officerEmail: String?
@@ -43,8 +26,6 @@ struct AssignedOfficerInfo: Codable {
     let branchCity: String?
 }
 
-// MARK: - Service
-
 @MainActor
 class BranchAssignmentService {
 
@@ -52,14 +33,7 @@ class BranchAssignmentService {
 
     private init() {}
 
-    // MARK: - Auto-Assign (called after loan submission)
-
-    /// Automatically assigns a branch and least-loaded officer to a loan application.
-    /// Uses the borrower's GPS location if available, otherwise geocodes their pincode.
-    /// This is a best-effort operation — if it fails, the application remains unassigned
-    /// and staff can manually assign later.
     func autoAssign(applicationId: UUID) async -> BranchAssignmentResult? {
-        // Step 1: Try to get user's GPS coordinates
         var lat: Double? = nil
         var lon: Double? = nil
 
@@ -67,7 +41,6 @@ class BranchAssignmentService {
             lat = gpsCoords.latitude
             lon = gpsCoords.longitude
         } else {
-            // Step 2: Fallback — geocode borrower's pincode from profile
             if let pincode = await fetchBorrowerPincode(applicationId: applicationId) {
                 if let geocoded = await GeocodingService.shared.geocodePincode(pincode) {
                     lat = geocoded.latitude
@@ -76,13 +49,9 @@ class BranchAssignmentService {
             }
         }
 
-        // Step 3: Call the Postgres RPC (handles pincode → prefix → geo → fallback chain)
         return await callAutoAssignRPC(applicationId: applicationId, lat: lat, lon: lon)
     }
 
-    // MARK: - Fetch Assigned Officer Info
-
-    /// Fetches the assigned officer and branch details for display in the borrower app.
     func fetchAssignedOfficerInfo(applicationId: UUID) async -> AssignedOfficerInfo? {
         struct AppRow: Decodable {
             let assigned_officer_id: UUID?
@@ -100,7 +69,6 @@ class BranchAssignmentService {
 
             guard let officerProfileId = app.assigned_officer_id else { return nil }
 
-            // Get officer's user_id from staff_profiles
             struct StaffRow: Decodable { let user_id: UUID }
             let staffRow: StaffRow = try await SupabaseManager.shared.client
                 .from("staff_profiles")
@@ -110,7 +78,6 @@ class BranchAssignmentService {
                 .execute()
                 .value
 
-            // Get officer's name and email
             struct UserRow: Decodable {
                 let full_name: String
                 let email: String?
@@ -123,7 +90,6 @@ class BranchAssignmentService {
                 .execute()
                 .value
 
-            // Get branch info
             var branchName = "Unknown Branch"
             var branchCity: String? = nil
             if let branchId = app.branch_id {
@@ -155,8 +121,6 @@ class BranchAssignmentService {
             return nil
         }
     }
-
-    // MARK: - Private Helpers
 
     private func fetchBorrowerPincode(applicationId: UUID) async -> String? {
         struct AppBorrower: Decodable { let borrower_id: UUID }

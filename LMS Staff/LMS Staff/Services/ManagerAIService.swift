@@ -1,10 +1,3 @@
-//
-//  ManagerAIService.swift
-//  LMS Staff
-//
-//  Service layer for the Manager's AI Analytics assistant — queries real DB data
-//
-
 import Foundation
 import Supabase
 
@@ -38,9 +31,7 @@ final class ManagerAIService {
         return response
     }
     
-    // MARK: - Build Real Manager Context from DB
     private func buildManagerContext() async throws -> ManagerContext {
-        // 1. Count active loans
         let activeLoans: [ManagerLoanRow] = try await supabase.database
             .from("loans")
             .select("id, status, principal_amount, interest_rate")
@@ -48,7 +39,6 @@ final class ManagerAIService {
             .execute()
             .value
         
-        // 2. Count NPA loans
         let npaLoans: [ManagerLoanRow] = try await supabase.database
             .from("loans")
             .select("id, status, principal_amount, interest_rate")
@@ -56,7 +46,6 @@ final class ManagerAIService {
             .execute()
             .value
         
-        // 3. Count pending applications ('recommended' is not a valid application_status)
         let pendingApps: [ManagerAppRow] = try await supabase.database
             .from("loan_applications")
             .select("id")
@@ -64,12 +53,9 @@ final class ManagerAIService {
             .execute()
             .value
         
-        // 4. Compute totals
         let totalDisbursed = activeLoans.reduce(0.0) { $0 + ($1.principalAmount ?? 0) }
         let npaPercentage = activeLoans.isEmpty ? 0 : (Double(npaLoans.count) / Double(activeLoans.count + npaLoans.count)) * 100
         
-        // 5. Fetch EMIs for collection efficiency. The real table is `emi_schedule`
-        //    and 'pending' is not a valid emi_status — use 'paid' vs 'overdue'.
         let overdueEmis: [ManagerEmiRow] = try await supabase.database
             .from("emi_schedule")
             .select("id")
@@ -108,7 +94,6 @@ final class ManagerAIService {
     }
 }
 
-// MARK: - Lightweight row models for aggregate queries
 private struct ManagerLoanRow: Codable {
     let id: UUID
     let status: String
@@ -130,7 +115,6 @@ private struct ManagerEmiRow: Codable {
     let id: UUID
 }
 
-// MARK: - Manager Context Models
 struct ManagerContext: Codable {
     let portfolioSummary: ManagerPortfolioSummary
     let branchMetrics: ManagerBranchMetrics

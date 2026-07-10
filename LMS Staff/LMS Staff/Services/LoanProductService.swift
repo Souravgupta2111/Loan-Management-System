@@ -1,10 +1,3 @@
-//
-//  LoanProductService.swift
-//  LMS Staff
-//
-//  Service for managing configurable loan products, eligibility rules, and required docs.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class LoanProductService {
     
     private init() {}
     
-    /// Fetches all loan products from database
     func fetchProducts() async throws -> [LoanProduct] {
         let products: [LoanProduct] = try await supabase.database
             .from("loan_products")
@@ -26,7 +18,6 @@ class LoanProductService {
         return products
     }
     
-    /// Toggles active status of a loan product
     func toggleProductActive(productId: UUID, isActive: Bool) async throws {
         try await supabase.database
             .from("loan_products")
@@ -34,7 +25,6 @@ class LoanProductService {
             .eq("id", value: productId)
             .execute()
             
-        // Log action in audit trail
         try await AuditService.shared.logAction(
             action: isActive ? "ACTIVATE_PRODUCT" : "DEACTIVATE_PRODUCT",
             tableName: "loan_products",
@@ -43,7 +33,6 @@ class LoanProductService {
         )
     }
     
-    /// Creates a new loan product configuration (US-66)
     func createProduct(_ product: LoanProduct) async throws -> LoanProduct {
         let payload: [String: AnyEncodable] = [
             "id": AnyEncodable(product.id),
@@ -75,7 +64,6 @@ class LoanProductService {
             .execute()
             .value
             
-        // Log action
         try await AuditService.shared.logAction(
             action: "CREATE_PRODUCT",
             tableName: "loan_products",
@@ -86,7 +74,6 @@ class LoanProductService {
         return newProduct
     }
     
-    /// Updates an existing loan product configuration (US-58, US-66)
     func updateProduct(_ product: LoanProduct) async throws -> LoanProduct {
         let payload: [String: AnyEncodable] = [
             "name": AnyEncodable(product.name),
@@ -118,7 +105,6 @@ class LoanProductService {
             .execute()
             .value
             
-        // Log action
         try await AuditService.shared.logAction(
             action: "UPDATE_PRODUCT",
             tableName: "loan_products",

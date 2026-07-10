@@ -1,10 +1,3 @@
-//
-//  DocumentService.swift
-//  LMS Staff
-//
-//  Service for managing document uploads, downloads, and verifications.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class DocumentService {
     
     private init() {}
     
-    /// Fetches all documents uploaded for a specific loan application
     func fetchDocuments(forApplicationId applicationId: UUID) async throws -> [LMSDocument] {
         let documents: [LMSDocument] = try await supabase.database
             .from("documents")
@@ -26,7 +18,6 @@ class DocumentService {
         return documents
     }
     
-    /// Verifies or rejects a document with remarks/reason
     func verifyDocument(documentId: UUID, isVerified: Bool, rejectionReason: String? = nil) async throws {
         guard let staffId = supabase.currentUserId else { return }
         
@@ -48,7 +39,6 @@ class DocumentService {
             .eq("id", value: documentId)
             .execute()
         
-        // Log action to audit log
         try await AuditService.shared.logAction(
             action: isVerified ? "VERIFY_DOCUMENT" : "REJECT_DOCUMENT",
             tableName: "documents",
@@ -57,13 +47,11 @@ class DocumentService {
         )
     }
     
-    /// Generates a temporary signed URL for displaying a document from Supabase Storage
     func getSignedUrl(bucket: String, path: String) async throws -> URL {
         struct SignedURLResponse: Decodable {
             let signedURL: String
         }
         
-        // Supabase Swift client supports download/getSignedURL directly:
         let url = try await supabase.storage
             .from(bucket)
             .createSignedURL(path: path, expiresIn: 3600)
@@ -71,7 +59,6 @@ class DocumentService {
         return url
     }
     
-    /// Uploads a file (e.g. PDF sanction letter) to Supabase Storage and records it in database
     func uploadDocument(
         ownerId: UUID,
         ownerType: String = "borrower",
@@ -88,7 +75,6 @@ class DocumentService {
         let bucket = "documents"
         let storagePath = "\(ownerId.uuidString)/\(uniqueName)"
         
-        // Upload to storage bucket
         _ = try await supabase.storage
             .from(bucket)
             .upload(
@@ -97,7 +83,6 @@ class DocumentService {
                 options: FileOptions(cacheControl: "3600", contentType: mimeType)
             )
         
-        // Insert DB record
         let insertPayload: [String: AnyEncodable] = [
             "owner_id": AnyEncodable(ownerId),
             "owner_type": AnyEncodable(ownerType),

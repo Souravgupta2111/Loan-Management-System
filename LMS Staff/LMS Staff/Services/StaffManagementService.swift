@@ -1,10 +1,3 @@
-//
-//  StaffManagementService.swift
-//  LMS Staff
-//
-//  Service for managing staff profiles, credentials, role assignments, and branch lists.
-//
-
 import Foundation
 import Supabase
 
@@ -21,7 +14,6 @@ class StaffManagementService {
     
     private init() {}
     
-    /// Fetches all branches
     func fetchBranches() async throws -> [Branch] {
         let branches: [Branch] = try await supabase.database
             .from("branches")
@@ -31,7 +23,6 @@ class StaffManagementService {
         return branches
     }
     
-    /// Fetches all staff members by joining staff_profiles and users tables in-memory.
     func fetchStaff() async throws -> [StaffWithUser] {
         let staffProfiles: [StaffProfile] = try await supabase.database
             .from("staff_profiles")
@@ -57,9 +48,7 @@ class StaffManagementService {
         }
     }
     
-    /// Fetches the branch manager for a given branch
     func fetchBranchManager(branchId: UUID) async throws -> AppUser? {
-        // Find staff profiles in the branch
         let profiles: [StaffProfile] = try await supabase.database
             .from("staff_profiles")
             .select()
@@ -67,7 +56,6 @@ class StaffManagementService {
             .execute()
             .value
             
-        // Fetch the corresponding users to see who has the manager role
         let userIds = profiles.map { $0.userId }
         if userIds.isEmpty { return nil }
         
@@ -82,7 +70,6 @@ class StaffManagementService {
         return users.first
     }
     
-    /// Auto-generates a unique employee ID based on role prefix (ADM-, MGR-, OFF-)
     func generateEmployeeId(for role: UserRole) async -> String {
         let prefix: String
         switch role {
@@ -92,12 +79,10 @@ class StaffManagementService {
         case .borrower: prefix = "BOR-"
         }
         
-        // Loop until unique
         while true {
             let num = String(format: "%04d", Int.random(in: 1...9999))
             let candidateId = "\(prefix)\(num)"
             
-            // Check uniqueness in database
             do {
                 let existing: [StaffProfile] = try await supabase.database
                     .from("staff_profiles")
@@ -110,19 +95,16 @@ class StaffManagementService {
                     return candidateId
                 }
             } catch {
-                // If query fails, fall back to random
                 return candidateId
             }
         }
     }
     
-    /// Generates a random alphanumeric password of specified length
     func generateRandomPassword(length: Int = 10) -> String {
         let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
         return String((0..<length).map{ _ in letters.randomElement()! })
     }
     
-    /// Creates a new staff member account via database RPC
     func createStaff(
         fullName: String,
         role: UserRole,
@@ -133,7 +115,6 @@ class StaffManagementService {
         
         let employeeId = await generateEmployeeId(for: role)
         let password = generateRandomPassword()
-        // Use provided email for auth, falling back to internal email
         let authEmail = AuthService.shared.resolveEmail(from: employeeId)
         
         struct CreateParams: Encodable {
@@ -156,13 +137,11 @@ class StaffManagementService {
             p_branch_id: branchId.uuidString
         )
         
-        // Execute the SECURITY DEFINER Postgres RPC function to create Auth user without logging out
         let newUserId: UUID = try await supabase.database
             .rpc("create_staff_user", params: params)
             .execute()
             .value
         
-        // Save the real email to users table if provided
         if let email = staffEmail, !email.isEmpty {
             try? await supabase.database
                 .from("users")
@@ -171,7 +150,6 @@ class StaffManagementService {
                 .execute()
         }
         
-        // Save credentials to staff_credentials table
         let credPayload: [String: AnyEncodable] = [
             "user_id": AnyEncodable(newUserId.uuidString),
             "employee_id": AnyEncodable(employeeId),
@@ -183,7 +161,6 @@ class StaffManagementService {
             .insert(credPayload)
             .execute()
             
-        // Log action in audit trail
         try await AuditService.shared.logAction(
             action: "CREATE_STAFF",
             tableName: "staff_profiles",
@@ -191,7 +168,6 @@ class StaffManagementService {
             summary: "Created staff user \(fullName) (\(employeeId)) as \(designation)"
         )
         
-        // Send real email with credentials
         await sendCredentialEmail(
             toEmail: staffEmail ?? authEmail,
             employeeName: fullName,
@@ -203,7 +179,6 @@ class StaffManagementService {
         return (employeeId, password)
     }
     
-    /// Deactivates or Activates a staff member
     func toggleStaffStatus(userId: UUID, isActive: Bool) async throws {
         try await supabase.database
             .from("users")
@@ -211,7 +186,6 @@ class StaffManagementService {
             .eq("id", value: userId)
             .execute()
             
-        // Log action in audit trail
         try await AuditService.shared.logAction(
             action: isActive ? "ACTIVATE_STAFF" : "DEACTIVATE_STAFF",
             tableName: "users",
@@ -220,9 +194,7 @@ class StaffManagementService {
         )
     }
     
-    /// Updates role of a staff member
     func updateStaffRole(userId: UUID, profileId: UUID, oldEmployeeId: String, newRole: UserRole) async throws {
-        // Parse new Employee ID with prefix
         let parts = oldEmployeeId.components(separatedBy: "-")
         let suffix = parts.count > 1 ? parts[1] : String(format: "%04d", Int.random(in: 1...9999))
         let prefix: String
@@ -235,7 +207,6 @@ class StaffManagementService {
         let newEmployeeId = "\(prefix)\(suffix)"
         let newEmail = AuthService.shared.resolveEmail(from: newEmployeeId)
         
-        // Update users table
         try await supabase.database
             .from("users")
             .update([
@@ -245,7 +216,6 @@ class StaffManagementService {
             .eq("id", value: userId)
             .execute()
             
-        // Update staff_profiles table
         try await supabase.database
             .from("staff_profiles")
             .update([
@@ -255,7 +225,6 @@ class StaffManagementService {
             .eq("id", value: profileId)
             .execute()
             
-        // Log action in audit trail
         try await AuditService.shared.logAction(
             action: "CHANGE_ROLE",
             tableName: "users",
@@ -264,7 +233,6 @@ class StaffManagementService {
         )
     }
     
-    /// Updates staff profile permissions
     func updateStaffProfile(
         profileId: UUID,
         department: String?,
@@ -314,7 +282,6 @@ class StaffManagementService {
             .eq("id", value: profileId)
             .execute()
             
-        // Log action
         try await AuditService.shared.logAction(
             action: "UPDATE_STAFF_PROFILE",
             tableName: "staff_profiles",
@@ -323,7 +290,6 @@ class StaffManagementService {
         )
     }
     
-    /// Resets staff member's password, saves credentials, and sends notification
     func resetStaffPassword(userId: UUID, employeeId: String, email: String) async throws -> String {
         let newPassword = generateRandomPassword()
         
@@ -337,13 +303,11 @@ class StaffManagementService {
             p_new_password: newPassword
         )
         
-        // Execute the SECURITY DEFINER Postgres RPC function to update Auth user's password
         let _: Bool = try await supabase.database
             .rpc("reset_staff_password", params: params)
             .execute()
             .value
         
-        // Update the user's email in the users table
         if !email.isEmpty {
             try? await supabase.database
                 .from("users")
@@ -352,8 +316,6 @@ class StaffManagementService {
                 .execute()
         }
         
-        // Upsert credentials into staff_credentials table
-        // First try to find existing record
         struct CredRecord: Decodable { let id: UUID }
         let existing: [CredRecord] = (try? await supabase.database
             .from("staff_credentials")
@@ -363,7 +325,6 @@ class StaffManagementService {
             .value) ?? []
         
         if let existingId = existing.first?.id {
-            // Update existing
             try? await supabase.database
                 .from("staff_credentials")
                 .update([
@@ -374,7 +335,6 @@ class StaffManagementService {
                 .eq("id", value: existingId)
                 .execute()
         } else {
-            // Insert new
             let credPayload: [String: AnyEncodable] = [
                 "user_id": AnyEncodable(userId.uuidString),
                 "employee_id": AnyEncodable(employeeId),
@@ -387,7 +347,6 @@ class StaffManagementService {
                 .execute()
         }
         
-        // Send in-app notification to the employee with new credentials
         try? await NotificationService.shared.createNotification(
             userId: userId,
             title: "Password Reset",
@@ -395,7 +354,6 @@ class StaffManagementService {
             type: .system
         )
             
-        // Log action in audit trail
         try await AuditService.shared.logAction(
             action: "RESET_STAFF_PASSWORD",
             tableName: "users",
@@ -403,7 +361,6 @@ class StaffManagementService {
             summary: "Reset password for staff \(employeeId), credentials sent to \(email)"
         )
         
-        // Send real email with credentials
         await sendCredentialEmail(
             toEmail: email,
             employeeName: employeeId,
@@ -415,9 +372,7 @@ class StaffManagementService {
         return newPassword
     }
     
-    // MARK: - Email Delivery via Edge Function
     
-    /// Sends credential email to staff via Supabase Edge Function
     private func sendCredentialEmail(
         toEmail: String,
         employeeName: String,
@@ -454,7 +409,6 @@ class StaffManagementService {
             print("✅ Credential email sent to \(toEmail)")
         } catch {
             print("⚠️ Failed to send credential email: \(error.localizedDescription)")
-            // Non-blocking: credentials are already saved in DB
         }
     }
 }

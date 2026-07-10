@@ -1,10 +1,3 @@
-//
-//  NPAService.swift
-//  LMS Staff
-//
-//  Service for managing NPA / recovery, restructuring loans, write-offs, and escalations.
-//
-
 import Foundation
 import Supabase
 
@@ -15,7 +8,6 @@ class NPAService {
     
     private init() {}
     
-    /// Restructures a loan by updating rate/tenure, waiving penalty, and regenerating the amortization schedule.
     func restructureLoan(
         loan: Loan,
         revisedRate: Double,
@@ -29,7 +21,6 @@ class NPAService {
         
         let restructureId = UUID()
         
-        // 1. Log restructure application
         let restructurePayload: [String: AnyEncodable] = [
             "id": AnyEncodable(restructureId),
             "original_loan_id": AnyEncodable(loan.id),
@@ -47,7 +38,6 @@ class NPAService {
             .insert(restructurePayload)
             .execute()
             
-        // 2. Delete upcoming/unpaid EMIs for the loan
         try await supabase.database
             .from("emi_schedule")
             .delete()
@@ -55,7 +45,6 @@ class NPAService {
             .eq("status", value: EMIStatus.upcoming.rawValue) // Or unpaid
             .execute()
             
-        // 3. Recalculate outstanding balance as new principal
         let newPrincipal = loan.outstandingPrincipal
         let monthlyRate = (revisedRate / 12.0) / 100.0
         
@@ -69,7 +58,6 @@ class NPAService {
         
         let totalPayable = emiAmount * Double(revisedTenure)
         
-        // 4. Update Loan Table
         try await supabase.database
             .from("loans")
             .update([
@@ -84,7 +72,6 @@ class NPAService {
             .eq("id", value: loan.id)
             .execute()
             
-        // 5. Regenerate new EMIs
         let calendar = Calendar.current
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withFullDate]
@@ -124,14 +111,12 @@ class NPAService {
                 .execute()
         }
         
-        // 6. Notify Borrower
         try await NotificationService.shared.createNotification(
             userId: loan.borrowerId,
             title: "Loan Restructured Successfully",
             message: "Your loan terms have been revised: Tenure: \(revisedTenure) months, Interest Rate: \(revisedRate)%. Your new monthly EMI is INR \(String(format: "%.2f", emiAmount))."
         )
         
-        // 7. Audit log
         try await AuditService.shared.logAction(
             action: "RESTRUCTURE_LOAN",
             tableName: "loans",
@@ -140,7 +125,6 @@ class NPAService {
         )
     }
     
-    /// Irreversibly writes off a loan.
     func writeOffLoan(loan: Loan, reason: String) async throws {
         try await supabase.database
             .from("loans")
@@ -154,9 +138,6 @@ class NPAService {
             .eq("id", value: loan.id)
             .execute()
             
-        // Settle unpaid EMIs as written-off (NOT paid). Marking them 'paid'
-        // previously inflated collection efficiency by counting written-off
-        // installments as collected. Only touch installments that aren't paid.
         try await supabase.database
             .from("emi_schedule")
             .update(["status": AnyEncodable(EMIStatus.writtenOff.rawValue)])
@@ -164,14 +145,12 @@ class NPAService {
             .neq("status", value: EMIStatus.paid.rawValue)
             .execute()
             
-        // Notify Borrower
         try await NotificationService.shared.createNotification(
             userId: loan.borrowerId,
             title: "Loan Account Written Off",
             message: "Your loan account \(loan.loanNumber ?? "") has been written off by the institution. Status: Written Off."
         )
         
-        // Audit log
         try await AuditService.shared.logAction(
             action: "WRITE_OFF_LOAN",
             tableName: "loans",
@@ -180,9 +159,7 @@ class NPAService {
         )
     }
     
-    /// Escalates a loan to admin users
     func escalateToAdmin(loan: Loan, reason: String) async throws {
-        // Fetch all admin users
         let admins: [AppUser] = try await supabase.database
             .from("users")
             .select()
@@ -201,7 +178,6 @@ class NPAService {
             )
         }
         
-        // Audit log
         try await AuditService.shared.logAction(
             action: "ESCALATE_NPA_TO_ADMIN",
             tableName: "loans",
@@ -210,12 +186,10 @@ class NPAService {
         )
     }
     
-    /// Triggers the automated NPA background sync (simulating a cron job)
     func triggerNPASync() async throws {
         struct EmptyParams: Encodable {}
         try await supabase.database.rpc("update_npa_status", params: EmptyParams()).execute()
         
-        // After syncing NPA, also send due date reminders for EMIs
         try await sendDueDateReminders()
     }
     
@@ -229,7 +203,6 @@ class NPAService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate]
         
-        // Find dates
         let today = Date()
         guard let in3Days = Calendar.current.date(byAdding: .day, value: 3, to: today) else { return }
         
@@ -244,7 +217,6 @@ class NPAService {
             .value
             
         for emi in upcoming {
-            // Get borrower ID
             struct LoanData: Decodable { let borrower_id: UUID; let loan_number: String? }
             if let loanData: LoanData = try? await supabase.database
                 .from("loans")

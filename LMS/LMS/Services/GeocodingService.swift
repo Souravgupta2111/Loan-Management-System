@@ -1,12 +1,3 @@
-//
-//  GeocodingService.swift
-//  LMS
-//
-//  Converts Indian pincodes to lat/long using the Nominatim (OpenStreetMap)
-//  free geocoding API. Used as fallback when branch_pincodes has no match
-//  and GPS location is unavailable.
-//
-
 import Foundation
 
 struct GeocodingService {
@@ -15,8 +6,6 @@ struct GeocodingService {
 
     private init() {}
 
-    /// Geocodes an Indian pincode to coordinates using Nominatim API.
-    /// Returns (latitude, longitude) or nil if geocoding fails.
     func geocodePincode(_ pincode: String) async -> (latitude: Double, longitude: Double)? {
         guard !pincode.isEmpty else { return nil }
 
@@ -48,8 +37,6 @@ struct GeocodingService {
         }
     }
 }
-
-// MARK: - Nominatim Response
 
 private struct NominatimResult: Codable {
     let lat: String

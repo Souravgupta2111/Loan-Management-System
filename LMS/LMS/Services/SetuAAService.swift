@@ -1,14 +1,4 @@
-//
-//  SetuAAService.swift
-//  LMS Staff
-//
-//  Setu Account Aggregator integration for income verification.
-//  Uses Setu AA v2 APIs to pull bank transaction data.
-//
-
 import Foundation
-
-// MARK: - Setu AA Data Models
 
 struct SetuTokenResponse: Decodable {
     let access_token: String
@@ -135,8 +125,6 @@ struct SetuFIDataResponse: Decodable {
     }
 }
 
-// MARK: - Analyzed Income Result
-
 struct AnalyzedIncome {
     let monthlySalary: Double
     let averageMonthlyIncome: Double
@@ -159,16 +147,12 @@ struct AnalyzedIncome {
     }
 }
 
-// MARK: - Setu AA Service
-
 @MainActor
 class SetuAAService {
     
     static let shared = SetuAAService()
     private init() {}
     
-    // MARK: - Setu Sandbox Credentials
-    // These are sandbox credentials from the user's Setu Bridge dashboard
     private let clientID = "c611b744-fbbd-42d2-a817-171cbe9b36ac"
     private let clientSecret = "JTbuZo5gMAGukZvRq786LX8hmAcIRywy"
     private let baseURL = "https://orgservice-prod.setu.co"
@@ -177,10 +161,8 @@ class SetuAAService {
     private var accessToken: String?
     private var tokenExpiry: Date?
     
-    // MARK: - Step 1: Get Access Token
     
     func getAccessToken() async throws -> String {
-        // Return cached token if still valid
         if let token = accessToken, let expiry = tokenExpiry, Date() < expiry {
             return token
         }
@@ -214,7 +196,6 @@ class SetuAAService {
         return tokenResponse.access_token
     }
     
-    // MARK: - Step 2: Create Consent Request
     
     func createConsent(mobileNumber: String) async throws -> SetuConsentResponse {
         let token = try await getAccessToken()
@@ -297,7 +278,6 @@ class SetuAAService {
         return try JSONDecoder().decode(SetuConsentResponse.self, from: data)
     }
     
-    // MARK: - Step 3: Check Consent Status
     
     func getConsentStatus(consentId: String) async throws -> SetuConsentStatusResponse {
         let token = try await getAccessToken()
@@ -322,7 +302,6 @@ class SetuAAService {
         return try JSONDecoder().decode(SetuConsentStatusResponse.self, from: data)
     }
     
-    // MARK: - Step 4: Create Data Session (after consent approved)
     
     func createDataSession(consentId: String, dataRange: SetuConsentStatusResponse.FIDataRange? = nil) async throws -> SetuSessionResponse {
         let token = try await getAccessToken()
@@ -341,7 +320,6 @@ class SetuAAService {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime]
         
-        // Fallback to -1 day for 'to' date to ensure it doesn't exceed the consent's generation time
         let fallbackToDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
         
         let sessionBody: [String: Any] = [
@@ -371,7 +349,6 @@ class SetuAAService {
         return try JSONDecoder().decode(SetuSessionResponse.self, from: data)
     }
     
-    // MARK: - Step 5: Fetch Financial Data
     
     func fetchFIData(sessionId: String) async throws -> SetuFIDataResponse {
         let token = try await getAccessToken()
@@ -400,14 +377,12 @@ class SetuAAService {
         return try JSONDecoder().decode(SetuFIDataResponse.self, from: data)
     }
     
-    // MARK: - Step 6: Analyze Transactions → Income Metrics
     
     func analyzeTransactions(_ fiData: SetuFIDataResponse) -> AnalyzedIncome {
         var allTransactions: [SetuFIDataResponse.TransactionEntry] = []
         var accountHolderName: String?
         var panNumber: String?
         
-        // Extract transactions from all accounts
         for fip in fiData.fips ?? [] {
             for accountWrapper in fip.accounts ?? [] {
                 if let account = accountWrapper.data?.account {
@@ -424,7 +399,6 @@ class SetuAAService {
             }
         }
         
-        // Classify transactions
         let salaryKeywords = ["salary", "sal", "payroll", "wages", "stipend", "income"]
         let emiKeywords = ["emi", "loan", "instalment", "installment", "repayment"]
         let bounceKeywords = ["bounce", "return", "dishonour", "insufficient", "reversed"]
@@ -447,14 +421,12 @@ class SetuAAService {
             let txnType = (txn.type ?? "").uppercased()
             let timestamp = txn.transactionTimestamp ?? ""
             
-            // Extract month key
             let monthKey = String(timestamp.prefix(7)) // "YYYY-MM"
             
             if txnType == "CREDIT" {
                 totalCredits += amount
                 monthlyCredits[monthKey, default: 0] += amount
                 
-                // Detect salary
                 if salaryKeywords.contains(where: { narration.contains($0) }) || amount > 15000 {
                     salaryCount += 1
                     monthlySalaries[monthKey, default: 0] += amount
@@ -462,13 +434,11 @@ class SetuAAService {
             } else {
                 totalDebits += amount
                 
-                // Detect EMIs
                 if emiKeywords.contains(where: { narration.contains($0) }) {
                     emiCount += 1
                     emiTotal += amount
                 }
                 
-                // Detect bounces
                 if bounceKeywords.contains(where: { narration.contains($0) }) {
                     bounceCount += 1
                 }
@@ -477,7 +447,6 @@ class SetuAAService {
         
         let monthsAnalyzed = max(monthlyCredits.count, 1)
         
-        // Calculate salary (use median of monthly salaries for stability)
         let sortedSalaries = monthlySalaries.values.sorted()
         let medianSalary: Double
         if sortedSalaries.isEmpty {
@@ -489,14 +458,11 @@ class SetuAAService {
             : sortedSalaries[mid]
         }
         
-        // Average monthly balance (from credits - debits per month)
         let avgMonthlyIncome = totalCredits / Double(monthsAnalyzed)
         let avgMonthlyBalance = (totalCredits - totalDebits) / Double(monthsAnalyzed)
         
-        // Existing EMI estimate
         let existingEMIs = emiCount > 0 ? emiTotal / Double(max(monthsAnalyzed, 1)) : 0
         
-        // Income stability
         let salaryVariation: Double
         if sortedSalaries.count >= 2, let maxSal = sortedSalaries.last, let minSal = sortedSalaries.first, maxSal > 0 {
             salaryVariation = (maxSal - minSal) / maxSal
@@ -530,10 +496,8 @@ class SetuAAService {
         )
     }
     
-    // MARK: - Full Verification Flow (Convenience)
     
     func completeVerification(consentId: String) async throws -> AnalyzedIncome {
-        // Check consent status
         let status = try await getConsentStatus(consentId: consentId)
         guard status.status.uppercased() == "APPROVED" || status.status.uppercased() == "ACTIVE" else {
             throw SetuError.consentNotApproved("Consent status: \(status.status). User must approve first.")
@@ -541,10 +505,8 @@ class SetuAAService {
         
         let dataRange = status.Detail?.FIDataRange ?? status.Detail?.dataRange
         
-        // Create data session
         let session = try await createDataSession(consentId: consentId, dataRange: dataRange)
         
-        // Wait a moment for data to be ready, then fetch
         try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
         
         let fiData = try await fetchFIData(sessionId: session.id)
@@ -561,7 +523,6 @@ class SetuAAService {
         return (consentId: consent.id, url: consent.url)
     }
 }
-// MARK: - Errors
 
 enum SetuError: LocalizedError {
     case authFailed(String)

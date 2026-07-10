@@ -11,7 +11,6 @@ class LoanService {
     
     private init() {}
     
-    /// Fetches all active loan products from the database
     func fetchActiveProducts(for type: LoanType? = nil) async throws -> [LoanProduct] {
         var query = SupabaseManager.shared.client
             .from("loan_products")
@@ -25,7 +24,6 @@ class LoanService {
         return try await query.execute().value
     }
     
-    /// Submits a new loan application and uploads associated documents
     func submitApplication(
         userId: UUID,
         productId: UUID,
@@ -69,8 +67,6 @@ class LoanService {
             .execute()
             .value
 
-        // Track uploaded storage paths so we can clean them up if submission
-        // fails partway through (otherwise the blobs are orphaned in storage).
         var uploadedPaths: [String] = []
         do {
             for (documentType, data) in documents {
@@ -102,18 +98,15 @@ class LoanService {
                 .update(SubmissionUpdate(status: "submitted", submitted_at: Formatter.iso8601.string(from: Date())))
                 .eq("id", value: created.id).eq("status", value: "draft").execute()
 
-            // Auto-assign nearest branch and least-loaded officer (best-effort, non-blocking)
             let _ = await BranchAssignmentService.shared.autoAssign(applicationId: created.id)
 
             NotificationCenter.default.post(name: .loanDataDidChange, object: nil)
             return created.application_number
         } catch {
-            // Discard draft loan completely if submission fails
             _ = try? await SupabaseManager.shared.client.from("loan_applications")
                 .delete()
                 .eq("id", value: created.id)
                 .execute()
-            // Clean up any already-uploaded document blobs so they aren't orphaned.
             if !uploadedPaths.isEmpty {
                 try? await SupabaseManager.shared.client.storage
                     .from("documents")
@@ -123,7 +116,6 @@ class LoanService {
         }
     }
     
-    /// Fetches the user's loans from the database
     func fetchUserLoans(userId: UUID) async throws -> [LoanSummary] {
         struct SupabaseLoanResponse: Decodable {
             let id: UUID
@@ -171,7 +163,6 @@ class LoanService {
         }
     }
     
-    /// Fetches the user's detailed loans for the list view
     func fetchDetailedUserLoans(userId: UUID) async throws -> [LoanListItem] {
         struct ActorRow: Decodable {
             let role: String
@@ -249,7 +240,6 @@ class LoanService {
                 if h.action.lowercased() == "send_back" && (remarks == nil || remarks?.isEmpty == true) {
                     remarks = sentBackReason
                 }
-                // Ensure we always use the latest sent_back_reason if available (manager's actual input)
                 if h.action.lowercased() == "send_back", let sbReason = sentBackReason, !sbReason.isEmpty {
                     remarks = sbReason
                 }
@@ -420,7 +410,6 @@ class LoanService {
         return disbursedLoans + pendingApplications
     }
     
-    // MARK: - Applications
     
     struct ApplicationListItem: Identifiable {
         let id: UUID
@@ -495,7 +484,6 @@ class LoanService {
     }
     
     func resubmitApplication(applicationId: UUID, newDocuments: [String: Data], userId: UUID) async throws {
-        // Upload any new documents provided
         for (docType, data) in newDocuments {
             let filePath = "\(userId.uuidString.lowercased())/\(docType)_\(UUID().uuidString.lowercased()).jpg"
             try await uploadDocument(path: filePath, data: data)
@@ -515,7 +503,6 @@ class LoanService {
             )).execute()
         }
         
-        // Update application status back to submitted
         struct AppUpdate: Encodable {
             let status: String
             let sent_back_reason: String?
@@ -527,7 +514,6 @@ class LoanService {
     }
     
     func acceptDisbursement(applicationId: UUID) async throws {
-        // Update application status to pending_disbursal
         try await SupabaseManager.shared.client
             .from("loan_applications")
             .update(["status": "pending_disbursal"])
@@ -607,7 +593,6 @@ class LoanService {
                     throw LoanSubmissionError.documentUploadFailed(Self.describeUploadError(error))
                 }
 
-                // Exponential backoff: 1s, 2s, 4s, 8s
                 let delay = UInt64(1) << UInt64(attempt - 1)
                 try await Task.sleep(nanoseconds: delay * 1_000_000_000)
             }
@@ -618,11 +603,6 @@ class LoanService {
         )
     }
 
-    /// Direct HTTP upload to Supabase Storage REST API, bypassing the SDK's
-    /// storage client which uses QUIC (HTTP/3) and fails on networks with
-    /// small MTU (the 1362-byte UDP packets exceed the 1216-byte MSS).
-    /// Each attempt uses a fresh ephemeral URLSession so that cached QUIC
-    /// connection state is never reused.
     private func directUpload(bucket: String, path: String, data: Data) async throws {
         let supabaseURL = SupabaseManager.shared.baseURL
         let session = try await SupabaseManager.shared.client.auth.session
@@ -640,8 +620,6 @@ class LoanService {
         request.setValue("false", forHTTPHeaderField: "x-upsert")
         request.timeoutInterval = 60
 
-        // Use a fresh ephemeral session each time so iOS cannot reuse
-        // cached QUIC connection state that causes "Message too long".
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 120
@@ -655,7 +633,6 @@ class LoanService {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-            // 409 = object already exists, treat as success (duplicate upload)
             if code == 409 { return }
 
             let responseBody = String(data: responseData, encoding: .utf8) ?? "No response body"

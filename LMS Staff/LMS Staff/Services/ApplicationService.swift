@@ -1,10 +1,3 @@
-//
-//  ApplicationService.swift
-//  LMS Staff
-//
-//  Service for managing loan applications, assigned officers, and decisions.
-//
-
 import Foundation
 import Supabase
 
@@ -25,7 +18,6 @@ class ApplicationService {
     
     private init() {}
     
-    /// Fetches all applications in the system, joining user, profile, and product data in-memory.
     func fetchAllApplications() async throws -> [ApplicationWithBorrower] {
         let applications: [LoanApplication] = try await supabase.database
             .from("loan_applications")
@@ -37,9 +29,7 @@ class ApplicationService {
         return try await populateApplications(applications)
     }
     
-    /// Fetches applications assigned to a specific loan officer.
     func fetchApplications(forOfficerId officerId: UUID) async throws -> [ApplicationWithBorrower] {
-        // Resolve staff_profiles.id (profileId) and users.id (userId)
         let staffProfile: StaffProfile? = try? await supabase.database
             .from("staff_profiles")
             .select()
@@ -52,10 +42,6 @@ class ApplicationService {
         let userId = staffProfile?.userId ?? officerId
         let branchId = staffProfile?.branchId
 
-        // 1. Fetch applications assigned to this officer, plus NEW submitted
-        //    applications — but only within the officer's OWN branch. Previously
-        //    this matched `status.eq.submitted` with no branch scope, which
-        //    exposed every branch's submitted applications to every officer.
         let applications: [LoanApplication]
         if let branchId {
             applications = try await supabase.database
@@ -66,8 +52,6 @@ class ApplicationService {
                 .execute()
                 .value
         } else {
-            // No branch assigned → only show applications explicitly assigned to
-            // this officer (never leak unassigned/other-branch submissions).
             applications = try await supabase.database
                 .from("loan_applications")
                 .select()
@@ -77,7 +61,6 @@ class ApplicationService {
                 .value
         }
         
-        // 2. Fetch applications officer previously actioned (e.g. recommended to manager)
         struct HistoryID: Codable {
             let application_id: UUID
         }
@@ -108,23 +91,16 @@ class ApplicationService {
             }
         }
         
-        // Sort by created_at descending
         allApps.sort { ($0.createdAt ?? Date()) > ($1.createdAt ?? Date()) }
         
         return try await populateApplications(allApps)
     }
     
-    /// Helper to join products, users, and borrower profiles in-memory.
-    ///
-    /// Uses batched `.in(...)` fetches (three queries total) instead of two
-    /// queries per application, so the cost is constant regardless of how many
-    /// applications are returned (previously O(2N) round-trips).
     private func populateApplications(_ applications: [LoanApplication]) async throws -> [ApplicationWithBorrower] {
         if applications.isEmpty { return [] }
         
         let borrowerIds = Array(Set(applications.map { $0.borrowerId }))
         
-        // 1. Products (all — small reference table).
         let products: [LoanProduct] = try await supabase.database
             .from("loan_products")
             .select()
@@ -132,7 +108,6 @@ class ApplicationService {
             .value
         let productsMap = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         
-        // 2. All borrower users in one query.
         let users: [AppUser] = try await supabase.database
             .from("users")
             .select()
@@ -141,7 +116,6 @@ class ApplicationService {
             .value
         let usersMap = Dictionary(users.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         
-        // 3. All borrower profiles in one query (optional per borrower).
         let profiles: [BorrowerProfile] = (try? await supabase.database
             .from("borrower_profiles")
             .select()
@@ -166,7 +140,6 @@ class ApplicationService {
         return populated
     }
     
-    /// Assigns or updates the officer for a loan application.
     func assignOfficer(applicationId: UUID, officerId: UUID) async throws {
         let payload: [String: AnyEncodable] = [
             "assigned_officer_id": AnyEncodable(officerId),
@@ -208,7 +181,6 @@ class ApplicationService {
             .eq("id", value: applicationId)
             .execute()
             
-        // Fetch borrower ID and staff info to send notifications
         struct AppRecord: Decodable { 
             let borrower_id: UUID
             let branch_id: UUID?
@@ -223,8 +195,6 @@ class ApplicationService {
             .execute()
             .value {
             
-            // Resolve Officer and Manager User IDs with targeted lookups instead
-            // of fetching the entire staff list just to find one officer.
             var officerUserId: UUID? = nil
             if let officerProfileId = record.assigned_officer_id {
                 struct OfficerUserRow: Decodable { let user_id: UUID }
@@ -242,7 +212,6 @@ class ApplicationService {
                 managerUserId = try? await StaffManagementService.shared.fetchBranchManager(branchId: branchId)?.id
             }
             
-            // Determine current user role
             let currentUserId = supabase.currentUserId
             var currentUserRole: UserRole? = nil
             if let currentUserId = currentUserId {
@@ -268,7 +237,6 @@ class ApplicationService {
                     )
                 }
                 
-                // Notify Borrower
                 try? await NotificationService.shared.createNotification(
                     userId: record.borrower_id,
                     title: "Application Under Review",
@@ -279,7 +247,6 @@ class ApplicationService {
                 )
             } else if status == .sentBack {
                 if currentUserRole == .officer {
-                    // Officer sent back to borrower
                     try? await NotificationService.shared.createNotification(
                         userId: record.borrower_id,
                         title: "Additional Documents Required",
@@ -289,7 +256,6 @@ class ApplicationService {
                         referenceType: "loan_applications"
                     )
                 } else {
-                    // Manager sent back to officer
                     if let officerId = officerUserId {
                         try? await NotificationService.shared.createNotification(
                             userId: officerId,
@@ -301,7 +267,6 @@ class ApplicationService {
                         )
                     }
                     
-                    // Also notify borrower
                     try? await NotificationService.shared.createNotification(
                         userId: record.borrower_id,
                         title: "Application Under Revision",
@@ -364,7 +329,6 @@ class ApplicationService {
         default: actionValue = "submit"
         }
         
-        // Log action in approval history
         try await addApprovalHistory(
             applicationId: applicationId,
             action: actionValue,
@@ -372,7 +336,6 @@ class ApplicationService {
             remarks: reason
         )
         
-        // Log to audit log
         try await AuditService.shared.logAction(
             action: "UPDATE_STATUS_\(status.rawValue.uppercased())",
             tableName: "loan_applications",
@@ -416,7 +379,6 @@ class ApplicationService {
             .execute()
     }
     
-    /// Requests documents from the borrower (KYC, income slips, etc.).
     func requestDocuments(applicationId: UUID, borrowerId: UUID, documentTypes: [String], remarks: String) async throws {
         for type in documentTypes {
             let docPayload: [String: AnyEncodable] = [
@@ -434,7 +396,6 @@ class ApplicationService {
                 .execute()
         }
         
-        // Notify Borrower
         try await NotificationService.shared.createNotification(
             userId: borrowerId,
             title: "Documents Requested",
@@ -450,7 +411,6 @@ class ApplicationService {
     }
 }
 
-// MARK: - Encodable Wrapper for arbitrary Dictionary insertions
 struct AnyEncodable: Encodable {
     private let encode: (Encoder) throws -> Void
     
